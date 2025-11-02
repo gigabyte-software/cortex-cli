@@ -12,7 +12,6 @@ class OutputFormatter
     // Gigabyte Brand Colors
     private const COLOR_TEAL = '#2ED9C3';    // Pantone 3255C
     private const COLOR_PURPLE = '#7D55C7';  // Pantone 2665C
-    private const COLOR_STEEL = '#B9D2DC';   // Pantone 551C
     private const COLOR_SMOKE = '#D2DCE5';   // Pantone 5455C
 
     public function __construct(

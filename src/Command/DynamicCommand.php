@@ -33,7 +33,12 @@ class DynamicCommand extends Command
         $formatter = new OutputFormatter($output);
 
         try {
-            $executionTime = $this->orchestrator->run($this->getName(), $this->config);
+            $commandName = $this->getName();
+            if ($commandName === null) {
+                throw new \RuntimeException('Command name is not set');
+            }
+            
+            $executionTime = $this->orchestrator->run($commandName, $this->config);
 
             $output->writeln('');
             $output->writeln(sprintf(
