@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Check if running as PHAR
+if (Phar::running()) {
+    require 'phar://cortex.phar/vendor/autoload.php';
+} else {
+    // Development mode
+    $autoloadPaths = [
+        __DIR__ . '/../vendor/autoload.php',
+        __DIR__ . '/../../../autoload.php', // If installed as dependency
+    ];
+
+    $loaded = false;
+    foreach ($autoloadPaths as $autoloadPath) {
+        if (file_exists($autoloadPath)) {
+            require $autoloadPath;
+            $loaded = true;
+            break;
+        }
+    }
+
+    if (!$loaded) {
+        fwrite(STDERR, "Error: Could not find autoload.php. Please run 'composer install'.\n");
+        exit(1);
+    }
+}
+
+use Cortex\Application;
+
+$application = new Application();
+$application->run();
+

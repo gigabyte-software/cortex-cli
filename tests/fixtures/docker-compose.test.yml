@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  app:
+    image: php:8.2-cli
+    command: sleep infinity
+    
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: test
+

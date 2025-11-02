@@ -1,0 +1,40 @@
+version: "1.0"
+
+docker:
+  compose_file: "docker-compose.yml"
+  primary_service: "app"
+  wait_for:
+    - service: "db"
+      timeout: 60
+    - service: "redis"
+      timeout: 30
+
+setup:
+  pre_start:
+    - command: "[ ! -f .env ] && cp .env.example .env || true"
+      description: "Create environment file if it doesn't exist"
+      ignore_failure: true
+      
+  initialize:
+    - command: "composer install --no-interaction"
+      description: "Install PHP dependencies"
+      retry: 2
+      timeout: 300
+      
+    - command: "php artisan migrate:fresh --seed --force"
+      description: "Setup database"
+      ignore_failure: false
+
+commands:
+  test:
+    command: "php artisan test"
+    description: "Run test suite"
+    
+  shell:
+    command: "bash"
+    description: "Open shell in container"
+    
+  fresh_db:
+    command: "php artisan migrate:fresh --seed"
+    description: "Reset database with fresh data"
+

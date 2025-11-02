@@ -1,0 +1,3 @@
+version: "1.0"
+# Missing docker section - should fail validation
+

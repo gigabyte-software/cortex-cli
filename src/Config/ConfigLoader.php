@@ -1,0 +1,207 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Cortex\Config;
+
+use Cortex\Config\Exception\ConfigException;
+use Cortex\Config\Schema\CommandDefinition;
+use Cortex\Config\Schema\CortexConfig;
+use Cortex\Config\Schema\DockerConfig;
+use Cortex\Config\Schema\ServiceWaitConfig;
+use Cortex\Config\Schema\SetupConfig;
+use Cortex\Config\Validator\ConfigValidator;
+use Symfony\Component\Yaml\Yaml;
+
+class ConfigLoader
+{
+    public function __construct(
+        private readonly ConfigValidator $validator,
+    ) {
+    }
+
+    /**
+     * @throws ConfigException
+     */
+    public function load(string $path = 'cortex.yml'): CortexConfig
+    {
+        $filePath = $this->resolveConfigPath($path);
+
+        if (!file_exists($filePath)) {
+            throw new ConfigException("Configuration file not found: $filePath");
+        }
+
+        $content = file_get_contents($filePath);
+        if ($content === false) {
+            throw new ConfigException("Failed to read configuration file: $filePath");
+        }
+
+        try {
+            $config = Yaml::parse($content);
+        } catch (\Exception $e) {
+            throw new ConfigException("Failed to parse YAML: {$e->getMessage()}", 0, $e);
+        }
+
+        if (!is_array($config)) {
+            throw new ConfigException("Invalid configuration: expected array, got " . gettype($config));
+        }
+
+        $this->validator->validate($config);
+
+        return $this->buildConfig($config, dirname($filePath));
+    }
+
+    /**
+     * Find cortex.yml in current or parent directories
+     * 
+     * @throws ConfigException
+     */
+    public function findConfigFile(): string
+    {
+        $currentDir = getcwd();
+        if ($currentDir === false) {
+            throw new ConfigException("Failed to get current working directory");
+        }
+
+        $maxDepth = 10;
+        $depth = 0;
+
+        while ($depth < $maxDepth) {
+            $configPath = $currentDir . '/cortex.yml';
+            if (file_exists($configPath)) {
+                return $configPath;
+            }
+
+            $parentDir = dirname($currentDir);
+            if ($parentDir === $currentDir) {
+                break; // Reached root
+            }
+
+            $currentDir = $parentDir;
+            $depth++;
+        }
+
+        throw new ConfigException("cortex.yml not found in current directory or any parent directory");
+    }
+
+    private function resolveConfigPath(string $path): string
+    {
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        $cwd = getcwd();
+        if ($cwd === false) {
+            throw new ConfigException("Failed to get current working directory");
+        }
+
+        return $cwd . '/' . $path;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function buildConfig(array $config, string $configDir): CortexConfig
+    {
+        $docker = $this->buildDockerConfig($config['docker'], $configDir);
+        $setup = $this->buildSetupConfig($config['setup'] ?? []);
+        $commands = $this->buildCommandsMap($config['commands'] ?? []);
+
+        return new CortexConfig(
+            version: $config['version'],
+            docker: $docker,
+            setup: $setup,
+            commands: $commands,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $dockerConfig
+     */
+    private function buildDockerConfig(array $dockerConfig, string $configDir): DockerConfig
+    {
+        $waitFor = [];
+        if (isset($dockerConfig['wait_for']) && is_array($dockerConfig['wait_for'])) {
+            foreach ($dockerConfig['wait_for'] as $waitConfig) {
+                $waitFor[] = new ServiceWaitConfig(
+                    service: $waitConfig['service'],
+                    timeout: $waitConfig['timeout'],
+                );
+            }
+        }
+
+        // Resolve compose file path relative to config directory
+        $composeFile = $dockerConfig['compose_file'];
+        if (!str_starts_with($composeFile, '/')) {
+            $composeFile = $configDir . '/' . $composeFile;
+        }
+
+        return new DockerConfig(
+            composeFile: $composeFile,
+            primaryService: $dockerConfig['primary_service'],
+            waitFor: $waitFor,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $setupConfig
+     */
+    private function buildSetupConfig(array $setupConfig): SetupConfig
+    {
+        $preStart = [];
+        if (isset($setupConfig['pre_start']) && is_array($setupConfig['pre_start'])) {
+            $preStart = $this->buildCommandList($setupConfig['pre_start']);
+        }
+
+        $initialize = [];
+        if (isset($setupConfig['initialize']) && is_array($setupConfig['initialize'])) {
+            $initialize = $this->buildCommandList($setupConfig['initialize']);
+        }
+
+        return new SetupConfig(
+            preStart: $preStart,
+            initialize: $initialize,
+        );
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $commands
+     * @return CommandDefinition[]
+     */
+    private function buildCommandList(array $commands): array
+    {
+        $result = [];
+        foreach ($commands as $command) {
+            $result[] = $this->buildCommandDefinition($command);
+        }
+        return $result;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $commands
+     * @return array<string, CommandDefinition>
+     */
+    private function buildCommandsMap(array $commands): array
+    {
+        $result = [];
+        foreach ($commands as $name => $command) {
+            $result[$name] = $this->buildCommandDefinition($command);
+        }
+        return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $command
+     */
+    private function buildCommandDefinition(array $command): CommandDefinition
+    {
+        return new CommandDefinition(
+            command: $command['command'],
+            description: $command['description'],
+            timeout: $command['timeout'] ?? 60,
+            retry: $command['retry'] ?? 0,
+            ignoreFailure: $command['ignore_failure'] ?? false,
+        );
+    }
+}
+
