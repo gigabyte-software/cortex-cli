@@ -3,4 +3,6 @@
 /.php-cs-fixer.cache
 /.phpunit.cache
 /cortex.phar
+/coverage.xml
+/coverage-html/
 
