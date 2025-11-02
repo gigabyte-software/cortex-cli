@@ -22,17 +22,17 @@ A PHP-based CLI tool that orchestrates Docker-based development environments usi
 
 ```bash
 # Download and install with one command
-curl -L https://your-site.com/install.sh | bash
+curl -fsSL https://github.com/gigabyte-software/cortex-cli/releases/latest/download/install.sh | bash
 ```
 
 ### Manual Install
 
 ```bash
 # Download the PHAR
-curl -L https://your-site.com/cortex.phar -o cortex.phar
+curl -L https://github.com/gigabyte-software/cortex-cli/releases/latest/download/cortex.phar -o cortex.phar
 
 # Download and run installer
-curl -L https://your-site.com/install.sh -o install.sh
+curl -L https://github.com/gigabyte-software/cortex-cli/releases/latest/download/install.sh -o install.sh
 chmod +x install.sh
 ./install.sh
 ```
@@ -45,7 +45,7 @@ This will:
 ### From Source
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/gigabyte-software/cortex-cli.git
 cd cortex-cli
 composer install --no-dev
 chmod +x bin/cortex

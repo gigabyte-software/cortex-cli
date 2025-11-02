@@ -23,6 +23,20 @@ use Symfony\Component\Console\Output\ConsoleOutput;
 
 class Application extends BaseApplication
 {
+    protected function getDefaultCommands(): array
+    {
+        $defaultCommands = [new \Symfony\Component\Console\Command\HelpCommand()];
+        
+        // Only add ListCommand and CompletionCommand when NOT running as PHAR
+        $defaultCommands[] = new \Symfony\Component\Console\Command\ListCommand();
+        
+        if (!\Phar::running()) {
+            $defaultCommands[] = new \Symfony\Component\Console\Command\DumpCompletionCommand();
+        }
+        
+        return $defaultCommands;
+    }
+
     public function __construct()
     {
         parent::__construct('Cortex CLI', '1.0.0');

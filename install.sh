@@ -2,29 +2,37 @@
 
 set -e
 
+# Gigabyte Brand Colors (for terminals that support it)
+PURPLE='\033[38;2;125;85;199m'
+TEAL='\033[38;2;46;217;195m'
+SMOKE='\033[38;2;210;220;229m'
+RED='\033[38;2;255;68;68m'
+GREEN='\033[38;2;80;250;123m'
+NC='\033[0m' # No Color
+
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " 🚀 Installing Cortex CLI"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${PURPLE}──────────────────────────────────────────────────${NC}"
+echo -e "${PURPLE} Installing Cortex CLI${NC}"
+echo -e "${PURPLE}──────────────────────────────────────────────────${NC}"
 echo ""
 
 # Check if cortex.phar exists
 if [ ! -f "cortex.phar" ]; then
-    echo "❌ Error: cortex.phar not found in current directory"
+    echo -e "${RED}Error: cortex.phar not found in current directory${NC}"
     echo ""
     echo "Download it first:"
-    echo "  curl -L https://github.com/YOUR-ORG/cortex-cli/releases/latest/download/cortex.phar -o cortex.phar"
+    echo "  curl -L https://github.com/gigabyte-software/cortex-cli/releases/latest/download/cortex.phar -o cortex.phar"
     echo ""
     exit 1
 fi
 
 # Install PHAR to /usr/local/bin
-echo "📦 Installing Cortex CLI..."
+echo -e "${TEAL}▸ Installing Cortex CLI${NC}"
 if sudo cp cortex.phar /usr/local/bin/cortex; then
     sudo chmod +x /usr/local/bin/cortex
-    echo "   ✓ Installed to /usr/local/bin/cortex"
+    echo -e "${SMOKE}  Installed to /usr/local/bin/cortex${NC}"
 else
-    echo "   ❌ Failed to install. Try running with sudo"
+    echo -e "${RED}  Failed to install. Try running with sudo${NC}"
     exit 1
 fi
 
@@ -35,74 +43,36 @@ SHELL_NAME=$(basename "$SHELL")
 
 case "$SHELL_NAME" in
     bash)
-        echo "🔧 Installing Bash completion..."
-        if cortex completion bash | sudo tee /etc/bash_completion.d/cortex > /dev/null 2>&1; then
-            echo "   ✓ Bash completion installed"
-            RELOAD_CMD="source ~/.bashrc"
-        else
-            echo "   ⚠  Could not install system-wide completion"
-            echo "   💡 Installing to user directory instead..."
-            
-            COMPLETION_FILE="$HOME/.bash_completion"
-            cortex completion bash >> "$COMPLETION_FILE"
-            echo "   ✓ Bash completion installed to $COMPLETION_FILE"
-            RELOAD_CMD="source ~/.bashrc"
-        fi
+        echo -e "${TEAL}▸ Installing Bash completion${NC}"
+        # Skip completion due to PHAR issue - will document workaround
+        echo -e "${SMOKE}  Skipping auto-completion (install manually if needed)${NC}"
+        RELOAD_CMD=""
         ;;
         
     zsh)
-        echo "🔧 Installing Zsh completion..."
-        if cortex completion zsh | sudo tee /usr/share/zsh/vendor-completions/_cortex > /dev/null 2>&1; then
-            echo "   ✓ Zsh completion installed"
-            RELOAD_CMD="source ~/.zshrc"
-        else
-            echo "   ⚠  Could not install system-wide completion"
-            echo "   💡 Installing to user directory instead..."
-            
-            COMP_DIR="$HOME/.zsh/completion"
-            mkdir -p "$COMP_DIR"
-            cortex completion zsh > "$COMP_DIR/_cortex"
-            echo "   ✓ Zsh completion installed to $COMP_DIR/_cortex"
-            
-            # Check if fpath is configured
-            if ! grep -q "fpath=.*\.zsh/completion" ~/.zshrc 2>/dev/null; then
-                echo ""
-                echo "   📝 Add this to your ~/.zshrc:"
-                echo "      fpath=($COMP_DIR \$fpath)"
-                echo "      autoload -U compinit && compinit"
-            fi
-            
-            RELOAD_CMD="source ~/.zshrc"
-        fi
+        echo -e "${TEAL}▸ Installing Zsh completion${NC}"
+        # Skip completion due to PHAR issue - will document workaround
+        echo -e "${SMOKE}  Skipping auto-completion (install manually if needed)${NC}"
+        RELOAD_CMD=""
         ;;
         
     *)
-        echo "⚠  Unknown shell: $SHELL_NAME"
-        echo "   Supported shells: bash, zsh"
-        echo "   Tab completion not installed"
         RELOAD_CMD=""
         ;;
 esac
 
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " ✅ Installation Complete!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${PURPLE}──────────────────────────────────────────────────${NC}"
+echo -e "${PURPLE} Installation Complete${NC}"
+echo -e "${PURPLE}──────────────────────────────────────────────────${NC}"
 echo ""
-echo "🎯 Quick Start:"
+echo -e "${SMOKE}Verify installation:${NC}"
+echo -e "${TEAL}  cortex --version${NC}"
 echo ""
-echo "  1. Activate completion:"
-if [ -n "$RELOAD_CMD" ]; then
-    echo "     $RELOAD_CMD"
-fi
+echo -e "${SMOKE}Get started:${NC}"
+echo -e "${TEAL}  cd your-project/${NC}"
+echo -e "${TEAL}  cortex up${NC}"
 echo ""
-echo "  2. Verify installation:"
-echo "     cortex --version"
-echo ""
-echo "  3. Get started:"
-echo "     cd your-project/"
-echo "     cortex up"
-echo ""
-echo "📚 Documentation: https://github.com/YOUR-ORG/cortex-cli"
+echo -e "${SMOKE}Documentation: ${TEAL}https://github.com/gigabyte-software/cortex-cli${NC}"
 echo ""
 
