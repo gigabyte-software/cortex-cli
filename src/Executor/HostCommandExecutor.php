@@ -6,6 +6,7 @@ namespace Cortex\Executor;
 
 use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Executor\Result\ExecutionResult;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
 class HostCommandExecutor
@@ -22,12 +23,16 @@ class HostCommandExecutor
         $process = Process::fromShellCommandline($cmd->command);
         $process->setTimeout($cmd->timeout);
         
-        if ($outputCallback !== null) {
-            // Run with real-time output streaming
-            $process->run($outputCallback);
-        } else {
-            // Run without streaming
-            $process->run();
+        try {
+            if ($outputCallback !== null) {
+                // Run with real-time output streaming
+                $process->run($outputCallback);
+            } else {
+                // Run without streaming
+                $process->run();
+            }
+        } catch (ProcessTimedOutException $e) {
+            // Process timed out - continue to return result with failure status
         }
 
         $executionTime = microtime(true) - $startTime;

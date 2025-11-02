@@ -13,24 +13,12 @@ setup:
       description: "Create temporary directory"
       
   initialize:
-    - command: "php -v"
-      description: "Check PHP version"
-      timeout: 30
-    - command: "echo 'Initialization complete'"
-      description: "Finalize setup"
-      timeout: 30
+    - command: "echo 'Initialize command executed'"
+      description: "Test initialize command"
+      timeout: 120
 
 commands:
   test:
-    command: "php -v && echo 'Running tests...'"
+    command: "echo 'Running tests'"
     description: "Run test suite"
-  
-  hello:
-    command: "echo 'Hello from Cortex CLI!'"
-    description: "Simple hello command"
-  
-  info:
-    command: "php -i | head -20"
-    description: "Show PHP info"
-    timeout: 60
 
