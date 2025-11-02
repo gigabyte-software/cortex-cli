@@ -2,7 +2,7 @@
     "name": "cortex/cli",
     "description": "A CLI tool for orchestrating Docker-based development environments",
     "type": "project",
-    "license": "MIT",
+    "license": "Apache-2.0",
     "autoload": {
         "psr-4": {
             "Cortex\\": "src/"
