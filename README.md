@@ -77,6 +77,12 @@ Start your development environment:
 cortex up
 ```
 
+This will:
+1. Run pre-start commands on host
+2. Start Docker Compose services
+3. Wait for services to be healthy
+4. Run initialize commands in container
+
 Options:
 - `--no-wait` - Skip health checks
 - `--skip-init` - Skip initialize commands
@@ -86,19 +92,22 @@ Options:
 Stop your development environment:
 
 ```bash
-cortex down
+cortex down           # Stop services, keep volumes
+cortex down --volumes # Stop services and remove volumes
 ```
-
-Options:
-- `--volumes` - Also remove volumes
 
 ### `cortex status`
 
-Check the status of services:
+Check the health status of services:
 
 ```bash
 cortex status
 ```
+
+Shows a table with:
+- Service names
+- Running status (running/exited)
+- Health status (healthy/unhealthy/starting)
 
 ### `cortex <custom>`
 
@@ -107,6 +116,8 @@ Run custom commands defined in your `cortex.yml`:
 ```bash
 cortex test
 ```
+
+(Coming in Phase 4)
 
 ## Configuration
 
@@ -159,21 +170,23 @@ commands:       # Optional: Custom commands
 - [x] Basic `up` command skeleton
 - [x] Unit tests for Config layer
 
-### Phase 2: Core Execution (Next)
+### Phase 2: Core Execution ✅
 
-- [ ] Executor layer (Host, Container, Retry)
-- [ ] Health checker
-- [ ] Container executor
-- [ ] Full `up` command implementation
+- [x] Executor layer (Host, Container executors)
+- [x] Health checker
+- [x] Container executor
+- [x] Full `up` command implementation
+- [x] Command execution in containers
+- [x] Real-time command output
 
-### Phase 3: Orchestration
+### Phase 3: Orchestration (In Progress)
 
-- [ ] Setup orchestrator
-- [ ] `down` command
-- [ ] `status` command
-- [ ] Real-time output streaming
+- [x] `down` command
+- [x] `status` command
+- [ ] Real-time output streaming (next)
+- [ ] Setup orchestrator (optional)
 
-### Phase 4: Custom Commands
+### Phase 4: Custom Commands (Next)
 
 - [ ] Command orchestrator
 - [ ] `run` command

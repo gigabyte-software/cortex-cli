@@ -4,18 +4,21 @@ docker:
   compose_file: "docker-compose.test.yml"
   primary_service: "app"
   wait_for:
-    - service: "db"
-      timeout: 60
+    - service: "app"
+      timeout: 30
 
 setup:
   pre_start:
-    - command: "echo 'Pre-start command executed'"
-      description: "Test pre-start command"
+    - command: "echo 'Pre-start: Creating temp directory'"
+      description: "Create temporary directory"
       
   initialize:
-    - command: "echo 'Initialize command executed'"
-      description: "Test initialize command"
-      timeout: 120
+    - command: "php -v"
+      description: "Check PHP version"
+      timeout: 30
+    - command: "echo 'Initialization complete'"
+      description: "Finalize setup"
+      timeout: 30
 
 commands:
   test:
