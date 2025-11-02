@@ -1,0 +1,196 @@
+# Building Cortex CLI
+
+## Prerequisites
+
+1. **PHP 8.2+** with required extensions
+2. **Composer** installed
+3. **Box** (PHAR builder) installed globally
+
+```bash
+# Install Box globally
+composer global require humbug/box
+```
+
+## Build Steps
+
+### 1. Install Dependencies
+
+```bash
+composer install --no-dev --optimize-autoloader
+```
+
+### 2. Build PHAR
+
+```bash
+box compile
+```
+
+This will create `cortex.phar` in the project root.
+
+### 3. Test the PHAR
+
+```bash
+php cortex.phar --version
+php cortex.phar list
+```
+
+### 4. Make it Executable
+
+```bash
+chmod +x cortex.phar
+./cortex.phar --version
+```
+
+## Distribution
+
+### Option 1: GitHub Releases
+
+Upload `cortex.phar` to GitHub Releases:
+
+```bash
+# Create release
+gh release create v1.0.0 cortex.phar
+
+# Users can install with:
+curl -L https://github.com/YOUR-ORG/cortex-cli/releases/latest/download/cortex.phar -o cortex.phar
+curl -L https://github.com/YOUR-ORG/cortex-cli/releases/latest/download/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
+```
+
+### Option 2: Direct Download
+
+Host on your server:
+
+```bash
+# Users can install with:
+curl -L https://your-site.com/cortex.phar -o cortex.phar
+curl -L https://your-site.com/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
+```
+
+### Option 3: One-Line Install
+
+```bash
+curl -L https://your-site.com/install.sh | bash
+```
+
+## Installation Script
+
+The `install.sh` script:
+1. Copies PHAR to `/usr/local/bin/cortex`
+2. Makes it executable
+3. Installs shell completion (bash/zsh)
+4. Shows quick start guide
+
+## Build for Multiple PHP Versions
+
+```bash
+# PHP 8.2
+php8.2 $(which box) compile
+
+# PHP 8.3
+php8.3 $(which box) compile
+```
+
+## Troubleshooting
+
+### Box not found
+
+```bash
+# Add composer global bin to PATH
+export PATH="$PATH:$HOME/.composer/vendor/bin"
+
+# Or use full path
+~/.composer/vendor/bin/box compile
+```
+
+### Permission errors
+
+```bash
+# Use sudo for box compile if needed
+sudo box compile
+sudo chown $USER:$USER cortex.phar
+```
+
+### PHAR readonly errors
+
+Edit `php.ini`:
+```ini
+phar.readonly = Off
+```
+
+Or run with ini setting:
+```bash
+php -d phar.readonly=0 $(which box) compile
+```
+
+## Continuous Integration
+
+### GitHub Actions
+
+```yaml
+name: Build PHAR
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer, box
+          
+      - name: Install dependencies
+        run: composer install --no-dev --optimize-autoloader
+        
+      - name: Build PHAR
+        run: box compile
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            cortex.phar
+            install.sh
+```
+
+## Size Optimization
+
+The PHAR is compressed with GZ. Typical size: **~2-3 MB**
+
+To reduce size:
+1. Remove dev dependencies: `--no-dev`
+2. Optimize autoloader: `--optimize-autoloader`
+3. Enable compression in box.json: `"compression": "GZ"`
+4. Exclude unnecessary vendor files
+
+## Security
+
+### Signing (Optional)
+
+```bash
+# Generate key pair
+box compile --with-sign
+
+# Verify signature
+box verify cortex.phar
+```
+
+## Testing PHAR
+
+```bash
+# Test in clean environment
+docker run --rm -it -v $(pwd)/cortex.phar:/usr/local/bin/cortex php:8.2-cli bash
+cortex --version
+```
+

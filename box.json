@@ -1,0 +1,36 @@
+{
+  "main": "bin/cortex",
+  "output": "cortex.phar",
+  "directories": [
+    "src"
+  ],
+  "files": [
+    "composer.json",
+    "LICENSE"
+  ],
+  "finder": [
+    {
+      "name": "*.php",
+      "exclude": [
+        "tests",
+        "Tests",
+        "test",
+        "Test"
+      ],
+      "in": "vendor"
+    }
+  ],
+  "compression": "GZ",
+  "compactors": [
+    "KevinGH\\Box\\Compactor\\Php"
+  ],
+  "stub": true,
+  "banner": [
+    "Cortex CLI - Docker Development Environment Orchestration",
+    "",
+    "This file is part of Cortex CLI.",
+    "",
+    "@link https://github.com/YOUR-ORG/cortex-cli"
+  ]
+}
+

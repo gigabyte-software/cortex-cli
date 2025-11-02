@@ -18,6 +18,30 @@ A PHP-based CLI tool that orchestrates Docker-based development environments usi
 
 ## Installation
 
+### Quick Install (Recommended)
+
+```bash
+# Download and install with one command
+curl -L https://your-site.com/install.sh | bash
+```
+
+### Manual Install
+
+```bash
+# Download the PHAR
+curl -L https://your-site.com/cortex.phar -o cortex.phar
+
+# Download and run installer
+curl -L https://your-site.com/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
+```
+
+This will:
+- Install cortex to `/usr/local/bin/cortex`
+- Set up shell completion (bash/zsh)
+- Make it available system-wide
+
 ### From Source
 
 ```bash
@@ -209,11 +233,13 @@ commands:       # Optional: Custom commands
 - [x] `run` command
 - [x] Command listing
 
-### Phase 5: Polish & PHAR
+### Phase 5: Polish & PHAR ✅
 
-- [ ] Progress indicators
-- [ ] PHAR build
-- [ ] Final documentation
+- [x] Install script with tab completion
+- [x] PHAR build configuration (box.json)
+- [x] Build documentation
+- [x] Final documentation
+- [x] Dynamic command registration
 
 ## Testing
 
