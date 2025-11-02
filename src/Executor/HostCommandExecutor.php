@@ -12,14 +12,23 @@ class HostCommandExecutor
 {
     /**
      * Execute a command on the host machine
+     * 
+     * @param callable|null $outputCallback Optional callback for real-time output
      */
-    public function execute(CommandDefinition $cmd): ExecutionResult
+    public function execute(CommandDefinition $cmd, ?callable $outputCallback = null): ExecutionResult
     {
         $startTime = microtime(true);
 
         $process = Process::fromShellCommandline($cmd->command);
         $process->setTimeout($cmd->timeout);
-        $process->run();
+        
+        if ($outputCallback !== null) {
+            // Run with real-time output streaming
+            $process->run($outputCallback);
+        } else {
+            // Run without streaming
+            $process->run();
+        }
 
         $executionTime = microtime(true) - $startTime;
 

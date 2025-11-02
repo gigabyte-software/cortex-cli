@@ -22,6 +22,15 @@ setup:
 
 commands:
   test:
-    command: "echo 'Running tests'"
+    command: "php -v && echo 'Running tests...'"
     description: "Run test suite"
+  
+  hello:
+    command: "echo 'Hello from Cortex CLI!'"
+    description: "Simple hello command"
+  
+  info:
+    command: "php -i | head -20"
+    description: "Show PHP info"
+    timeout: 60
 

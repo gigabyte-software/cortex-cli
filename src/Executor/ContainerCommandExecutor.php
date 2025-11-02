@@ -19,8 +19,10 @@ class ContainerCommandExecutor
 
     /**
      * Execute a command inside the Docker container
+     * 
+     * @param callable|null $outputCallback Optional callback for real-time output
      */
-    public function execute(CommandDefinition $cmd): ExecutionResult
+    public function execute(CommandDefinition $cmd, ?callable $outputCallback = null): ExecutionResult
     {
         $startTime = microtime(true);
 
@@ -29,6 +31,7 @@ class ContainerCommandExecutor
             service: $this->service,
             command: $cmd->command,
             timeout: $cmd->timeout,
+            outputCallback: $outputCallback,
         );
 
         $executionTime = microtime(true) - $startTime;

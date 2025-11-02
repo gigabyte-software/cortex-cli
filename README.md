@@ -109,15 +109,32 @@ Shows a table with:
 - Running status (running/exited)
 - Health status (healthy/unhealthy/starting)
 
-### `cortex <custom>`
+### Custom Commands
 
-Run custom commands defined in your `cortex.yml`:
+Run custom commands directly by name:
 
 ```bash
+# Run a custom command
 cortex test
+
+# List all available commands
+cortex list
 ```
 
-(Coming in Phase 4)
+Define custom commands in your `cortex.yml`:
+
+```yaml
+commands:
+  test:
+    command: "php artisan test"
+    description: "Run test suite"
+  
+  migrate:
+    command: "php artisan migrate"
+    description: "Run database migrations"
+```
+
+Your custom commands will appear alongside built-in commands and support tab completion!
 
 ## Configuration
 
@@ -179,18 +196,18 @@ commands:       # Optional: Custom commands
 - [x] Command execution in containers
 - [x] Real-time command output
 
-### Phase 3: Orchestration (In Progress)
+### Phase 3: Orchestration ✅
 
 - [x] `down` command
 - [x] `status` command
-- [ ] Real-time output streaming (next)
-- [ ] Setup orchestrator (optional)
+- [x] Real-time output streaming
+- [x] Setup orchestrator
 
-### Phase 4: Custom Commands (Next)
+### Phase 4: Custom Commands ✅
 
-- [ ] Command orchestrator
-- [ ] `run` command
-- [ ] Command listing
+- [x] Command orchestrator
+- [x] `run` command
+- [x] Command listing
 
 ### Phase 5: Polish & PHAR
 

@@ -11,10 +11,16 @@ class ContainerExecutor
     /**
      * Execute a command inside a Docker container
      * 
+     * @param callable|null $outputCallback Optional callback for real-time output
      * @throws \RuntimeException
      */
-    public function exec(string $composeFile, string $service, string $command, int $timeout = 60): Process
-    {
+    public function exec(
+        string $composeFile,
+        string $service,
+        string $command,
+        int $timeout = 60,
+        ?callable $outputCallback = null
+    ): Process {
         // Use docker-compose exec to run command in container
         $process = new Process([
             'docker-compose',
@@ -29,7 +35,12 @@ class ContainerExecutor
         ]);
 
         $process->setTimeout($timeout);
-        $process->run();
+        
+        if ($outputCallback !== null) {
+            $process->run($outputCallback);
+        } else {
+            $process->run();
+        }
 
         return $process;
     }
