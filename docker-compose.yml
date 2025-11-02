@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cortex-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      # Cache composer dependencies
+      - composer-cache:/root/.composer
+    environment:
+      - XDEBUG_MODE=coverage
+    tty: true
+    stdin_open: true
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  composer-cache:
+

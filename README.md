@@ -208,25 +208,79 @@ commands:       # Optional: Custom commands
 
 Tab completion is automatically installed by the install script. To set it up manually, see [COMPLETION.md](COMPLETION.md).
 
-## Building from Source
+## Development
 
-See [BUILD.md](BUILD.md) for instructions on building the PHAR yourself.
+### Docker Development Environment (Recommended)
+
+Cortex CLI uses itself for development! Simply run:
+
+```bash
+# Start the development environment
+./bin/cortex up
+
+# Run tests
+./bin/cortex test
+
+# Run static analysis
+./bin/cortex phpstan
+
+# Fix code style
+./bin/cortex cs-fix
+
+# Build the PHAR
+./bin/cortex build
+
+# Run all validation checks
+./bin/cortex validate
+
+# Open a shell in the container
+./bin/cortex shell
+```
+
+All PHP dependencies, extensions (including Xdebug for coverage), and tools are pre-configured in the Docker container.
+
+### Local Development (Without Docker)
+
+If you prefer to develop without Docker:
+
+**Requirements:**
+- PHP 8.2 or 8.3
+- Composer
+- PHP extensions: mbstring, xml, curl
+- Xdebug (optional, for code coverage)
+
+```bash
+# Install dependencies
+composer install
+
+# Run tests
+composer test
+
+# Run static analysis
+composer phpstan
+
+# Fix code style
+composer cs-fix
+```
+
+### Building from Source
+
+See [BUILD.md](BUILD.md) for detailed instructions on building the PHAR.
 
 ## Contributing
 
-Contributions are welcome! Please see the [dev-docs](dev-docs/) directory for development documentation.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development workflow.
+
+**Quick start for contributors:**
+```bash
+./bin/cortex up      # Start dev environment
+./bin/cortex test    # Run tests
+./bin/cortex validate # Run all checks
+```
+
+This project follows PSR-12 coding standards and uses PHP 8.2+ features. See [dev-docs](dev-docs/) for additional documentation.
 
 ## License
 
 See [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-This project follows PSR-12 coding standards and uses PHP 8.2+ features including:
-- Readonly classes
-- Constructor property promotion
-- Typed properties
-- Named arguments
-
-Please ensure all contributions include tests and pass static analysis.
 

@@ -1,0 +1,64 @@
+version: "1.0"
+
+docker:
+  compose_file: "docker-compose.yml"
+  primary_service: "app"
+  wait_for:
+    - service: "app"
+      timeout: 30
+
+setup:
+  pre_start:
+    - command: "echo 'Starting Cortex CLI development environment...'"
+      description: "Welcome message"
+      ignore_failure: true
+      
+  initialize:
+    - command: "composer install"
+      description: "Install PHP dependencies"
+      timeout: 300
+
+commands:
+  test:
+    command: "vendor/bin/phpunit"
+    description: "Run PHPUnit tests"
+  
+  test-coverage:
+    command: "vendor/bin/phpunit --coverage-html coverage-html"
+    description: "Run tests with HTML coverage report"
+    timeout: 120
+  
+  phpstan:
+    command: "vendor/bin/phpstan analyse src tests --level=8"
+    description: "Run PHPStan static analysis"
+  
+  cs-fix:
+    command: "vendor/bin/php-cs-fixer fix"
+    description: "Fix code style with PHP CS Fixer"
+  
+  cs-check:
+    command: "vendor/bin/php-cs-fixer fix --dry-run --diff"
+    description: "Check code style without fixing"
+  
+  build:
+    command: "php -d phar.readonly=0 vendor/bin/box compile"
+    description: "Build cortex.phar with Box"
+    timeout: 120
+  
+  shell:
+    command: "/bin/bash"
+    description: "Open interactive bash shell"
+  
+  composer:
+    command: "composer"
+    description: "Run composer commands"
+  
+  php:
+    command: "php"
+    description: "Run PHP commands"
+  
+  validate:
+    command: "composer validate --strict && vendor/bin/phpstan analyse src tests --level=8 && vendor/bin/phpunit"
+    description: "Run all validation checks (composer, phpstan, tests)"
+    timeout: 180
+

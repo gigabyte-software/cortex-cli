@@ -1,0 +1,11 @@
+.git
+.github
+vendor/
+.phpunit.cache
+.php-cs-fixer.cache
+coverage-html/
+coverage.xml
+cortex.phar
+*.md
+LICENSE
+

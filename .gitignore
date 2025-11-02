@@ -1,8 +1,10 @@
 /vendor/
-/composer.lock
 /.php-cs-fixer.cache
 /.phpunit.cache
 /cortex.phar
 /coverage.xml
 /coverage-html/
+
+# Docker
+/docker-compose.override.yml
 
