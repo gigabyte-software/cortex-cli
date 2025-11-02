@@ -43,37 +43,30 @@ chmod +x cortex.phar
 
 ## Distribution
 
-### Option 1: GitHub Releases
+### Option 1: GitHub Releases (Recommended)
 
-Upload `cortex.phar` to GitHub Releases:
+Upload `cortex.phar` and `install.sh` to GitHub Releases:
 
 ```bash
-# Create release
-gh release create v1.0.0 cortex.phar
+# Create release with both files
+gh release create v1.0.0 cortex.phar install.sh \
+  --title "Cortex CLI v1.0.0" \
+  --notes "Initial release - Docker development environment orchestration"
 
-# Users can install with:
-curl -L https://github.com/YOUR-ORG/cortex-cli/releases/latest/download/cortex.phar -o cortex.phar
-curl -L https://github.com/YOUR-ORG/cortex-cli/releases/latest/download/install.sh -o install.sh
-chmod +x install.sh
-./install.sh
+# Users can then install with one command:
+curl -fsSL https://github.com/gigabyte-software/cortex-cli/releases/latest/download/install.sh | bash
 ```
 
-### Option 2: Direct Download
-
-Host on your server:
+### Option 2: Manual Download
 
 ```bash
-# Users can install with:
-curl -L https://your-site.com/cortex.phar -o cortex.phar
-curl -L https://your-site.com/install.sh -o install.sh
+# Download files
+curl -L https://github.com/gigabyte-software/cortex-cli/releases/latest/download/cortex.phar -o cortex.phar
+curl -L https://github.com/gigabyte-software/cortex-cli/releases/latest/download/install.sh -o install.sh
+
+# Run installer
 chmod +x install.sh
 ./install.sh
-```
-
-### Option 3: One-Line Install
-
-```bash
-curl -L https://your-site.com/install.sh | bash
 ```
 
 ## Installation Script
@@ -81,8 +74,10 @@ curl -L https://your-site.com/install.sh | bash
 The `install.sh` script:
 1. Copies PHAR to `/usr/local/bin/cortex`
 2. Makes it executable
-3. Installs shell completion (bash/zsh)
+3. Uses Gigabyte brand colors for output
 4. Shows quick start guide
+
+**Note:** Tab completion setup is documented in COMPLETION.md for manual installation.
 
 ## Build for Multiple PHP Versions
 
@@ -99,11 +94,17 @@ php8.3 $(which box) compile
 ### Box not found
 
 ```bash
-# Add composer global bin to PATH
-export PATH="$PATH:$HOME/.composer/vendor/bin"
+# Find your composer global bin directory
+composer global config bin-dir --absolute
 
-# Or use full path
-~/.composer/vendor/bin/box compile
+# Add to PATH (use the path from above, typically ~/.config/composer/vendor/bin)
+export PATH="$PATH:$HOME/.config/composer/vendor/bin"
+
+# Add to ~/.bashrc permanently
+echo 'export PATH="$PATH:$HOME/.config/composer/vendor/bin"' >> ~/.bashrc
+
+# Or use full path directly
+~/.config/composer/vendor/bin/box compile
 ```
 
 ### Permission errors

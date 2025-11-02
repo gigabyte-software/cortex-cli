@@ -200,66 +200,17 @@ commands:       # Optional: Custom commands
 - `retry` (optional, default: 0): Number of retry attempts
 - `ignore_failure` (optional, default: false): Continue even if command fails
 
-## Development Status
+## Tab Completion
 
-### Phase 1: Foundation ✅
+Tab completion is automatically installed by the install script. To set it up manually, see [COMPLETION.md](COMPLETION.md).
 
-- [x] Project structure
-- [x] Config layer (YAML loading and validation)
-- [x] Basic Docker layer (docker-compose wrapper)
-- [x] Output formatter (colorful output)
-- [x] Basic `up` command skeleton
-- [x] Unit tests for Config layer
+## Building from Source
 
-### Phase 2: Core Execution ✅
+See [BUILD.md](BUILD.md) for instructions on building the PHAR yourself.
 
-- [x] Executor layer (Host, Container executors)
-- [x] Health checker
-- [x] Container executor
-- [x] Full `up` command implementation
-- [x] Command execution in containers
-- [x] Real-time command output
+## Contributing
 
-### Phase 3: Orchestration ✅
-
-- [x] `down` command
-- [x] `status` command
-- [x] Real-time output streaming
-- [x] Setup orchestrator
-
-### Phase 4: Custom Commands ✅
-
-- [x] Command orchestrator
-- [x] `run` command
-- [x] Command listing
-
-### Phase 5: Polish & PHAR ✅
-
-- [x] Install script with tab completion
-- [x] PHAR build configuration (box.json)
-- [x] Build documentation
-- [x] Final documentation
-- [x] Dynamic command registration
-
-## Testing
-
-Run the test suite:
-
-```bash
-composer test
-```
-
-Run static analysis:
-
-```bash
-composer phpstan
-```
-
-Fix code style:
-
-```bash
-composer cs-fix
-```
+Contributions are welcome! Please see the [dev-docs](dev-docs/) directory for development documentation.
 
 ## License
 

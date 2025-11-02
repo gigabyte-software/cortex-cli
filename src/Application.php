@@ -25,11 +25,13 @@ class Application extends BaseApplication
 {
     protected function getDefaultCommands(): array
     {
-        $defaultCommands = [new \Symfony\Component\Console\Command\HelpCommand()];
+        $defaultCommands = [
+            new \Symfony\Component\Console\Command\HelpCommand(),
+            new \Symfony\Component\Console\Command\ListCommand(),
+            new \Symfony\Component\Console\Command\CompleteCommand(), // This is the _complete command for tab completion
+        ];
         
-        // Only add ListCommand and CompletionCommand when NOT running as PHAR
-        $defaultCommands[] = new \Symfony\Component\Console\Command\ListCommand();
-        
+        // Only add completion dump command when NOT running as PHAR (it breaks in PHAR)
         if (!\Phar::running()) {
             $defaultCommands[] = new \Symfony\Component\Console\Command\DumpCompletionCommand();
         }
