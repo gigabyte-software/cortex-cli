@@ -1,6 +1,6 @@
 # Cortex CLI
 
-[![Tests](https://github.com/gigabyte-software/cortex-cli/actions/workflows/tests.yml/badge.svg)](https://github.com/gigabyte-software/cortex-cli/actions/workflows/tests.yml)
+[![Tests](https://github.com/gigabyte-software/cortex-cli/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gigabyte-software/cortex-cli/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/gigabyte-software/cortex-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/gigabyte-software/cortex-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
