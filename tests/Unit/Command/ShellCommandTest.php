@@ -58,9 +58,15 @@ class ShellCommandTest extends TestCase
             ->with('/path/to/cortex.yml')
             ->willReturn($config);
 
+        $purple = '\\[\\033[38;2;125;85;199m\\]';
+        $teal = '\\[\\033[38;2;46;217;195m\\]';
+        $reset = '\\[\\033[0m\\]';
+        $prompt = $purple . 'app' . $reset . ':' . $teal . '\\w' . $reset . '\\$ ';
+        $expectedShellCommand = sprintf('/bin/sh -c "export PS1=\'%s\'; exec /bin/bash -i"', $prompt);
+
         $containerExecutor->expects($this->once())
             ->method('execInteractive')
-            ->with('docker-compose.yml', 'app', '/bin/bash')
+            ->with('docker-compose.yml', 'app', $expectedShellCommand)
             ->willReturn(0);
 
         $command = new ShellCommand($configLoader, $containerExecutor);
