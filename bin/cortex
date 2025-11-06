@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 // Check if running as PHAR
 if (Phar::running()) {
-    require 'phar://cortex.phar/vendor/autoload.php';
+    require Phar::running() . '/vendor/autoload.php';
 } else {
     // Development mode
     $autoloadPaths = [
