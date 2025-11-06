@@ -6,6 +6,7 @@ namespace Cortex;
 
 use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
+use Cortex\Command\InitCommand;
 use Cortex\Command\SelfUpdateCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
@@ -67,6 +68,7 @@ class Application extends BaseApplication
         $commandOrchestrator = new CommandOrchestrator($outputFormatter);
 
         // Register built-in commands (these take precedence over custom commands)
+        $this->add(new InitCommand());
         $this->add(new UpCommand($configLoader, $setupOrchestrator));
         $this->add(new DownCommand($configLoader, $dockerCompose));
         $this->add(new StatusCommand($configLoader, $dockerCompose, $healthChecker));
