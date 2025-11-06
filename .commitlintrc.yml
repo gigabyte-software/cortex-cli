@@ -1,0 +1,53 @@
+extends:
+  - '@commitlint/config-conventional'
+
+rules:
+  # Type must be one of these
+  type-enum:
+    - 2
+    - always
+    - - feat
+      - fix
+      - docs
+      - style
+      - refactor
+      - perf
+      - test
+      - chore
+      - revert
+      - ci
+      - build
+
+  # Scope is optional but must be lowercase
+  scope-case:
+    - 2
+    - always
+    - lower-case
+
+  # Subject must be lowercase
+  subject-case:
+    - 2
+    - always
+    - lower-case
+
+  # Subject cannot be empty
+  subject-empty:
+    - 2
+    - never
+
+  # Subject cannot end with period
+  subject-full-stop:
+    - 2
+    - never
+    - '.'
+
+  # Body must be separated by blank line
+  body-leading-blank:
+    - 2
+    - always
+
+  # Footer must be separated by blank line
+  footer-leading-blank:
+    - 2
+    - always
+

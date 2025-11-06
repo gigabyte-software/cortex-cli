@@ -1,0 +1,52 @@
+branches:
+  - main
+  - name: beta
+    prerelease: true
+  - name: alpha
+    prerelease: true
+
+plugins:
+  # Analyze commits to determine version bump
+  - - "@semantic-release/commit-analyzer"
+    - preset: angular
+      releaseRules:
+        - type: docs
+          release: patch
+        - type: refactor
+          release: patch
+        - type: style
+          release: patch
+
+  # Generate release notes
+  - - "@semantic-release/release-notes-generator"
+    - preset: angular
+
+  # Update CHANGELOG.md
+  - - "@semantic-release/changelog"
+    - changelogFile: CHANGELOG.md
+      changelogTitle: "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),\nand this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
+
+  # Update version in Application.php
+  - - "@semantic-release/exec"
+    - prepareCmd: "node scripts/update-version.js ${nextRelease.version}"
+      publishCmd: "echo 'Version ${nextRelease.version} published'"
+
+  # Build the PHAR
+  - - "@semantic-release/exec"
+    - prepareCmd: "composer install --no-dev --optimize-autoloader && box compile"
+
+  # Commit updated files back to git
+  - - "@semantic-release/git"
+    - assets:
+        - CHANGELOG.md
+        - src/Application.php
+      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+
+  # Create GitHub release and upload assets
+  - - "@semantic-release/github"
+    - assets:
+        - path: cortex.phar
+          label: Cortex CLI PHAR
+        - path: install.sh
+          label: Installation Script
+

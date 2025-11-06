@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - beta
+      - alpha
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: ['8.2', '8.3']
+    
+    name: Test PHP ${{ matrix.php-version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        extensions: mbstring, xml, ctype, json
+        coverage: xdebug
+    
+    - name: Validate composer.json and composer.lock
+      run: composer validate --strict
+    
+    - name: Cache Composer packages
+      uses: actions/cache@v4
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+    
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+    
+    - name: Run PHPStan
+      run: composer phpstan
+    
+    - name: Run tests with coverage
+      run: vendor/bin/phpunit --coverage-clover coverage.xml
+    
+    - name: Upload coverage reports to Codecov
+      if: matrix.php-version == '8.3'
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        fail_ci_if_error: false
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Release
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        extensions: mbstring, xml, ctype, json
+        tools: composer, box
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Cache Composer packages
+      uses: actions/cache@v4
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+    
+    - name: Install PHP dependencies
+      run: composer install --prefer-dist --no-progress
+    
+    - name: Install Node.js dependencies
+      run: npm ci
+    
+    - name: Verify Box is available
+      run: box --version
+    
+    - name: Make update-version script executable
+      run: chmod +x scripts/update-version.js
+    
+    - name: Run Semantic Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GIT_AUTHOR_NAME: github-actions[bot]
+        GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+        GIT_COMMITTER_NAME: github-actions[bot]
+        GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+      run: npx semantic-release
+

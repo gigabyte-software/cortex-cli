@@ -1,7 +1,9 @@
 # Cortex CLI
 
 [![Tests](https://github.com/gigabyte-software/cortex-cli/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gigabyte-software/cortex-cli/actions/workflows/tests.yml)
+[![Release](https://github.com/gigabyte-software/cortex-cli/actions/workflows/release.yml/badge.svg)](https://github.com/gigabyte-software/cortex-cli/actions/workflows/release.yml)
 [![codecov](https://codecov.io/gh/gigabyte-software/cortex-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/gigabyte-software/cortex-cli)
+[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A PHP-based CLI tool that orchestrates Docker-based development environments using a simple YAML configuration file.

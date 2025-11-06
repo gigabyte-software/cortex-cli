@@ -88,6 +88,70 @@ That's it! All PHP dependencies and tools are containerized.
 ./bin/cortex down
 ```
 
+## Commit Message Convention
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning and changelog generation.
+
+### Commit Message Format
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+### Types
+
+- **feat**: A new feature (triggers minor version bump, e.g., 1.0.0 → 1.1.0)
+- **fix**: A bug fix (triggers patch version bump, e.g., 1.0.0 → 1.0.1)
+- **docs**: Documentation only changes (triggers patch bump)
+- **style**: Code style changes (formatting, missing semicolons, etc.)
+- **refactor**: Code refactoring without changing behavior
+- **perf**: Performance improvements
+- **test**: Adding or updating tests
+- **chore**: Changes to build process, tools, or dependencies
+
+### Breaking Changes
+
+To trigger a major version bump (e.g., 1.0.0 → 2.0.0), include `BREAKING CHANGE:` in the commit footer:
+
+```
+feat(api): change configuration file format
+
+BREAKING CHANGE: The configuration file format has changed from JSON to YAML.
+Users must convert their config files.
+```
+
+### Examples
+
+**Good commit messages:**
+```bash
+feat(commands): add new 'restart' command
+fix(docker): resolve container startup timeout issue
+docs(readme): update installation instructions
+refactor(config): simplify configuration loading logic
+perf(docker): optimize health check polling
+```
+
+**Bad commit messages:**
+```bash
+update stuff
+fixed bug
+WIP
+...
+```
+
+### Scopes (Optional)
+
+Common scopes in this project:
+- `commands`: Command-related changes
+- `docker`: Docker orchestration
+- `config`: Configuration handling
+- `tests`: Test-related changes
+- `ci`: CI/CD changes
+
 ## Code Standards
 
 This project follows:
