@@ -42,7 +42,7 @@ class Application extends BaseApplication
 
     public function __construct()
     {
-        parent::__construct('Cortex CLI', '1.0.0');
+        parent::__construct('Cortex CLI', $this->getVersion());
 
         // Simple dependency injection
         $configValidator = new ConfigValidator();
@@ -96,6 +96,39 @@ class Application extends BaseApplication
             // Silently ignore if no cortex.yml found
             // User might be running from wrong directory or checking version/help
         }
+    }
+
+    private function getVersion(): string
+    {
+        // Try to get version from git tags (for development)
+        if (!\Phar::running()) {
+            // Check VERSION file first
+            $versionFile = __DIR__ . '/../VERSION';
+            if (file_exists($versionFile)) {
+                $version = trim(file_get_contents($versionFile));
+                if (!empty($version)) {
+                    return $version;
+                }
+            }
+
+            // Fall back to git describe
+            $gitVersion = @shell_exec('git describe --tags --abbrev=0 2>/dev/null');
+            if ($gitVersion !== null) {
+                return ltrim(trim($gitVersion), 'v');
+            }
+        }
+
+        // For PHAR or if git not available, check VERSION file in PHAR
+        $versionFile = \Phar::running() ? 'phar://cortex.phar/VERSION' : __DIR__ . '/../VERSION';
+        if (file_exists($versionFile)) {
+            $version = trim(file_get_contents($versionFile));
+            if (!empty($version)) {
+                return $version;
+            }
+        }
+
+        // Ultimate fallback
+        return '1.0.0';
     }
 }
 

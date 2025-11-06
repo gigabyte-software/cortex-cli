@@ -6,7 +6,8 @@
   ],
   "files": [
     "composer.json",
-    "LICENSE"
+    "LICENSE",
+    "VERSION"
   ],
   "finder": [
     {

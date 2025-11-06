@@ -14,14 +14,12 @@ class SelfUpdateCommand extends Command
 {
     private const GITHUB_REPO = 'gigabyte-software/cortex-cli';
     private const GITHUB_API_URL = 'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest';
-    private const GITHUB_DOWNLOAD_URL = 'https://github.com/' . self::GITHUB_REPO . '/releases/latest/download/cortex.phar';
 
     protected function configure(): void
     {
         $this
-            ->setName('self-update')
+            ->setName('update')
             ->setDescription('Update Cortex CLI to the latest version')
-            ->setAliases(['selfupdate', 'update'])
             ->addOption('check', null, InputOption::VALUE_NONE, 'Check for updates without installing')
             ->addOption('force', null, InputOption::VALUE_NONE, 'Force update even if already on latest version');
     }
@@ -44,7 +42,7 @@ class SelfUpdateCommand extends Command
         if (!is_writable($pharPath)) {
             $formatter->error("Cannot update: No write permission to $pharPath");
             $formatter->info('Try running with sudo:');
-            $formatter->info('  sudo cortex self-update');
+            $formatter->info('  sudo cortex update');
             return Command::FAILURE;
         }
 
@@ -63,7 +61,9 @@ class SelfUpdateCommand extends Command
             $formatter->info("Current version: $currentVersion");
 
             // Fetch latest release info from GitHub
-            $latestVersion = $this->getLatestVersion();
+            $releaseInfo = $this->getLatestReleaseInfo();
+            $latestVersion = $releaseInfo['version'];
+            $downloadUrl = $releaseInfo['download_url'];
             $formatter->info("Latest version: $latestVersion");
 
             // Compare versions
@@ -82,7 +82,7 @@ class SelfUpdateCommand extends Command
 
             // Download and install update
             $formatter->section('Downloading update');
-            $tempFile = $this->downloadLatestVersion();
+            $tempFile = $this->downloadLatestVersion($downloadUrl);
 
             $formatter->section('Installing update');
             $this->installUpdate($tempFile, $pharPath);
@@ -101,7 +101,10 @@ class SelfUpdateCommand extends Command
         }
     }
 
-    private function getLatestVersion(): string
+    /**
+     * @return array{version: string, download_url: string}
+     */
+    private function getLatestReleaseInfo(): array
     {
         $context = stream_context_create([
             'http' => [
@@ -126,11 +129,31 @@ class SelfUpdateCommand extends Command
             throw new \RuntimeException('Invalid response from GitHub API');
         }
 
+        // Find the cortex.phar asset
+        $downloadUrl = null;
+        if (isset($data['assets']) && is_array($data['assets'])) {
+            foreach ($data['assets'] as $asset) {
+                if (isset($asset['name']) && $asset['name'] === 'cortex.phar') {
+                    $downloadUrl = $asset['browser_download_url'];
+                    break;
+                }
+            }
+        }
+
+        if ($downloadUrl === null) {
+            throw new \RuntimeException('Could not find cortex.phar in latest release');
+        }
+
         // Remove 'v' prefix if present
-        return ltrim($data['tag_name'], 'v');
+        $version = ltrim($data['tag_name'], 'v');
+
+        return [
+            'version' => $version,
+            'download_url' => $downloadUrl,
+        ];
     }
 
-    private function downloadLatestVersion(): string
+    private function downloadLatestVersion(string $downloadUrl): string
     {
         $tempFile = tempnam(sys_get_temp_dir(), 'cortex_update_');
 
@@ -147,7 +170,7 @@ class SelfUpdateCommand extends Command
             ],
         ]);
 
-        $content = @file_get_contents(self::GITHUB_DOWNLOAD_URL, false, $context);
+        $content = @file_get_contents($downloadUrl, false, $context);
 
         if ($content === false) {
             @unlink($tempFile);

@@ -1,8 +1,8 @@
-# Self-Update Command Implementation
+# Update Command Implementation
 
 ## Overview
 
-Implemented a `self-update` command for Cortex CLI that allows users to update their installation to the latest version from GitHub releases.
+Implemented an `update` command for Cortex CLI that allows users to update their installation to the latest version from GitHub releases.
 
 ## Implementation Details
 
@@ -22,7 +22,7 @@ Implemented a `self-update` command for Cortex CLI that allows users to update t
 - `--check`: Check for updates without installing
 - `--force`: Force update even if already on latest version
 
-**Aliases**: `selfupdate`, `update`
+**Command Name**: `update` (previously `self-update` with aliases, now simplified to just `update`)
 
 ### Key Functionality
 
@@ -55,17 +55,13 @@ Implemented a `self-update` command for Cortex CLI that allows users to update t
 
 ```bash
 # Update to latest version
-cortex self-update
+cortex update
 
 # Check if update is available
-cortex self-update --check
+cortex update --check
 
 # Force update even if already latest
-cortex self-update --force
-
-# Using aliases
-cortex selfupdate
-cortex update
+cortex update --force
 ```
 
 ## When Running from Source
@@ -109,7 +105,7 @@ Updated `README.md` with self-update command documentation in the Commands secti
 ✅ PHPStan level 8 analysis passes with no errors
 ✅ Code style follows PSR-12 standards
 ✅ Command properly registered and discoverable
-✅ Aliases work correctly (selfupdate, update)
+✅ Command name updated to `update` (no aliases)
 
 ## Future Enhancements
 
