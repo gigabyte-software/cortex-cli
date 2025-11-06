@@ -58,11 +58,11 @@ class OutputFormatter
         }
     }
 
-    public function welcome(): void
+    public function welcome(string $title = 'Starting Development Environment'): void
     {
         $this->output->writeln('');
         $this->output->writeln('<fg=' . self::COLOR_PURPLE . '>──────────────────────────────────────────────────</>');
-        $this->output->writeln('<fg=' . self::COLOR_PURPLE . '> Starting Development Environment</>');
+        $this->output->writeln('<fg=' . self::COLOR_PURPLE . '> ' . $title . '</>');
         $this->output->writeln('<fg=' . self::COLOR_PURPLE . '>──────────────────────────────────────────────────</>');
         $this->output->writeln('');
     }

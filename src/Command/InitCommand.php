@@ -41,8 +41,8 @@ class InitCommand extends Command
                 return Command::FAILURE;
             }
 
-            $formatter->welcome();
-            $formatter->section('Initializing Cortex');
+            $formatter->welcome('Initializing Cortex');
+            $formatter->section('Setting up directory structure');
 
             // Create .cortex directory structure
             $this->createCortexDirectory($cwd, $formatter);
@@ -107,14 +107,16 @@ class InitCommand extends Command
             }
         }
 
-        // Create .gitkeep in tickets directory
-        $this->createGitkeep($cortexDir . '/tickets', $formatter);
+        // Create .gitkeep in all subdirectories
+        foreach ($subdirectories as $subdir) {
+            $this->createGitkeep($cortexDir . '/' . $subdir, $formatter, $subdir);
+        }
 
         // Create README.md in .cortex
         $this->createCortexReadme($cortexDir, $formatter);
     }
 
-    private function createGitkeep(string $directory, OutputFormatter $formatter): void
+    private function createGitkeep(string $directory, OutputFormatter $formatter, string $subdirName): void
     {
         $gitkeepPath = $directory . '/.gitkeep';
         
@@ -122,7 +124,7 @@ class InitCommand extends Command
             if (file_put_contents($gitkeepPath, '') === false) {
                 throw new \RuntimeException("Failed to create .gitkeep in $directory");
             }
-            $formatter->info('✓ Created .cortex/tickets/.gitkeep');
+            $formatter->info("✓ Created .cortex/$subdirName/.gitkeep");
         }
     }
 
@@ -194,6 +196,7 @@ class InitCommand extends Command
     private function showSuccessMessage(OutputFormatter $formatter, bool $skipYaml): void
     {
         $formatter->section('Initialization Complete');
+        $formatter->info('');
         $formatter->success('✓ Cortex initialized successfully!');
         
         $formatter->info('');
@@ -201,6 +204,8 @@ class InitCommand extends Command
         $formatter->info('  ✓ .cortex/ directory structure');
         $formatter->info('  ✓ .cortex/README.md');
         $formatter->info('  ✓ .cortex/tickets/.gitkeep');
+        $formatter->info('  ✓ .cortex/specs/.gitkeep');
+        $formatter->info('  ✓ .cortex/meetings/.gitkeep');
         
         if (!$skipYaml) {
             $formatter->info('  ✓ cortex.yml');
