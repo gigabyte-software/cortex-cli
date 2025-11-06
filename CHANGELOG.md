@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.3.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.2.2...v1.3.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* fix unit tests for shellf command ([1303be1](https://github.com/gigabyte-software/cortex-cli/commit/1303be10f07498283862adec20cc1869416270b5))
+
+
+### Features
+
+* Add cortex shell command ([02eadb9](https://github.com/gigabyte-software/cortex-cli/commit/02eadb93e5e97b896879ac15dcc2bcb44e6c935d))
+* Implement cortex shell subcommand ([3527cdd](https://github.com/gigabyte-software/cortex-cli/commit/3527cdd9414cc42ae789f91abb626758046e8647))
+
 ## [1.2.2](https://github.com/gigabyte-software/cortex-cli/compare/v1.2.1...v1.2.2) (2025-11-06)
 
 
