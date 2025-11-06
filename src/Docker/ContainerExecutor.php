@@ -47,15 +47,20 @@ class ContainerExecutor
 
     /**
      * Execute an interactive command (like opening a shell)
+     * 
+     * @return int Exit code from the command
      */
-    public function execInteractive(string $composeFile, string $service, string $command): void
+    public function execInteractive(string $composeFile, string $service, string $command): int
     {
         // For interactive commands, use passthru to maintain TTY
         $escapedFile = escapeshellarg($composeFile);
         $escapedService = escapeshellarg($service);
-        $escapedCommand = escapeshellarg($command);
-
-        passthru("docker-compose -f $escapedFile exec $escapedService $escapedCommand");
+        // Don't escape command to allow proper shell interaction
+        
+        $resultCode = 0;
+        passthru("docker-compose -f $escapedFile exec $escapedService $command", $resultCode);
+        
+        return $resultCode;
     }
 }
 

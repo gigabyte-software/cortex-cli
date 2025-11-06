@@ -40,16 +40,10 @@ class ShellCommand extends Command
             $primaryService = $config->docker->primaryService;
             $composeFile = $config->docker->composeFile;
 
-            $formatter->info("Opening bash shell in container: $primaryService");
-            $output->writeln('');
+            // Execute interactive bash shell - no output, just pass through
+            $exitCode = $this->containerExecutor->execInteractive($composeFile, $primaryService, '/bin/bash');
 
-            // Execute interactive bash shell
-            $this->containerExecutor->execInteractive($composeFile, $primaryService, '/bin/bash');
-
-            $output->writeln('');
-            $formatter->success('Shell session ended');
-
-            return Command::SUCCESS;
+            return $exitCode;
         } catch (ConfigException $e) {
             $formatter->error("Configuration error: {$e->getMessage()}");
             return Command::FAILURE;

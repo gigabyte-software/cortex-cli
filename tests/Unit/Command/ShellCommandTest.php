@@ -60,15 +60,14 @@ class ShellCommandTest extends TestCase
 
         $containerExecutor->expects($this->once())
             ->method('execInteractive')
-            ->with('docker-compose.yml', 'app', '/bin/bash');
+            ->with('docker-compose.yml', 'app', '/bin/bash')
+            ->willReturn(0);
 
         $command = new ShellCommand($configLoader, $containerExecutor);
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([]);
 
         $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('Opening bash shell in container: app', $tester->getDisplay());
-        $this->assertStringContainsString('Shell session ended', $tester->getDisplay());
     }
 
     public function testExecuteHandlesConfigException(): void
