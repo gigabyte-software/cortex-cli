@@ -288,6 +288,10 @@ composer cs-fix
 
 See [BUILD.md](BUILD.md) for detailed instructions on building the PHAR.
 
+### Release
+
+See [RELEASE.md](RELEASE.md) for details on how releases work.
+
 ## Contributing
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development workflow.
