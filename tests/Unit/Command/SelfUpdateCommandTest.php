@@ -18,7 +18,7 @@ class SelfUpdateCommandTest extends TestCase
         $application = new Application();
         $application->add(new SelfUpdateCommand());
 
-        $command = $application->find('self-update');
+        $command = $application->find('update');
         $this->commandTester = new CommandTester($command);
     }
 
@@ -28,7 +28,7 @@ class SelfUpdateCommandTest extends TestCase
         $this->commandTester->execute([]);
 
         $output = $this->commandTester->getDisplay();
-        $this->assertStringContainsString('Self-update is only available when running as PHAR', $output);
+        $this->assertStringContainsString('Update is only available when running as PHAR', $output);
         $this->assertStringContainsString('git pull origin main', $output);
         $this->assertEquals(1, $this->commandTester->getStatusCode());
     }
@@ -39,7 +39,7 @@ class SelfUpdateCommandTest extends TestCase
 
         $output = $this->commandTester->getDisplay();
         // Should still fail when not running as PHAR, but verify the option is recognized
-        $this->assertStringContainsString('Self-update is only available when running as PHAR', $output);
+        $this->assertStringContainsString('Update is only available when running as PHAR', $output);
     }
 
     public function test_it_has_force_option(): void
@@ -48,26 +48,27 @@ class SelfUpdateCommandTest extends TestCase
 
         $output = $this->commandTester->getDisplay();
         // Should still fail when not running as PHAR, but verify the option is recognized
-        $this->assertStringContainsString('Self-update is only available when running as PHAR', $output);
+        $this->assertStringContainsString('Update is only available when running as PHAR', $output);
     }
 
-    public function test_it_has_aliases(): void
+    public function test_command_is_named_update(): void
     {
         $application = new Application();
         $command = new SelfUpdateCommand();
         $application->add($command);
 
-        // Test that aliases work
-        $this->assertTrue($application->has('selfupdate'));
+        // Test that command is named 'update'
         $this->assertTrue($application->has('update'));
-        $this->assertTrue($application->has('self-update'));
+        // Should not have old aliases
+        $this->assertFalse($application->has('selfupdate'));
+        $this->assertFalse($application->has('self-update'));
     }
 
     public function test_command_description(): void
     {
         $command = new SelfUpdateCommand();
 
-        $this->assertEquals('self-update', $command->getName());
+        $this->assertEquals('update', $command->getName());
         $this->assertEquals('Update Cortex CLI to the latest version', $command->getDescription());
     }
 }

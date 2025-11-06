@@ -97,17 +97,15 @@ cortex up
 
 ## Commands
 
-### `cortex self-update`
+### `cortex update`
 
 Update Cortex CLI to the latest version:
 
 ```bash
-cortex self-update           # Update to latest version
-cortex self-update --check   # Check for updates without installing
-cortex self-update --force   # Force update even if already latest
+cortex update           # Update to latest version
+cortex update --check   # Check for updates without installing
+cortex update --force   # Force update even if already latest
 ```
-
-Aliases: `selfupdate`, `update`
 
 This command:
 1. Checks GitHub for the latest release

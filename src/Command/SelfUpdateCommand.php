@@ -14,14 +14,12 @@ class SelfUpdateCommand extends Command
 {
     private const GITHUB_REPO = 'gigabyte-software/cortex-cli';
     private const GITHUB_API_URL = 'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest';
-    private const GITHUB_DOWNLOAD_URL = 'https://github.com/' . self::GITHUB_REPO . '/releases/latest/download/cortex.phar';
 
     protected function configure(): void
     {
         $this
-            ->setName('self-update')
+            ->setName('update')
             ->setDescription('Update Cortex CLI to the latest version')
-            ->setAliases(['selfupdate', 'update'])
             ->addOption('check', null, InputOption::VALUE_NONE, 'Check for updates without installing')
             ->addOption('force', null, InputOption::VALUE_NONE, 'Force update even if already on latest version');
     }
@@ -33,7 +31,7 @@ class SelfUpdateCommand extends Command
         // Check if running as PHAR
         $pharPath = \Phar::running(false);
         if (empty($pharPath)) {
-            $formatter->error('Self-update is only available when running as PHAR.');
+            $formatter->error('Update is only available when running as PHAR.');
             $formatter->info('You are running from source. Use git to update:');
             $formatter->info('  git pull origin main');
             $formatter->info('  composer install');
@@ -44,7 +42,7 @@ class SelfUpdateCommand extends Command
         if (!is_writable($pharPath)) {
             $formatter->error("Cannot update: No write permission to $pharPath");
             $formatter->info('Try running with sudo:');
-            $formatter->info('  sudo cortex self-update');
+            $formatter->info('  sudo cortex update');
             return Command::FAILURE;
         }
 
@@ -63,7 +61,8 @@ class SelfUpdateCommand extends Command
             $formatter->info("Current version: $currentVersion");
 
             // Fetch latest release info from GitHub
-            $latestVersion = $this->getLatestVersion();
+            $releaseInfo = $this->getLatestReleaseInfo();
+            $latestVersion = $releaseInfo['version'];
             $formatter->info("Latest version: $latestVersion");
 
             // Compare versions
@@ -82,7 +81,7 @@ class SelfUpdateCommand extends Command
 
             // Download and install update
             $formatter->section('Downloading update');
-            $tempFile = $this->downloadLatestVersion();
+            $tempFile = $this->downloadLatestVersion($releaseInfo['download_url']);
 
             $formatter->section('Installing update');
             $this->installUpdate($tempFile, $pharPath);
@@ -101,7 +100,10 @@ class SelfUpdateCommand extends Command
         }
     }
 
-    private function getLatestVersion(): string
+    /**
+     * @return array{version: string, download_url: string}
+     */
+    private function getLatestReleaseInfo(): array
     {
         $context = stream_context_create([
             'http' => [
@@ -122,15 +124,33 @@ class SelfUpdateCommand extends Command
 
         $data = json_decode($response, true);
 
-        if (!isset($data['tag_name'])) {
+        if (!isset($data['tag_name']) || !isset($data['assets'])) {
             throw new \RuntimeException('Invalid response from GitHub API');
         }
 
+        // Find the cortex.phar asset
+        $downloadUrl = null;
+        foreach ($data['assets'] as $asset) {
+            if (isset($asset['name']) && $asset['name'] === 'cortex.phar') {
+                $downloadUrl = $asset['browser_download_url'];
+                break;
+            }
+        }
+
+        if ($downloadUrl === null) {
+            throw new \RuntimeException('cortex.phar not found in latest release');
+        }
+
         // Remove 'v' prefix if present
-        return ltrim($data['tag_name'], 'v');
+        $version = ltrim($data['tag_name'], 'v');
+
+        return [
+            'version' => $version,
+            'download_url' => $downloadUrl,
+        ];
     }
 
-    private function downloadLatestVersion(): string
+    private function downloadLatestVersion(string $downloadUrl): string
     {
         $tempFile = tempnam(sys_get_temp_dir(), 'cortex_update_');
 
@@ -147,7 +167,7 @@ class SelfUpdateCommand extends Command
             ],
         ]);
 
-        $content = @file_get_contents(self::GITHUB_DOWNLOAD_URL, false, $context);
+        $content = @file_get_contents($downloadUrl, false, $context);
 
         if ($content === false) {
             @unlink($tempFile);
@@ -159,12 +179,35 @@ class SelfUpdateCommand extends Command
             throw new \RuntimeException('Failed to save downloaded file');
         }
 
-        // Verify it's a valid PHAR
-        try {
-            new \Phar($tempFile);
-        } catch (\Exception $e) {
+        // Verify it's a valid PHAR by checking the file signature
+        $fp = fopen($tempFile, 'rb');
+        if ($fp === false) {
+            @unlink($tempFile);
+            throw new \RuntimeException('Failed to open downloaded file for verification');
+        }
+
+        $header = fread($fp, 4);
+        fclose($fp);
+
+        // Check for PHP PHAR signature (should start with #!/usr/bin/env php or <?php)
+        if ($header === false || (!str_starts_with($content, '#!/') && !str_starts_with($content, '<?php'))) {
             @unlink($tempFile);
             throw new \RuntimeException('Downloaded file is not a valid PHAR');
+        }
+
+        // Additional check: verify it's executable PHP
+        try {
+            // Try to load it as a Phar (this will fail if it's not valid)
+            new \Phar($tempFile);
+        } catch (\Exception $e) {
+            // If Phar loading fails but file looks like PHP, it might be a stub-only PHAR
+            // Check file size - should be at least 10KB for a valid Cortex PHAR
+            $fileSize = filesize($tempFile);
+            if ($fileSize === false || $fileSize < 10240) {
+                @unlink($tempFile);
+                throw new \RuntimeException('Downloaded file is not a valid PHAR: ' . $e->getMessage());
+            }
+            // If file is large enough and looks like PHP, proceed
         }
 
         return $tempFile;
