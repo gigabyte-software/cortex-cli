@@ -67,6 +67,7 @@ class InitCommandTest extends TestCase
         
         $content = file_get_contents($this->testDir . '/.cortex/README.md');
         $this->assertIsString($content, 'Failed to read README.md');
+        assert(is_string($content)); // Type narrowing for PHPStan
         $this->assertStringContainsString('# .cortex Folder', $content);
         $this->assertStringContainsString('Core Principle', $content);
     }
@@ -82,6 +83,7 @@ class InitCommandTest extends TestCase
         
         $content = file_get_contents($this->testDir . '/.cortex/meetings/index.json');
         $this->assertIsString($content, 'Failed to read meetings/index.json');
+        assert(is_string($content)); // Type narrowing for PHPStan
         $data = json_decode($content, true);
         
         $this->assertIsArray($data);
@@ -101,6 +103,7 @@ class InitCommandTest extends TestCase
         
         $content = file_get_contents($this->testDir . '/cortex.yml');
         $this->assertIsString($content, 'Failed to read cortex.yml');
+        assert(is_string($content)); // Type narrowing for PHPStan
         $this->assertStringContainsString('version: "1.0"', $content);
         $this->assertStringContainsString('docker:', $content);
         $this->assertStringContainsString('compose_file:', $content);
@@ -148,6 +151,7 @@ class InitCommandTest extends TestCase
         // Check that files were overwritten
         $content = file_get_contents($this->testDir . '/cortex.yml');
         $this->assertIsString($content, 'Failed to read cortex.yml');
+        assert(is_string($content)); // Type narrowing for PHPStan
         $this->assertStringContainsString('version: "1.0"', $content);
         $this->assertStringNotContainsString('old content', $content);
     }
