@@ -42,7 +42,7 @@ class Application extends BaseApplication
 
     public function __construct()
     {
-        parent::__construct('Cortex CLI', '1.0.6');
+        parent::__construct('Cortex CLI', '1.1.0');
 
         // Simple dependency injection
         $configValidator = new ConfigValidator();
