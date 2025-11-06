@@ -158,6 +158,25 @@ Shows a table with:
 - Running status (running/exited)
 - Health status (healthy/unhealthy/starting)
 
+### `cortex shell`
+
+Open an interactive bash shell inside the primary service container:
+
+```bash
+cortex shell
+```
+
+This command:
+1. Reads the `primary_service` from your `cortex.yml` configuration
+2. Opens an interactive bash shell in that container
+3. Allows you to run commands, debug, or explore the container environment
+
+Perfect for:
+- Debugging issues in the container
+- Running ad-hoc commands
+- Exploring the container's filesystem
+- Interactive development
+
 ### Custom Commands
 
 Run custom commands directly by name:

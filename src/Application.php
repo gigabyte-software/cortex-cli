@@ -8,6 +8,7 @@ use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
 use Cortex\Command\SelfUpdateCommand;
+use Cortex\Command\ShellCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
@@ -72,6 +73,7 @@ class Application extends BaseApplication
         $this->add(new UpCommand($configLoader, $setupOrchestrator));
         $this->add(new DownCommand($configLoader, $dockerCompose));
         $this->add(new StatusCommand($configLoader, $dockerCompose, $healthChecker));
+        $this->add(new ShellCommand($configLoader, $containerExecutor));
         $this->add(new SelfUpdateCommand());
         $this->add(new StyleDemoCommand());
 
