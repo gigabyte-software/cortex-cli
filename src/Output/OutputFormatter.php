@@ -32,7 +32,7 @@ class OutputFormatter
 
     public function success(string $message): void
     {
-        $this->output->writeln("<fg=green>$message</>");
+        $this->output->writeln("<fg=" . self::COLOR_PURPLE . ">$message</>");
     }
 
     public function error(string $message): void
