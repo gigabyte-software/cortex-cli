@@ -62,5 +62,29 @@ class ContainerExecutor
         
         return $resultCode;
     }
+
+    /**
+     * Execute an interactive command with environment variables
+     * 
+     * @param array<string, string> $envVars Environment variables to pass
+     * @return int Exit code from the command
+     */
+    public function execInteractiveWithEnv(string $composeFile, string $service, string $command, array $envVars = []): int
+    {
+        // For interactive commands, use passthru to maintain TTY
+        $escapedFile = escapeshellarg($composeFile);
+        $escapedService = escapeshellarg($service);
+        
+        // Build environment variable flags
+        $envFlags = '';
+        foreach ($envVars as $key => $value) {
+            $envFlags .= ' -e ' . escapeshellarg($key . '=' . $value);
+        }
+        
+        $resultCode = 0;
+        passthru("docker-compose -f $escapedFile exec$envFlags $escapedService $command", $resultCode);
+        
+        return $resultCode;
+    }
 }
 
