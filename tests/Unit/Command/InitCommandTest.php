@@ -66,6 +66,7 @@ class InitCommandTest extends TestCase
         $this->assertFileExists($this->testDir . '/.cortex/README.md');
         
         $content = file_get_contents($this->testDir . '/.cortex/README.md');
+        $this->assertIsString($content, 'Failed to read README.md');
         $this->assertStringContainsString('# .cortex Folder', $content);
         $this->assertStringContainsString('Core Principle', $content);
     }
@@ -80,6 +81,7 @@ class InitCommandTest extends TestCase
         $this->assertFileExists($this->testDir . '/.cortex/meetings/index.json');
         
         $content = file_get_contents($this->testDir . '/.cortex/meetings/index.json');
+        $this->assertIsString($content, 'Failed to read meetings/index.json');
         $data = json_decode($content, true);
         
         $this->assertIsArray($data);
@@ -98,6 +100,7 @@ class InitCommandTest extends TestCase
         $this->assertFileExists($this->testDir . '/cortex.yml');
         
         $content = file_get_contents($this->testDir . '/cortex.yml');
+        $this->assertIsString($content, 'Failed to read cortex.yml');
         $this->assertStringContainsString('version: "1.0"', $content);
         $this->assertStringContainsString('docker:', $content);
         $this->assertStringContainsString('compose_file:', $content);
@@ -144,6 +147,7 @@ class InitCommandTest extends TestCase
         
         // Check that files were overwritten
         $content = file_get_contents($this->testDir . '/cortex.yml');
+        $this->assertIsString($content, 'Failed to read cortex.yml');
         $this->assertStringContainsString('version: "1.0"', $content);
         $this->assertStringNotContainsString('old content', $content);
     }

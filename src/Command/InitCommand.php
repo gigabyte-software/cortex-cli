@@ -218,12 +218,9 @@ class InitCommand extends Command
     private function showSuccessMessage(OutputFormatter $formatter, bool $skipYaml): void
     {
         $formatter->section('Initialization Complete');
+        $formatter->success('✓ Cortex initialized successfully!');
         
-        $output = $formatter->getOutput();
-        $output->writeln('');
-        $output->writeln('<fg=#7D55C7>✓ Cortex initialized successfully!</fg>');
-        $output->writeln('');
-        
+        $formatter->info('');
         $formatter->info('Created:');
         $formatter->info('  ✓ .cortex/ directory structure');
         $formatter->info('  ✓ .cortex/README.md');
@@ -234,7 +231,7 @@ class InitCommand extends Command
             $formatter->info('  ✓ cortex.yml');
         }
         
-        $output->writeln('');
+        $formatter->info('');
         $formatter->info('Next steps:');
         
         if (!$skipYaml) {
@@ -247,8 +244,7 @@ class InitCommand extends Command
         }
         
         $formatter->info('  4. Read .cortex/README.md for documentation');
-        $output->writeln('');
+        $formatter->info('');
         $formatter->info('For help: cortex --help');
-        $output->writeln('');
     }
 }
