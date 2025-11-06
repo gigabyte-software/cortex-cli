@@ -72,25 +72,6 @@ class InitCommandTest extends TestCase
         $this->assertStringContainsString('Core Principle', $content);
     }
 
-    public function testInitCreatesMeetingsIndex(): void
-    {
-        $command = new InitCommand();
-        $tester = $this->createCommandTester($command);
-
-        $tester->execute([], ['interactive' => false]);
-
-        $this->assertFileExists($this->testDir . '/.cortex/meetings/index.json');
-        
-        $content = file_get_contents($this->testDir . '/.cortex/meetings/index.json');
-        $this->assertIsString($content, 'Failed to read meetings/index.json');
-        assert(is_string($content)); // Type narrowing for PHPStan
-        $data = json_decode($content, true);
-        
-        $this->assertIsArray($data);
-        $this->assertArrayHasKey('meetings', $data);
-        $this->assertIsArray($data['meetings']);
-        $this->assertEmpty($data['meetings']);
-    }
 
     public function testInitCreatesCortexYml(): void
     {

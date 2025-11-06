@@ -28,8 +28,7 @@ When you run `cortex init`, it creates the following structure:
 │   ├── tickets/
 │   │   └── .gitkeep           # Keeps directory in git
 │   ├── specs/                 # Cucumber/Gherkin feature specifications
-│   └── meetings/
-│       └── index.json         # Meeting index (empty by default)
+│   └── meetings/              # Meeting notes directory
 └── cortex.yml                 # Example configuration file
 ```
 
@@ -61,7 +60,6 @@ The init command uses template files located in the `templates/` directory:
 
 - `templates/cortex.yml.template` - Example Cortex configuration
 - `templates/cortex-readme.md.template` - .cortex folder documentation
-- `templates/meetings-index.json.template` - Empty meetings index
 
 You can edit these templates to customize what gets generated for new projects.
 
@@ -109,7 +107,8 @@ meetings/
 ├── 2025-10/
 │   ├── 15-daily-standup.md
 │   └── 20-sprint-planning.md
-└── index.json
+└── 2025-09/
+    └── ...
 ```
 
 ## Generated cortex.yml

@@ -112,9 +112,6 @@ class InitCommand extends Command
 
         // Create README.md in .cortex
         $this->createCortexReadme($cortexDir, $formatter);
-
-        // Create meetings/index.json
-        $this->createMeetingsIndex($cortexDir . '/meetings', $formatter);
     }
 
     private function createGitkeep(string $directory, OutputFormatter $formatter): void
@@ -148,27 +145,6 @@ class InitCommand extends Command
         }
 
         $formatter->info('✓ Created .cortex/README.md');
-    }
-
-    private function createMeetingsIndex(string $meetingsDir, OutputFormatter $formatter): void
-    {
-        $indexPath = $meetingsDir . '/index.json';
-        $templatePath = $this->getTemplatePath('meetings-index.json.template');
-
-        if (!file_exists($templatePath)) {
-            throw new \RuntimeException("Template file not found: $templatePath");
-        }
-
-        $content = file_get_contents($templatePath);
-        if ($content === false) {
-            throw new \RuntimeException("Failed to read template: $templatePath");
-        }
-
-        if (file_put_contents($indexPath, $content) === false) {
-            throw new \RuntimeException("Failed to create meetings/index.json");
-        }
-
-        $formatter->info('✓ Created .cortex/meetings/index.json');
     }
 
     private function createCortexYml(string $cwd, OutputFormatter $formatter, bool $force): void
@@ -225,7 +201,6 @@ class InitCommand extends Command
         $formatter->info('  ✓ .cortex/ directory structure');
         $formatter->info('  ✓ .cortex/README.md');
         $formatter->info('  ✓ .cortex/tickets/.gitkeep');
-        $formatter->info('  ✓ .cortex/meetings/index.json');
         
         if (!$skipYaml) {
             $formatter->info('  ✓ cortex.yml');

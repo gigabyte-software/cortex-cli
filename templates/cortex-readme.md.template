@@ -149,9 +149,8 @@ meetings/
 │   ├── 15-daily-standup.md
 │   ├── 20-future-group-planning.md
 │   └── 25-sprint-planning.md
-├── 2025-09/
-│   └── ...
-└── index.json
+└── 2025-09/
+    └── ...
 ```
 
 ### Naming Convention
@@ -164,25 +163,6 @@ Examples:
 * `20-future-group-planning.md`
 * `22-security-review.md`
 
-### Meeting Index
-
-The `index.json` file provides searchable metadata:
-
-```
-{
-  "meetings": [
-    {
-      "date": "2025-10-25",
-      "title": "Sprint Planning",
-      "file": "2025-10/25-sprint-planning.md",
-      "tickets_discussed": ["CORE-123", "CORE-124"],
-      "attendees": ["Rob", "Cameron", "Adam"]
-    }
-  ]
-}
-```
-
-Update this when adding new meeting notes to enable quick searching.
 
 ## Workflow: How the Agent Uses This Structure
 
