@@ -12,6 +12,7 @@ readonly class DockerConfig
     public function __construct(
         public string $composeFile,
         public string $primaryService,
+        public string $appUrl,
         public array $waitFor = [],
     ) {
     }

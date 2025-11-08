@@ -3,6 +3,7 @@ version: "1.0"
 docker:
   compose_file: "docker-compose.yml"
   primary_service: "app"
+  app_url: "http://localhost"
   wait_for:
     - service: "app"
       timeout: 30

@@ -55,6 +55,10 @@ class ConfigValidator
             throw new ConfigException('Missing required field: docker.primary_service');
         }
 
+        if (!isset($docker['app_url'])) {
+            throw new ConfigException('Missing required field: docker.app_url');
+        }
+
         if (isset($docker['wait_for']) && !is_array($docker['wait_for'])) {
             throw new ConfigException('docker.wait_for must be an array');
         }

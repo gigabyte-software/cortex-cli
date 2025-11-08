@@ -24,6 +24,7 @@ class ConfigValidatorTest extends TestCase
             'docker' => [
                 'compose_file' => 'docker-compose.yml',
                 'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
             ],
         ];
 
@@ -53,6 +54,22 @@ class ConfigValidatorTest extends TestCase
 
         $config = [
             'version' => '1.0',
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_throws_exception_for_missing_app_url(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('Missing required field: docker.app_url');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+            ],
         ];
 
         $this->validator->validate($config);
@@ -95,6 +112,7 @@ class ConfigValidatorTest extends TestCase
             'docker' => [
                 'compose_file' => 'docker-compose.yml',
                 'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
                 'wait_for' => [
                     [
                         'service' => 'db',
@@ -118,6 +136,7 @@ class ConfigValidatorTest extends TestCase
             'docker' => [
                 'compose_file' => 'docker-compose.yml',
                 'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
                 'wait_for' => [
                     [
                         'service' => 'db',
@@ -137,6 +156,7 @@ class ConfigValidatorTest extends TestCase
             'docker' => [
                 'compose_file' => 'docker-compose.yml',
                 'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
             ],
             'setup' => [
                 'initialize' => [
@@ -164,6 +184,7 @@ class ConfigValidatorTest extends TestCase
             'docker' => [
                 'compose_file' => 'docker-compose.yml',
                 'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
             ],
             'setup' => [
                 'initialize' => [
