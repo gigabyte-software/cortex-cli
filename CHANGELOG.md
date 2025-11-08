@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1](https://github.com/gigabyte-software/cortex-cli/compare/v1.6.0...v1.6.1) (2025-11-08)
+
+
+### Bug Fixes
+
+* fix phpstan errors ([6ac7724](https://github.com/gigabyte-software/cortex-cli/commit/6ac77243e1acfb66d0d2f8d15a7af11fccff95e6))
+* use docker to scan ports becausse we were chec king ports inside the container than the cortex command was running, but we're using docker socket to create the containers on the host ([2467a44](https://github.com/gigabyte-software/cortex-cli/commit/2467a44a429b9487c8cf272955665ae1431eee28))
+
 # [1.6.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.5.6...v1.6.0) (2025-11-08)
 
 
