@@ -19,13 +19,18 @@ class ContainerExecutor
         string $service,
         string $command,
         int $timeout = 60,
-        ?callable $outputCallback = null
+        ?callable $outputCallback = null,
+        ?string $projectName = null
     ): Process {
         // Use docker-compose exec to run command in container
-        $process = new Process([
-            'docker-compose',
-            '-f',
-            $composeFile,
+        $cmd = ['docker-compose', '-f', $composeFile];
+        
+        if ($projectName !== null) {
+            $cmd[] = '-p';
+            $cmd[] = $projectName;
+        }
+        
+        $cmd = array_merge($cmd, [
             'exec',
             '-T', // Disable pseudo-TTY allocation for non-interactive
             $service,
@@ -33,7 +38,8 @@ class ContainerExecutor
             '-c',
             $command,
         ]);
-
+        
+        $process = new Process($cmd);
         $process->setTimeout($timeout);
         
         if ($outputCallback !== null) {
@@ -50,15 +56,20 @@ class ContainerExecutor
      * 
      * @return int Exit code from the command
      */
-    public function execInteractive(string $composeFile, string $service, string $command): int
+    public function execInteractive(string $composeFile, string $service, string $command, ?string $projectName = null): int
     {
         // For interactive commands, use passthru to maintain TTY
         $escapedFile = escapeshellarg($composeFile);
         $escapedService = escapeshellarg($service);
-        // Don't escape command to allow proper shell interaction
+        
+        $projectFlag = '';
+        if ($projectName !== null) {
+            $escapedProject = escapeshellarg($projectName);
+            $projectFlag = " -p $escapedProject";
+        }
         
         $resultCode = 0;
-        passthru("docker-compose -f $escapedFile exec $escapedService $command", $resultCode);
+        passthru("docker-compose -f $escapedFile$projectFlag exec $escapedService $command", $resultCode);
         
         return $resultCode;
     }
@@ -69,11 +80,22 @@ class ContainerExecutor
      * @param array<string, string> $envVars Environment variables to pass
      * @return int Exit code from the command
      */
-    public function execInteractiveWithEnv(string $composeFile, string $service, string $command, array $envVars = []): int
-    {
+    public function execInteractiveWithEnv(
+        string $composeFile,
+        string $service,
+        string $command,
+        array $envVars = [],
+        ?string $projectName = null
+    ): int {
         // For interactive commands, use passthru to maintain TTY
         $escapedFile = escapeshellarg($composeFile);
         $escapedService = escapeshellarg($service);
+        
+        $projectFlag = '';
+        if ($projectName !== null) {
+            $escapedProject = escapeshellarg($projectName);
+            $projectFlag = " -p $escapedProject";
+        }
         
         // Build environment variable flags
         $envFlags = '';
@@ -82,7 +104,7 @@ class ContainerExecutor
         }
         
         $resultCode = 0;
-        passthru("docker-compose -f $escapedFile exec$envFlags $escapedService $command", $resultCode);
+        passthru("docker-compose -f $escapedFile$projectFlag exec$envFlags $escapedService $command", $resultCode);
         
         return $resultCode;
     }

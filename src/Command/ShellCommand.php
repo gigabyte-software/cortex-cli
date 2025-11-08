@@ -6,7 +6,9 @@ namespace Cortex\Command;
 
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
+use Cortex\Config\LockFile;
 use Cortex\Docker\ContainerExecutor;
+use Cortex\Docker\NamespaceResolver;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -17,6 +19,8 @@ class ShellCommand extends Command
     public function __construct(
         private readonly ConfigLoader $configLoader,
         private readonly ContainerExecutor $containerExecutor,
+        private readonly LockFile $lockFile,
+        private readonly NamespaceResolver $namespaceResolver,
     ) {
         parent::__construct();
     }
@@ -40,6 +44,18 @@ class ShellCommand extends Command
             $primaryService = $config->docker->primaryService;
             $composeFile = $config->docker->composeFile;
 
+            // Read lock file to get namespace
+            $namespace = null;
+            if ($this->lockFile->exists()) {
+                $lockData = $this->lockFile->read();
+                $namespace = $lockData?->namespace;
+            }
+
+            // If no lock file, derive namespace from directory
+            if ($namespace === null) {
+                $namespace = $this->namespaceResolver->deriveFromDirectory();
+            }
+
             // Build a custom PS1 prompt with Gigabyte brand colors
             // Purple (#7D55C7 - Pantone 2665C) for container name
             // Teal (#2ED9C3 - Pantone 3255C) for directory path
@@ -54,7 +70,7 @@ class ShellCommand extends Command
             // Use /bin/sh to run a command that exports PS1 and execs bash in interactive mode
             // The -i flag is crucial for bash to recognize PS1
             $shellCommand = sprintf('/bin/sh -c "export PS1=\'%s\'; exec /bin/bash -i"', $prompt);
-            $exitCode = $this->containerExecutor->execInteractive($composeFile, $primaryService, $shellCommand);
+            $exitCode = $this->containerExecutor->execInteractive($composeFile, $primaryService, $shellCommand, $namespace);
 
             return $exitCode;
         } catch (ConfigException $e) {

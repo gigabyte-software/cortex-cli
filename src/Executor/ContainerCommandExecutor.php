@@ -14,6 +14,7 @@ class ContainerCommandExecutor
         private readonly ContainerExecutor $containerExecutor,
         private readonly string $composeFile,
         private readonly string $service,
+        private readonly ?string $projectName = null,
     ) {
     }
 
@@ -32,6 +33,7 @@ class ContainerCommandExecutor
             command: $cmd->command,
             timeout: $cmd->timeout,
             outputCallback: $outputCallback,
+            projectName: $this->projectName,
         );
 
         $executionTime = microtime(true) - $startTime;

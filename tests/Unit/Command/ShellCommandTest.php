@@ -6,10 +6,12 @@ namespace Cortex\Tests\Unit\Command;
 
 use Cortex\Command\ShellCommand;
 use Cortex\Config\ConfigLoader;
+use Cortex\Config\LockFile;
 use Cortex\Config\Schema\CortexConfig;
 use Cortex\Config\Schema\DockerConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Docker\ContainerExecutor;
+use Cortex\Docker\NamespaceResolver;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -19,8 +21,10 @@ class ShellCommandTest extends TestCase
     {
         $configLoader = $this->createMock(ConfigLoader::class);
         $containerExecutor = $this->createMock(ContainerExecutor::class);
+        $lockFile = $this->createMock(LockFile::class);
+        $namespaceResolver = $this->createMock(NamespaceResolver::class);
 
-        $command = new ShellCommand($configLoader, $containerExecutor);
+        $command = new ShellCommand($configLoader, $containerExecutor, $lockFile, $namespaceResolver);
 
         $this->assertSame('shell', $command->getName());
         $this->assertSame('Open an interactive bash shell in the primary service container', $command->getDescription());
@@ -30,6 +34,8 @@ class ShellCommandTest extends TestCase
     {
         $configLoader = $this->createMock(ConfigLoader::class);
         $containerExecutor = $this->createMock(ContainerExecutor::class);
+        $lockFile = $this->createMock(LockFile::class);
+        $namespaceResolver = $this->createMock(NamespaceResolver::class);
 
         $dockerConfig = new DockerConfig(
             composeFile: 'docker-compose.yml',
@@ -59,6 +65,14 @@ class ShellCommandTest extends TestCase
             ->with('/path/to/cortex.yml')
             ->willReturn($config);
 
+        $lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(false);
+
+        $namespaceResolver->expects($this->once())
+            ->method('deriveFromDirectory')
+            ->willReturn('cortex-test-project');
+
         $purple = '\\[\\033[38;2;125;85;199m\\]';
         $teal = '\\[\\033[38;2;46;217;195m\\]';
         $reset = '\\[\\033[0m\\]';
@@ -67,10 +81,10 @@ class ShellCommandTest extends TestCase
 
         $containerExecutor->expects($this->once())
             ->method('execInteractive')
-            ->with('docker-compose.yml', 'app', $expectedShellCommand)
+            ->with('docker-compose.yml', 'app', $expectedShellCommand, 'cortex-test-project')
             ->willReturn(0);
 
-        $command = new ShellCommand($configLoader, $containerExecutor);
+        $command = new ShellCommand($configLoader, $containerExecutor, $lockFile, $namespaceResolver);
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([]);
 
@@ -81,12 +95,14 @@ class ShellCommandTest extends TestCase
     {
         $configLoader = $this->createMock(ConfigLoader::class);
         $containerExecutor = $this->createMock(ContainerExecutor::class);
+        $lockFile = $this->createMock(LockFile::class);
+        $namespaceResolver = $this->createMock(NamespaceResolver::class);
 
         $configLoader->expects($this->once())
             ->method('findConfigFile')
             ->willThrowException(new \Cortex\Config\Exception\ConfigException('Config not found'));
 
-        $command = new ShellCommand($configLoader, $containerExecutor);
+        $command = new ShellCommand($configLoader, $containerExecutor, $lockFile, $namespaceResolver);
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([]);
 

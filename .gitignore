@@ -8,6 +8,9 @@
 # Docker
 /docker-compose.override.yml
 
+# Cortex CLI
+/.cortex.lock
+
 # Node.js / Semantic Release
 /node_modules/
 npm-debug.log*

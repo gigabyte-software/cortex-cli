@@ -27,14 +27,22 @@ class SetupOrchestrator
     /**
      * Orchestrate the full setup flow
      * 
+     * @param CortexConfig $config Configuration
      * @param bool $skipWait Skip health checks
      * @param bool $skipInit Skip initialize commands
-     * @return float Total execution time
+     * @param string|null $namespace Container namespace
+     * @param int|null $portOffset Port offset to apply
+     * @return array{time: float, namespace: string, port_offset: int} Setup results
      * @throws \RuntimeException
      * @throws ServiceNotHealthyException
      */
-    public function setup(CortexConfig $config, bool $skipWait = false, bool $skipInit = false): float
-    {
+    public function setup(
+        CortexConfig $config,
+        bool $skipWait = false,
+        bool $skipInit = false,
+        ?string $namespace = null,
+        ?int $portOffset = null
+    ): array {
         $startTime = microtime(true);
 
         // Phase 1: Pre-start commands
@@ -43,11 +51,11 @@ class SetupOrchestrator
         }
 
         // Phase 2: Start Docker services
-        $this->startDockerServices($config->docker->composeFile);
+        $this->startDockerServices($config->docker->composeFile, $namespace);
 
         // Phase 3: Wait for services
         if (!$skipWait && !empty($config->docker->waitFor)) {
-            $this->waitForServices($config->docker->composeFile, $config->docker->waitFor);
+            $this->waitForServices($config->docker->composeFile, $config->docker->waitFor, $namespace);
         }
 
         // Phase 4: Initialize commands
@@ -55,11 +63,16 @@ class SetupOrchestrator
             $this->runInitializeCommands(
                 $config->setup->initialize,
                 $config->docker->composeFile,
-                $config->docker->primaryService
+                $config->docker->primaryService,
+                $namespace
             );
         }
 
-        return microtime(true) - $startTime;
+        return [
+            'time' => microtime(true) - $startTime,
+            'namespace' => $namespace ?? '',
+            'port_offset' => $portOffset ?? 0,
+        ];
     }
 
     /**
@@ -79,10 +92,15 @@ class SetupOrchestrator
     /**
      * Start Docker Compose services
      */
-    private function startDockerServices(string $composeFile): void
+    private function startDockerServices(string $composeFile, ?string $namespace = null): void
     {
         $this->formatter->section('Starting Docker services');
-        $this->dockerCompose->up($composeFile);
+        
+        if ($namespace !== null) {
+            $this->formatter->info("Using namespace: {$namespace}");
+        }
+        
+        $this->dockerCompose->up($composeFile, $namespace);
         $this->formatter->info('Docker services started');
     }
 
@@ -91,7 +109,7 @@ class SetupOrchestrator
      * 
      * @param \Cortex\Config\Schema\ServiceWaitConfig[] $waitFor
      */
-    private function waitForServices(string $composeFile, array $waitFor): void
+    private function waitForServices(string $composeFile, array $waitFor, ?string $namespace = null): void
     {
         $this->formatter->section('Waiting for services');
 
@@ -102,7 +120,8 @@ class SetupOrchestrator
                 $this->healthChecker->waitForHealth(
                     $composeFile,
                     $waitConfig->service,
-                    $waitConfig->timeout
+                    $waitConfig->timeout,
+                    $namespace
                 );
 
                 $elapsed = microtime(true) - $startTime;
@@ -118,14 +137,19 @@ class SetupOrchestrator
      * 
      * @param CommandDefinition[] $commands
      */
-    private function runInitializeCommands(array $commands, string $composeFile, string $primaryService): void
-    {
+    private function runInitializeCommands(
+        array $commands,
+        string $composeFile,
+        string $primaryService,
+        ?string $namespace = null
+    ): void {
         $this->formatter->section('Initialize commands');
 
         $containerExecutor = new ContainerCommandExecutor(
             new \Cortex\Docker\ContainerExecutor(),
             $composeFile,
-            $primaryService
+            $primaryService,
+            $namespace
         );
 
         foreach ($commands as $cmd) {

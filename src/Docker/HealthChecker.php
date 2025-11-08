@@ -12,9 +12,9 @@ class HealthChecker
     /**
      * Check if a service is healthy
      */
-    public function isHealthy(string $composeFile, string $service): bool
+    public function isHealthy(string $composeFile, string $service, ?string $projectName = null): bool
     {
-        $status = $this->getHealthStatus($composeFile, $service);
+        $status = $this->getHealthStatus($composeFile, $service, $projectName);
         return $status === 'healthy' || $status === 'running';
     }
 
@@ -23,21 +23,22 @@ class HealthChecker
      * 
      * @throws ServiceNotHealthyException
      */
-    public function waitForHealth(string $composeFile, string $service, int $timeout): void
+    public function waitForHealth(string $composeFile, string $service, int $timeout, ?string $projectName = null): void
     {
         $startTime = time();
         $pollInterval = 2; // Check every 2 seconds
 
         while (true) {
-            if ($this->isHealthy($composeFile, $service)) {
+            if ($this->isHealthy($composeFile, $service, $projectName)) {
                 return;
             }
 
             $elapsed = time() - $startTime;
             if ($elapsed >= $timeout) {
+                $projectFlag = $projectName ? " -p $projectName" : '';
                 throw new ServiceNotHealthyException(
                     "Service '$service' did not become healthy within {$timeout}s. " .
-                    "Check logs with: docker-compose -f $composeFile logs $service"
+                    "Check logs with: docker-compose -f $composeFile$projectFlag logs $service"
                 );
             }
 
@@ -50,17 +51,19 @@ class HealthChecker
      * 
      * @return string Status: 'healthy', 'unhealthy', 'starting', 'running', 'exited', 'unknown'
      */
-    public function getHealthStatus(string $composeFile, string $service): string
+    public function getHealthStatus(string $composeFile, string $service, ?string $projectName = null): string
     {
         // First, get the container name for this service
-        $process = new Process([
-            'docker-compose',
-            '-f',
-            $composeFile,
-            'ps',
-            '-q',
-            $service,
-        ]);
+        $command = ['docker-compose', '-f', $composeFile];
+        
+        if ($projectName !== null) {
+            $command[] = '-p';
+            $command[] = $projectName;
+        }
+        
+        $command = array_merge($command, ['ps', '-q', $service]);
+        
+        $process = new Process($command);
         $process->run();
 
         $containerId = trim($process->getOutput());

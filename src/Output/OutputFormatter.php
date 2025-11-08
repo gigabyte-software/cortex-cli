@@ -19,6 +19,11 @@ class OutputFormatter
     ) {
     }
 
+    public function getOutput(): OutputInterface
+    {
+        return $this->output;
+    }
+
     public function section(string $title): void
     {
         $this->output->writeln('');

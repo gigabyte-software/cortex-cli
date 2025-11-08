@@ -1,0 +1,252 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Cortex\Tests\Unit\Command;
+
+use Cortex\Command\StatusCommand;
+use Cortex\Config\ConfigLoader;
+use Cortex\Config\LockFile;
+use Cortex\Config\LockFileData;
+use Cortex\Config\Schema\CortexConfig;
+use Cortex\Config\Schema\DockerConfig;
+use Cortex\Config\Schema\SetupConfig;
+use Cortex\Docker\DockerCompose;
+use Cortex\Docker\HealthChecker;
+use Cortex\Docker\NamespaceResolver;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Tester\CommandTester;
+
+class StatusCommandTest extends TestCase
+{
+    private ConfigLoader $configLoader;
+    private DockerCompose $dockerCompose;
+    private HealthChecker $healthChecker;
+    private LockFile $lockFile;
+    private NamespaceResolver $namespaceResolver;
+
+    protected function setUp(): void
+    {
+        $this->configLoader = $this->createMock(ConfigLoader::class);
+        $this->dockerCompose = $this->createMock(DockerCompose::class);
+        $this->healthChecker = $this->createMock(HealthChecker::class);
+        $this->lockFile = $this->createMock(LockFile::class);
+        $this->namespaceResolver = $this->createMock(NamespaceResolver::class);
+    }
+
+    public function test_command_is_configured_correctly(): void
+    {
+        $command = $this->createCommand();
+
+        $this->assertSame('status', $command->getName());
+        $this->assertSame('Check the health status of services', $command->getDescription());
+    }
+
+    public function test_it_shows_no_services_running_message(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->lockFile->expects($this->exactly(2))
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->namespaceResolver->expects($this->once())
+            ->method('deriveFromDirectory')
+            ->willReturn('cortex-test-project');
+
+        $this->dockerCompose->expects($this->once())
+            ->method('isRunning')
+            ->with('docker-compose.yml', 'cortex-test-project')
+            ->willReturn(false);
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('No services are currently running', $tester->getDisplay());
+    }
+
+    public function test_it_displays_instance_information_from_lock_file(): void
+    {
+        $config = $this->createMockConfig();
+        
+        $lockData = new LockFileData(
+            namespace: 'cortex-agent-1-project',
+            portOffset: 1000,
+            startedAt: '2025-11-08T10:30:00+00:00'
+        );
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->lockFile->expects($this->exactly(2))
+            ->method('exists')
+            ->willReturn(true);
+
+        $this->lockFile->expects($this->exactly(2))
+            ->method('read')
+            ->willReturn($lockData);
+
+        $this->dockerCompose->expects($this->once())
+            ->method('isRunning')
+            ->with('docker-compose.yml', 'cortex-agent-1-project')
+            ->willReturn(true);
+
+        $this->dockerCompose->expects($this->once())
+            ->method('ps')
+            ->with('docker-compose.yml', 'cortex-agent-1-project')
+            ->willReturn([
+                'app' => ['Service' => 'app', 'State' => 'running']
+            ]);
+
+        $this->healthChecker->expects($this->once())
+            ->method('getHealthStatus')
+            ->with('docker-compose.yml', 'app', 'cortex-agent-1-project')
+            ->willReturn('healthy');
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+        $display = $tester->getDisplay();
+        $this->assertStringContainsString('cortex-agent-1-project', $display);
+        $this->assertStringContainsString('+1000', $display);
+        $this->assertStringContainsString('2025-11-08', $display);
+    }
+
+    public function test_it_shows_service_status_table(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->lockFile->expects($this->exactly(2))
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->namespaceResolver->expects($this->once())
+            ->method('deriveFromDirectory')
+            ->willReturn('cortex-test-project');
+
+        $this->dockerCompose->expects($this->once())
+            ->method('isRunning')
+            ->with('docker-compose.yml', 'cortex-test-project')
+            ->willReturn(true);
+
+        $this->dockerCompose->expects($this->once())
+            ->method('ps')
+            ->with('docker-compose.yml', 'cortex-test-project')
+            ->willReturn([
+                'app' => ['Service' => 'app', 'State' => 'running'],
+                'db' => ['Service' => 'db', 'State' => 'running']
+            ]);
+
+        $this->healthChecker->expects($this->exactly(2))
+            ->method('getHealthStatus')
+            ->with(
+                'docker-compose.yml',
+                $this->logicalOr('app', 'db'),
+                'cortex-test-project'
+            )
+            ->willReturnOnConsecutiveCalls('healthy', 'healthy');
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+        $display = $tester->getDisplay();
+        $this->assertStringContainsString('Service', $display);
+        $this->assertStringContainsString('Status', $display);
+        $this->assertStringContainsString('Health', $display);
+        $this->assertStringContainsString('app', $display);
+        $this->assertStringContainsString('db', $display);
+    }
+
+    public function test_it_derives_namespace_when_no_lock_file(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->lockFile->expects($this->exactly(2))
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->namespaceResolver->expects($this->once())
+            ->method('deriveFromDirectory')
+            ->willReturn('cortex-test-project');
+
+        $this->dockerCompose->expects($this->once())
+            ->method('isRunning')
+            ->with('docker-compose.yml', 'cortex-test-project')
+            ->willReturn(false);
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+    }
+
+    private function createCommand(): StatusCommand
+    {
+        return new StatusCommand(
+            $this->configLoader,
+            $this->dockerCompose,
+            $this->healthChecker,
+            $this->lockFile,
+            $this->namespaceResolver
+        );
+    }
+
+    private function createMockConfig(): CortexConfig
+    {
+        $dockerConfig = new DockerConfig(
+            composeFile: 'docker-compose.yml',
+            primaryService: 'app',
+            appUrl: 'http://localhost:80',
+            waitFor: []
+        );
+
+        $setupConfig = new SetupConfig(
+            preStart: [],
+            initialize: []
+        );
+
+        return new CortexConfig(
+            version: '1.0',
+            docker: $dockerConfig,
+            setup: $setupConfig,
+            commands: []
+        );
+    }
+}
+

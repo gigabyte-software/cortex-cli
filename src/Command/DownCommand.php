@@ -6,7 +6,10 @@ namespace Cortex\Command;
 
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
+use Cortex\Config\LockFile;
+use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
+use Cortex\Docker\NamespaceResolver;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,6 +21,9 @@ class DownCommand extends Command
     public function __construct(
         private readonly ConfigLoader $configLoader,
         private readonly DockerCompose $dockerCompose,
+        private readonly LockFile $lockFile,
+        private readonly NamespaceResolver $namespaceResolver,
+        private readonly ComposeOverrideGenerator $overrideGenerator,
     ) {
         parent::__construct();
     }
@@ -41,9 +47,28 @@ class DownCommand extends Command
 
             $formatter->section('Stopping environment');
 
+            // Read lock file to get namespace
+            $namespace = null;
+            if ($this->lockFile->exists()) {
+                $lockData = $this->lockFile->read();
+                $namespace = $lockData?->namespace;
+            }
+
+            // If no lock file, derive namespace from directory
+            if ($namespace === null) {
+                $namespace = $this->namespaceResolver->deriveFromDirectory();
+            }
+
             $removeVolumes = $input->getOption('volumes');
             
-            $this->dockerCompose->down($config->docker->composeFile, $removeVolumes);
+            // Stop Docker services
+            $this->dockerCompose->down($config->docker->composeFile, $removeVolumes, $namespace);
+            
+            // Clean up override file
+            $this->overrideGenerator->cleanup();
+            
+            // Delete lock file
+            $this->lockFile->delete();
             
             if ($removeVolumes) {
                 $formatter->info('Docker services stopped and volumes removed');

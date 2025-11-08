@@ -1,0 +1,220 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Cortex\Tests\Unit\Docker;
+
+use Cortex\Docker\ComposeOverrideGenerator;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
+
+class ComposeOverrideGeneratorTest extends TestCase
+{
+    private ComposeOverrideGenerator $generator;
+    private string $tempDir;
+    private string $originalDir;
+
+    protected function setUp(): void
+    {
+        $this->generator = new ComposeOverrideGenerator();
+        $this->tempDir = sys_get_temp_dir() . '/cortex-test-' . uniqid();
+        mkdir($this->tempDir);
+        
+        // Save original directory and change to temp dir
+        $this->originalDir = getcwd();
+        chdir($this->tempDir);
+    }
+
+    protected function tearDown(): void
+    {
+        // Restore original directory
+        chdir($this->originalDir);
+        
+        // Clean up temp directory
+        $files = glob($this->tempDir . '/*');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+        if (is_dir($this->tempDir)) {
+            rmdir($this->tempDir);
+        }
+    }
+
+    public function test_it_does_not_generate_override_for_zero_offset(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 0);
+
+        $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
+    }
+
+    public function test_it_generates_override_with_port_offset(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 1000);
+
+        $this->assertFileExists($this->tempDir . '/docker-compose.override.yml');
+    }
+
+    public function test_it_applies_offset_to_simple_port_mapping(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 1000);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $override = Yaml::parse($overrideContent);
+
+        $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
+    }
+
+    public function test_it_applies_offset_to_multiple_ports(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80', '443:443']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 1000);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $override = Yaml::parse($overrideContent);
+
+        $this->assertEquals(['1080:80', '1443:443'], $override['services']['app']['ports']);
+    }
+
+    public function test_it_applies_offset_to_interface_specific_ports(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['127.0.0.1:80:80']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 1000);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $override = Yaml::parse($overrideContent);
+
+        $this->assertEquals(['127.0.0.1:1080:80'], $override['services']['app']['ports']);
+    }
+
+    public function test_it_applies_offset_to_multiple_services(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80']
+                ],
+                'db' => [
+                    'image' => 'postgres',
+                    'ports' => ['5432:5432']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 1000);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $override = Yaml::parse($overrideContent);
+
+        $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
+        $this->assertEquals(['6432:5432'], $override['services']['db']['ports']);
+    }
+
+    public function test_it_includes_header_comment(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 1000);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+
+        $this->assertStringContainsString('Generated by Cortex CLI', $overrideContent);
+        $this->assertStringContainsString('DO NOT EDIT MANUALLY', $overrideContent);
+    }
+
+    public function test_it_cleans_up_override_file(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80']
+                ]
+            ]
+        ]);
+
+        $this->generator->generate($composeFile, 1000);
+        $this->assertFileExists($this->tempDir . '/docker-compose.override.yml');
+
+        $this->generator->cleanup();
+        $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
+    }
+
+    public function test_it_handles_cleanup_when_no_override_exists(): void
+    {
+        $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
+        
+        $this->generator->cleanup(); // Should not throw
+        
+        $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
+    }
+
+    public function test_it_throws_exception_for_nonexistent_compose_file(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Compose file not found');
+
+        $this->generator->generate('/nonexistent/docker-compose.yml', 1000);
+    }
+
+    private function createComposeFile(array $content): string
+    {
+        $filename = $this->tempDir . '/docker-compose.yml';
+        $yaml = Yaml::dump($content);
+        file_put_contents($filename, $yaml);
+        return $filename;
+    }
+}
+

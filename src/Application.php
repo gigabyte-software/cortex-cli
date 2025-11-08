@@ -13,10 +13,14 @@ use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
 use Cortex\Config\ConfigLoader;
+use Cortex\Config\LockFile;
 use Cortex\Config\Validator\ConfigValidator;
+use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\ContainerExecutor;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\NamespaceResolver;
+use Cortex\Docker\PortOffsetManager;
 use Cortex\Executor\HostCommandExecutor;
 use Cortex\Orchestrator\CommandOrchestrator;
 use Cortex\Orchestrator\SetupOrchestrator;
@@ -53,6 +57,12 @@ class Application extends BaseApplication
         $hostExecutor = new HostCommandExecutor();
         $containerExecutor = new ContainerExecutor();
         $healthChecker = new HealthChecker();
+        
+        // Multi-instance support services
+        $lockFile = new LockFile();
+        $namespaceResolver = new NamespaceResolver();
+        $portOffsetManager = new PortOffsetManager();
+        $overrideGenerator = new ComposeOverrideGenerator();
 
         // Create output formatter for orchestrators
         $consoleOutput = new ConsoleOutput();
@@ -70,10 +80,34 @@ class Application extends BaseApplication
 
         // Register built-in commands (these take precedence over custom commands)
         $this->add(new InitCommand());
-        $this->add(new UpCommand($configLoader, $setupOrchestrator));
-        $this->add(new DownCommand($configLoader, $dockerCompose));
-        $this->add(new StatusCommand($configLoader, $dockerCompose, $healthChecker));
-        $this->add(new ShellCommand($configLoader, $containerExecutor));
+        $this->add(new UpCommand(
+            $configLoader,
+            $setupOrchestrator,
+            $lockFile,
+            $namespaceResolver,
+            $portOffsetManager,
+            $overrideGenerator
+        ));
+        $this->add(new DownCommand(
+            $configLoader,
+            $dockerCompose,
+            $lockFile,
+            $namespaceResolver,
+            $overrideGenerator
+        ));
+        $this->add(new StatusCommand(
+            $configLoader,
+            $dockerCompose,
+            $healthChecker,
+            $lockFile,
+            $namespaceResolver
+        ));
+        $this->add(new ShellCommand(
+            $configLoader,
+            $containerExecutor,
+            $lockFile,
+            $namespaceResolver
+        ));
         $this->add(new SelfUpdateCommand());
         $this->add(new StyleDemoCommand());
 

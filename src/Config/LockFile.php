@@ -1,0 +1,88 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Cortex\Config;
+
+/**
+ * Manages the .cortex.lock file for tracking active instances
+ */
+class LockFile
+{
+    private const LOCK_FILE = '.cortex.lock';
+
+    public function __construct(
+        private readonly string $workingDirectory = ''
+    ) {
+    }
+
+    /**
+     * Check if a lock file exists
+     */
+    public function exists(): bool
+    {
+        return file_exists($this->getLockFilePath());
+    }
+
+    /**
+     * Read the lock file data
+     * 
+     * @return LockFileData|null
+     */
+    public function read(): ?LockFileData
+    {
+        if (!$this->exists()) {
+            return null;
+        }
+
+        $content = file_get_contents($this->getLockFilePath());
+        if ($content === false) {
+            return null;
+        }
+
+        $data = json_decode($content, true);
+        if ($data === null) {
+            return null;
+        }
+
+        return new LockFileData(
+            namespace: $data['namespace'] ?? null,
+            portOffset: $data['port_offset'] ?? null,
+            startedAt: $data['started_at'] ?? date('c')
+        );
+    }
+
+    /**
+     * Write lock file data
+     */
+    public function write(LockFileData $data): void
+    {
+        $content = json_encode([
+            'namespace' => $data->namespace,
+            'port_offset' => $data->portOffset,
+            'started_at' => $data->startedAt,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        file_put_contents($this->getLockFilePath(), $content);
+    }
+
+    /**
+     * Delete the lock file
+     */
+    public function delete(): void
+    {
+        if ($this->exists()) {
+            unlink($this->getLockFilePath());
+        }
+    }
+
+    /**
+     * Get the full path to the lock file
+     */
+    private function getLockFilePath(): string
+    {
+        $dir = $this->workingDirectory ?: getcwd();
+        return $dir . '/' . self::LOCK_FILE;
+    }
+}
+

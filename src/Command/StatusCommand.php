@@ -6,8 +6,10 @@ namespace Cortex\Command;
 
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
+use Cortex\Config\LockFile;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\NamespaceResolver;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
@@ -20,6 +22,8 @@ class StatusCommand extends Command
         private readonly ConfigLoader $configLoader,
         private readonly DockerCompose $dockerCompose,
         private readonly HealthChecker $healthChecker,
+        private readonly LockFile $lockFile,
+        private readonly NamespaceResolver $namespaceResolver,
     ) {
         parent::__construct();
     }
@@ -40,17 +44,43 @@ class StatusCommand extends Command
             $configPath = $this->configLoader->findConfigFile();
             $config = $this->configLoader->load($configPath);
 
-            $formatter->section('Service Status');
+            // Read lock file to get namespace and port offset
+            $namespace = null;
+            $portOffset = 0;
+            
+            if ($this->lockFile->exists()) {
+                $lockData = $this->lockFile->read();
+                $namespace = $lockData?->namespace;
+                $portOffset = $lockData?->portOffset ?? 0;
+            }
+
+            // If no lock file, derive namespace from directory
+            if ($namespace === null) {
+                $namespace = $this->namespaceResolver->deriveFromDirectory();
+            }
+
+            $formatter->section('Environment Status');
+
+            // Display instance information
+            if ($this->lockFile->exists()) {
+                $lockData = $this->lockFile->read();
+                $output->writeln(sprintf('<fg=cyan>Namespace:</> %s', $namespace));
+                if ($portOffset > 0) {
+                    $output->writeln(sprintf('<fg=cyan>Port offset:</> +%d', $portOffset));
+                }
+                $output->writeln(sprintf('<fg=cyan>Started:</> %s', $lockData?->startedAt ?? 'unknown'));
+                $output->writeln('');
+            }
 
             // Check if services are running
-            if (!$this->dockerCompose->isRunning($config->docker->composeFile)) {
+            if (!$this->dockerCompose->isRunning($config->docker->composeFile, $namespace)) {
                 $formatter->warning('No services are currently running');
                 $formatter->info('Run "cortex up" to start the environment');
                 return Command::SUCCESS;
             }
 
             // Get service info
-            $services = $this->dockerCompose->ps($config->docker->composeFile);
+            $services = $this->dockerCompose->ps($config->docker->composeFile, $namespace);
 
             if (empty($services)) {
                 $formatter->warning('No services found');
@@ -63,7 +93,7 @@ class StatusCommand extends Command
 
             foreach ($services as $serviceName => $serviceData) {
                 $status = $serviceData['State'] ?? 'unknown';
-                $health = $this->healthChecker->getHealthStatus($config->docker->composeFile, $serviceName);
+                $health = $this->healthChecker->getHealthStatus($config->docker->composeFile, $serviceName, $namespace);
                 
                 // Color code the status
                 $statusFormatted = match($status) {
