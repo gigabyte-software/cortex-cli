@@ -67,10 +67,13 @@ class OutputFormatter
         $this->output->writeln('');
     }
 
-    public function completionSummary(float $totalTime): void
+    public function completionSummary(float $totalTime, ?string $appUrl = null): void
     {
         $this->output->writeln('');
         $this->output->writeln(sprintf('<fg=' . self::COLOR_PURPLE . '>Environment ready! (%.1fs)</>', $totalTime));
+        if ($appUrl !== null) {
+            $this->output->writeln(sprintf('<fg=' . self::COLOR_TEAL . '>➜ Application: %s</>', $appUrl));
+        }
         $this->output->writeln('');
     }
 }

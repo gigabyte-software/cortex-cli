@@ -34,6 +34,7 @@ class ShellCommandTest extends TestCase
         $dockerConfig = new DockerConfig(
             composeFile: 'docker-compose.yml',
             primaryService: 'app',
+            appUrl: 'http://localhost:8080',
             waitFor: []
         );
 

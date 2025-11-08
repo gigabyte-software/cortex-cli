@@ -47,6 +47,13 @@ class ConfigLoaderTest extends TestCase
         $this->assertTrue(str_starts_with($config->docker->composeFile, '/'));
     }
 
+    public function test_it_loads_app_url(): void
+    {
+        $config = $this->loader->load(__DIR__ . '/../../fixtures/cortex.yml');
+
+        $this->assertEquals('http://localhost:8080', $config->docker->appUrl);
+    }
+
     public function test_it_parses_command_definitions(): void
     {
         $config = $this->loader->load(__DIR__ . '/../../fixtures/cortex.yml');

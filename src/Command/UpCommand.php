@@ -52,7 +52,7 @@ class UpCommand extends Command
                 $input->getOption('skip-init')
             );
 
-            $formatter->completionSummary($totalTime);
+            $formatter->completionSummary($totalTime, $config->docker->appUrl);
 
             return Command::SUCCESS;
         } catch (ConfigException $e) {

@@ -139,6 +139,7 @@ class ConfigLoader
         return new DockerConfig(
             composeFile: $composeFile,
             primaryService: $dockerConfig['primary_service'],
+            appUrl: $dockerConfig['app_url'],
             waitFor: $waitFor,
         );
     }
