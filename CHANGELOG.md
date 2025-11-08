@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.6](https://github.com/gigabyte-software/cortex-cli/compare/v1.5.5...v1.5.6) (2025-11-08)
+
+
+### Bug Fixes
+
+* check if we can bind to a port not just if something is listening when checking for port conflicts ([4ba9a27](https://github.com/gigabyte-software/cortex-cli/commit/4ba9a274b82117b55c3b1400050745ef1c84af2a))
+
 ## [1.5.5](https://github.com/gigabyte-software/cortex-cli/compare/v1.5.4...v1.5.5) (2025-11-08)
 
 
