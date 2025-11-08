@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.6.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.5.6...v1.6.0) (2025-11-08)
+
+
+### Features
+
+* deploy Cortex Coder on a new release ([481bc95](https://github.com/gigabyte-software/cortex-cli/commit/481bc950d13694bbb0907aa93d7b2269c7c24e90))
+
 ## [1.5.6](https://github.com/gigabyte-software/cortex-cli/compare/v1.5.5...v1.5.6) (2025-11-08)
 
 
