@@ -1,0 +1,13 @@
+name: Deploy Cortex Coder
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  trigger-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Cortex Coder Deployment
+        run: |
+          curl -X POST "${{ secrets.FORGE_DEPLOY_TRIGGER_URL }}"

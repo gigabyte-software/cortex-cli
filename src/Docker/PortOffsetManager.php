@@ -111,28 +111,61 @@ class PortOffsetManager
 
     /**
      * Check if a specific port is available on the host
-     * Checks both localhost and all interfaces to ensure port is truly free
+     * Uses Docker to check actual host port bindings (works even when running in a container)
      */
     private function isPortAvailable(int $port): bool
     {
-        // Check localhost (127.0.0.1)
-        $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 1.0);
-        if ($socket !== false) {
-            fclose($socket);
-            return false; // Port is in use
-        }
-
-        // Also check all interfaces (0.0.0.0) by trying to bind
-        // Some services bind only to specific interfaces
-        $socket = @stream_socket_server("tcp://0.0.0.0:{$port}", $errno, $errstr);
-        if ($socket === false) {
-            // Could not bind - port is in use
-            return false;
+        // Get all used ports from Docker containers on the host
+        static $usedPorts = null;
+        
+        if ($usedPorts === null) {
+            $usedPorts = $this->getDockerUsedPorts();
         }
         
-        // Port is available - close test socket
-        fclose($socket);
-        return true;
+        // Check if this port is in the used ports list
+        return !in_array($port, $usedPorts, true);
+    }
+
+    /**
+     * Get all ports currently in use by Docker containers on the host
+     * 
+     * @return int[]
+     */
+    private function getDockerUsedPorts(): array
+    {
+        $process = new \Symfony\Component\Process\Process([
+            'docker',
+            'ps',
+            '--format',
+            '{{.Ports}}'
+        ]);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            // Fallback to socket-based checking if Docker query fails
+            return [];
+        }
+
+        $output = trim($process->getOutput());
+        if (empty($output)) {
+            return [];
+        }
+
+        $usedPorts = [];
+        foreach (explode("\n", $output) as $line) {
+            // Parse port bindings like:
+            // "0.0.0.0:8080->80/tcp"
+            // "127.0.0.1:8080->80/tcp, 0.0.0.0:5432->5432/tcp"
+            // "[::]:8080->80/tcp"
+            preg_match_all('/:(\d+)->/', $line, $matches);
+            if (!empty($matches[1])) {
+                foreach ($matches[1] as $port) {
+                    $usedPorts[] = (int) $port;
+                }
+            }
+        }
+
+        return array_unique($usedPorts);
     }
 
     /**
