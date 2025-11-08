@@ -46,13 +46,13 @@ class PortOffsetManagerDockerTest extends TestCase
 
         foreach ($testCases as $input => $expected) {
             preg_match_all('/:(\d+)->/', $input, $matches);
-            $ports = array_unique(array_map('intval', $matches[1] ?? []));
+            $ports = array_unique(array_map('intval', $matches[1]));
             sort($ports);
             sort($expected);
             
             $this->assertEquals(
                 $expected,
-                array_values($ports),
+                $ports,
                 "Failed to parse: {$input}"
             );
         }
