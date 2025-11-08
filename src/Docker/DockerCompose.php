@@ -19,6 +19,13 @@ class DockerCompose
     {
         $command = ['docker-compose', '-f', $composeFile];
 
+        // Add override file if it exists
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
         if ($projectName !== null) {
             $command[] = '-p';
             $command[] = $projectName;
@@ -49,6 +56,13 @@ class DockerCompose
     public function down(string $composeFile, bool $volumes = false, ?string $projectName = null): void
     {
         $command = ['docker-compose', '-f', $composeFile];
+
+        // Add override file if it exists
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
 
         if ($projectName !== null) {
             $command[] = '-p';
@@ -82,6 +96,13 @@ class DockerCompose
     public function ps(string $composeFile, ?string $projectName = null): array
     {
         $command = ['docker-compose', '-f', $composeFile];
+
+        // Add override file if it exists
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
 
         if ($projectName !== null) {
             $command[] = '-p';

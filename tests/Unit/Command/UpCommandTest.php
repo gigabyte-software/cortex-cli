@@ -136,10 +136,10 @@ class UpCommandTest extends TestCase
             ->method('validate')
             ->with('custom-namespace');
 
-        // Override file should be generated to remove container names
+        // Override file should be generated with namespace prefix
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 0, true);
+            ->with('docker-compose.yml', 0, 'custom-namespace');
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -192,7 +192,7 @@ class UpCommandTest extends TestCase
 
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 1000, false);
+            ->with('docker-compose.yml', 1000, null);
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -251,10 +251,10 @@ class UpCommandTest extends TestCase
             ->with([80, 443])
             ->willReturn(8000);
 
-        // Should generate override with both port offset and container name removal
+        // Should generate override with both port offset and namespace prefix
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 8000, true);
+            ->with('docker-compose.yml', 8000, 'cortex-test-project');
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')

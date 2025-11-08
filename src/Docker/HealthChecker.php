@@ -56,6 +56,13 @@ class HealthChecker
         // First, get the container name for this service
         $command = ['docker-compose', '-f', $composeFile];
 
+        // Add override file if it exists
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
         if ($projectName !== null) {
             $command[] = '-p';
             $command[] = $projectName;

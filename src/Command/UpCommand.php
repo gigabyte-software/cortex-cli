@@ -71,10 +71,10 @@ class UpCommand extends Command
             $portOffset = $this->resolvePortOffset($input, $config->docker->composeFile, $formatter);
 
             // Generate override file if port offset is needed or if using namespace
-            // (need to remove explicit container_name fields to allow project name to work)
+            // (need to prefix explicit container_name fields to avoid conflicts)
             $needsOverride = $portOffset > 0 || $namespace !== null;
             if ($needsOverride) {
-                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace !== null);
+                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace);
             }
 
             // Run setup through orchestrator

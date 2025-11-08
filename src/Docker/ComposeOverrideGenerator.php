@@ -22,9 +22,9 @@ YAML;
     /**
      * Generate override file with port offset and container name handling
      */
-    public function generate(string $composeFile, int $portOffset, bool $removeContainerNames = false): void
+    public function generate(string $composeFile, int $portOffset, ?string $namespacePrefix = null): void
     {
-        if ($portOffset === 0 && !$removeContainerNames) {
+        if ($portOffset === 0 && $namespacePrefix === null) {
             // No override needed
             return;
         }
@@ -68,10 +68,10 @@ YAML;
                 }
             }
 
-            // Handle container_name removal for namespace isolation
-            if ($removeContainerNames && isset($service['container_name'])) {
-                // Setting container_name to null removes it in the override
-                $serviceOverride['container_name'] = null;
+            // Handle container_name prefixing for namespace isolation
+            if ($namespacePrefix !== null && isset($service['container_name'])) {
+                // Prefix the container name with namespace
+                $serviceOverride['container_name'] = $namespacePrefix . '-' . $service['container_name'];
             }
 
             if (!empty($serviceOverride)) {
