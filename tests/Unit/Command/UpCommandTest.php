@@ -12,6 +12,7 @@ use Cortex\Config\Schema\CortexConfig;
 use Cortex\Config\Schema\DockerConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Docker\ComposeOverrideGenerator;
+use Cortex\Docker\DockerCompose;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
 use Cortex\Orchestrator\SetupOrchestrator;
@@ -26,6 +27,7 @@ class UpCommandTest extends TestCase
     private NamespaceResolver $namespaceResolver;
     private PortOffsetManager $portOffsetManager;
     private ComposeOverrideGenerator $overrideGenerator;
+    private DockerCompose $dockerCompose;
 
     protected function setUp(): void
     {
@@ -35,6 +37,7 @@ class UpCommandTest extends TestCase
         $this->namespaceResolver = $this->createMock(NamespaceResolver::class);
         $this->portOffsetManager = $this->createMock(PortOffsetManager::class);
         $this->overrideGenerator = $this->createMock(ComposeOverrideGenerator::class);
+        $this->dockerCompose = $this->createMock(DockerCompose::class);
     }
 
     public function test_command_is_configured_correctly(): void
@@ -326,7 +329,8 @@ class UpCommandTest extends TestCase
             $this->lockFile,
             $this->namespaceResolver,
             $this->portOffsetManager,
-            $this->overrideGenerator
+            $this->overrideGenerator,
+            $this->dockerCompose
         );
     }
 

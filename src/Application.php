@@ -86,7 +86,8 @@ class Application extends BaseApplication
             $lockFile,
             $namespaceResolver,
             $portOffsetManager,
-            $overrideGenerator
+            $overrideGenerator,
+            $dockerCompose
         ));
         $this->add(new DownCommand(
             $configLoader,

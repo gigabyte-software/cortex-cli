@@ -9,6 +9,7 @@ use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
 use Cortex\Config\LockFileData;
 use Cortex\Docker\ComposeOverrideGenerator;
+use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
@@ -18,6 +19,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Process\Process;
 
 class UpCommand extends Command
 {
@@ -28,6 +30,7 @@ class UpCommand extends Command
         private readonly NamespaceResolver $namespaceResolver,
         private readonly PortOffsetManager $portOffsetManager,
         private readonly ComposeOverrideGenerator $overrideGenerator,
+        private readonly DockerCompose $dockerCompose,
     ) {
         parent::__construct();
     }
@@ -64,8 +67,14 @@ class UpCommand extends Command
 
             $formatter->info("Loaded configuration from: $configPath");
 
-            // Determine namespace
+            // Determine namespace early (needed for stale container detection)
             $namespace = $this->resolveNamespace($input, $formatter);
+
+            // Check for stale containers (containers exist but no lock file)
+            // This can happen if a previous run failed before writing the lock file
+            if ($namespace !== null) {
+                $this->cleanupStaleContainers($config, $formatter, $namespace);
+            }
 
             // Determine port offset
             $portOffset = $this->resolvePortOffset($input, $config->docker->composeFile, $formatter);
@@ -205,6 +214,41 @@ class UpCommand extends Command
 
             $output->writeln(sprintf('<fg=green>→</> Access at: <fg=cyan>%s</>', $url));
             $output->writeln('');
+        }
+    }
+
+    /**
+     * Clean up stale containers from previous failed runs
+     */
+    private function cleanupStaleContainers(
+        \Cortex\Config\Schema\CortexConfig $config,
+        OutputFormatter $formatter,
+        string $namespace
+    ): void {
+        // Check if containers exist with this namespace
+        $command = ['docker', 'ps', '-a', '--filter', "name={$namespace}", '--format', '{{.Names}}'];
+        $process = new Process($command);
+        $process->run();
+        
+        if ($process->isSuccessful() && !empty(trim($process->getOutput()))) {
+            $formatter->warning('Found containers from previous failed run. Cleaning up...');
+            
+            // Use docker-compose down to clean up properly
+            try {
+                $overrideFile = dirname($config->docker->composeFile) . '/docker-compose.override.yml';
+                if (file_exists($overrideFile)) {
+                    // Use the existing override file if present
+                    $this->dockerCompose->down($config->docker->composeFile, false, $namespace);
+                    $this->overrideGenerator->cleanup();
+                } else {
+                    // Just remove containers without override file
+                    $this->dockerCompose->down($config->docker->composeFile, false, $namespace);
+                }
+                $formatter->info('Cleanup complete');
+            } catch (\Exception $e) {
+                // If cleanup fails, just warn but continue
+                $formatter->warning('Could not fully clean up containers: ' . $e->getMessage());
+            }
         }
     }
 }
