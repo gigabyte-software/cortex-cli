@@ -92,9 +92,15 @@ class ComposeOverrideGeneratorTest extends TestCase
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
-        $override = Yaml::parse($overrideContent);
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
-        $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
+        // Ports with !override tag are returned as TaggedValue objects
+        $ports = $override['services']['app']['ports'];
+        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $ports = $ports->getValue();
+        }
+        
+        $this->assertEquals(['1080:80'], $ports);
     }
 
     public function test_it_applies_offset_to_multiple_ports(): void
@@ -112,9 +118,15 @@ class ComposeOverrideGeneratorTest extends TestCase
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
-        $override = Yaml::parse($overrideContent);
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
-        $this->assertEquals(['1080:80', '1443:443'], $override['services']['app']['ports']);
+        // Ports with !override tag are returned as TaggedValue objects
+        $ports = $override['services']['app']['ports'];
+        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $ports = $ports->getValue();
+        }
+        
+        $this->assertEquals(['1080:80', '1443:443'], $ports);
     }
 
     public function test_it_applies_offset_to_interface_specific_ports(): void
@@ -132,9 +144,15 @@ class ComposeOverrideGeneratorTest extends TestCase
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
-        $override = Yaml::parse($overrideContent);
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
-        $this->assertEquals(['127.0.0.1:1080:80'], $override['services']['app']['ports']);
+        // Ports with !override tag are returned as TaggedValue objects
+        $ports = $override['services']['app']['ports'];
+        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $ports = $ports->getValue();
+        }
+        
+        $this->assertEquals(['127.0.0.1:1080:80'], $ports);
     }
 
     public function test_it_applies_offset_to_multiple_services(): void
@@ -156,10 +174,20 @@ class ComposeOverrideGeneratorTest extends TestCase
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
-        $override = Yaml::parse($overrideContent);
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
-        $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
-        $this->assertEquals(['6432:5432'], $override['services']['db']['ports']);
+        // Ports with !override tag are returned as TaggedValue objects
+        $appPorts = $override['services']['app']['ports'];
+        if ($appPorts instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $appPorts = $appPorts->getValue();
+        }
+        $dbPorts = $override['services']['db']['ports'];
+        if ($dbPorts instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $dbPorts = $dbPorts->getValue();
+        }
+        
+        $this->assertEquals(['1080:80'], $appPorts);
+        $this->assertEquals(['6432:5432'], $dbPorts);
     }
 
     public function test_it_includes_header_comment(): void
@@ -229,7 +257,7 @@ class ComposeOverrideGeneratorTest extends TestCase
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
-        $override = Yaml::parse($overrideContent);
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
         $this->assertEquals('test-namespace-my-app', $override['services']['app']['container_name']);
         $this->assertEquals('test-namespace-my-db', $override['services']['db']['container_name']);
@@ -251,9 +279,15 @@ class ComposeOverrideGeneratorTest extends TestCase
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
-        $override = Yaml::parse($overrideContent);
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
-        $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
+        // Ports with !override tag are returned as TaggedValue objects
+        $ports = $override['services']['app']['ports'];
+        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $ports = $ports->getValue();
+        }
+        
+        $this->assertEquals(['1080:80'], $ports);
         $this->assertEquals('test-namespace-my-app', $override['services']['app']['container_name']);
     }
 
