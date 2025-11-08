@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.5.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.4.0...v1.5.0) (2025-11-08)
+
+
+### Bug Fixes
+
+* fix phpstan tests ([591a14f](https://github.com/gigabyte-software/cortex-cli/commit/591a14f50f09ff3deb0c41ecc45e50868b9eaa53))
+
+
+### Features
+
+* added --avoid-conflicts and other options for namspacing containers and avoiding port conflicts ([ee0a894](https://github.com/gigabyte-software/cortex-cli/commit/ee0a894d2ecdda95deb2faff2319d60c64c6a254))
+
 # [1.4.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.3.0...v1.4.0) (2025-11-08)
 
 
