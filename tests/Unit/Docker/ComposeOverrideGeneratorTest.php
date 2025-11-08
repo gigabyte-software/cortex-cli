@@ -99,7 +99,7 @@ class ComposeOverrideGeneratorTest extends TestCase
         if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
             $ports = $ports->getValue();
         }
-        
+
         $this->assertEquals(['1080:80'], $ports);
     }
 
@@ -125,7 +125,7 @@ class ComposeOverrideGeneratorTest extends TestCase
         if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
             $ports = $ports->getValue();
         }
-        
+
         $this->assertEquals(['1080:80', '1443:443'], $ports);
     }
 
@@ -151,7 +151,7 @@ class ComposeOverrideGeneratorTest extends TestCase
         if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
             $ports = $ports->getValue();
         }
-        
+
         $this->assertEquals(['127.0.0.1:1080:80'], $ports);
     }
 
@@ -185,7 +185,7 @@ class ComposeOverrideGeneratorTest extends TestCase
         if ($dbPorts instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
             $dbPorts = $dbPorts->getValue();
         }
-        
+
         $this->assertEquals(['1080:80'], $appPorts);
         $this->assertEquals(['6432:5432'], $dbPorts);
     }
@@ -286,7 +286,7 @@ class ComposeOverrideGeneratorTest extends TestCase
         if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
             $ports = $ports->getValue();
         }
-        
+
         $this->assertEquals(['1080:80'], $ports);
         $this->assertEquals('test-namespace-my-app', $override['services']['app']['container_name']);
     }

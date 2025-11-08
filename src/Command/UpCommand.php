@@ -244,6 +244,10 @@ class UpCommand extends Command
                     // Just remove containers without override file
                     $this->dockerCompose->down($config->docker->composeFile, false, $namespace);
                 }
+                
+                // Wait a moment for ports to be fully released
+                usleep(500000); // 500ms
+                
                 $formatter->info('Cleanup complete');
             } catch (\Exception $e) {
                 // If cleanup fails, just warn but continue

@@ -45,7 +45,7 @@ class StatusCommand extends Command
             // Read lock file to get namespace and port offset
             $namespace = null;
             $portOffset = 0;
-            
+
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
                 $namespace = $lockData->namespace ?? null;

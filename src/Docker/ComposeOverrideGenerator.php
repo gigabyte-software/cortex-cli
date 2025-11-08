@@ -132,11 +132,11 @@ YAML;
         // Docker Compose v2 merges arrays by default
         // Use !override tag to force replacement instead of merging
         $yaml = Yaml::dump($override, 10, 2);
-        
+
         // Add !override tag to ports arrays to prevent merging with base file
         // This ensures only the offset ports are used, not the original + offset
         $yaml = preg_replace('/^(\s+ports:)$/m', '$1 !override', $yaml);
-        
+
         $content = self::HEADER_COMMENT . $yaml;
 
         $overridePath = getcwd() . '/' . self::OVERRIDE_FILE;
