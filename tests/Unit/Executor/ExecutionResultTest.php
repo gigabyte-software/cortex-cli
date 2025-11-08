@@ -48,4 +48,3 @@ class ExecutionResultTest extends TestCase
         $this->assertFalse($failureResult->isSuccessful());
     }
 }
-

@@ -20,7 +20,7 @@ class HealthChecker
 
     /**
      * Wait for a service to become healthy
-     * 
+     *
      * @throws ServiceNotHealthyException
      */
     public function waitForHealth(string $composeFile, string $service, int $timeout, ?string $projectName = null): void
@@ -48,21 +48,21 @@ class HealthChecker
 
     /**
      * Get the health status of a service
-     * 
+     *
      * @return string Status: 'healthy', 'unhealthy', 'starting', 'running', 'exited', 'unknown'
      */
     public function getHealthStatus(string $composeFile, string $service, ?string $projectName = null): string
     {
         // First, get the container name for this service
         $command = ['docker-compose', '-f', $composeFile];
-        
+
         if ($projectName !== null) {
             $command[] = '-p';
             $command[] = $projectName;
         }
-        
+
         $command = array_merge($command, ['ps', '-q', $service]);
-        
+
         $process = new Process($command);
         $process->run();
 
@@ -88,4 +88,3 @@ class HealthChecker
         return trim($process->getOutput());
     }
 }
-

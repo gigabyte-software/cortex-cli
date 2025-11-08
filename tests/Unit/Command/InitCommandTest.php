@@ -16,7 +16,7 @@ class InitCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create a temporary directory for testing
         $this->testDir = sys_get_temp_dir() . '/cortex_init_test_' . uniqid();
         mkdir($this->testDir, 0755, true);
@@ -25,7 +25,7 @@ class InitCommandTest extends TestCase
     protected function tearDown(): void
     {
         parent::tearDown();
-        
+
         // Clean up test directory
         if (is_dir($this->testDir)) {
             $this->recursiveRemoveDirectory($this->testDir);
@@ -64,7 +64,7 @@ class InitCommandTest extends TestCase
         $tester->execute([], ['interactive' => false]);
 
         $this->assertFileExists($this->testDir . '/.cortex/README.md');
-        
+
         $content = file_get_contents($this->testDir . '/.cortex/README.md');
         $this->assertIsString($content, 'Failed to read README.md');
         assert(is_string($content)); // Type narrowing for PHPStan
@@ -81,7 +81,7 @@ class InitCommandTest extends TestCase
         $tester->execute([], ['interactive' => false]);
 
         $this->assertFileExists($this->testDir . '/cortex.yml');
-        
+
         $content = file_get_contents($this->testDir . '/cortex.yml');
         $this->assertIsString($content, 'Failed to read cortex.yml');
         assert(is_string($content)); // Type narrowing for PHPStan
@@ -128,7 +128,7 @@ class InitCommandTest extends TestCase
         $tester->execute(['--force' => true], ['interactive' => false]);
 
         $this->assertEquals(0, $tester->getStatusCode());
-        
+
         // Check that files were overwritten
         $content = file_get_contents($this->testDir . '/cortex.yml');
         $this->assertIsString($content, 'Failed to read cortex.yml');
@@ -161,7 +161,7 @@ class InitCommandTest extends TestCase
 
         // This should fail because of the isAlreadyInitialized check
         $tester->execute([], ['interactive' => false]);
-        
+
         $this->assertEquals(1, $tester->getStatusCode());
     }
 
@@ -186,10 +186,10 @@ class InitCommandTest extends TestCase
 
         $application = new Application();
         $application->add($command);
-        
+
         $command = $application->find('init');
         $tester = new CommandTester($command);
-        
+
         // Register a shutdown function to restore directory
         register_shutdown_function(function () use ($originalDir) {
             if ($originalDir !== false) {
@@ -217,7 +217,7 @@ class InitCommandTest extends TestCase
             }
 
             $path = $directory . '/' . $item;
-            
+
             if (is_dir($path)) {
                 $this->recursiveRemoveDirectory($path);
             } else {

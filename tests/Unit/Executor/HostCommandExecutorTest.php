@@ -88,4 +88,3 @@ class HostCommandExecutorTest extends TestCase
         $this->assertFalse($result->isSuccessful());
     }
 }
-

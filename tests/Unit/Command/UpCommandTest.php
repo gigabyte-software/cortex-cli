@@ -43,7 +43,7 @@ class UpCommandTest extends TestCase
 
         $this->assertSame('up', $command->getName());
         $this->assertSame('Set up the development environment', $command->getDescription());
-        
+
         $definition = $command->getDefinition();
         $this->assertTrue($definition->hasOption('namespace'));
         $this->assertTrue($definition->hasOption('port-offset'));
@@ -98,7 +98,7 @@ class UpCommandTest extends TestCase
             ->willReturn([
                 'time' => 1.5,
                 'namespace' => 'cortex-test-project',
-                'port_offset' => 0
+                'port_offset' => 0,
             ]);
 
         $command = $this->createCommand();
@@ -140,14 +140,12 @@ class UpCommandTest extends TestCase
             ->willReturn([
                 'time' => 1.5,
                 'namespace' => 'custom-namespace',
-                'port_offset' => 0
+                'port_offset' => 0,
             ]);
 
-        $this->lockFile->expects($this->once())
-            ->method('write')
-            ->with($this->callback(function (LockFileData $data) {
-                return $data->namespace === 'custom-namespace';
-            }));
+        // Lock file should not be written when port offset is 0
+        $this->lockFile->expects($this->never())
+            ->method('write');
 
         $command = $this->createCommand();
         $tester = new CommandTester($command);
@@ -192,7 +190,7 @@ class UpCommandTest extends TestCase
             ->willReturn([
                 'time' => 1.5,
                 'namespace' => 'cortex-test-project',
-                'port_offset' => 1000
+                'port_offset' => 1000,
             ]);
 
         $this->lockFile->expects($this->once())
@@ -246,7 +244,7 @@ class UpCommandTest extends TestCase
             ->willReturn([
                 'time' => 1.5,
                 'namespace' => 'cortex-test-project',
-                'port_offset' => 8000
+                'port_offset' => 8000,
             ]);
 
         $this->lockFile->expects($this->once())
@@ -287,7 +285,7 @@ class UpCommandTest extends TestCase
             ->willReturn([
                 'time' => 1.5,
                 'namespace' => 'cortex-test-project',
-                'port_offset' => 0
+                'port_offset' => 0,
             ]);
 
         $command = $this->createCommand();
@@ -331,4 +329,3 @@ class UpCommandTest extends TestCase
         );
     }
 }
-

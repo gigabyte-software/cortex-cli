@@ -26,7 +26,7 @@ class SetupOrchestrator
 
     /**
      * Orchestrate the full setup flow
-     * 
+     *
      * @param CortexConfig $config Configuration
      * @param bool $skipWait Skip health checks
      * @param bool $skipInit Skip initialize commands
@@ -77,7 +77,7 @@ class SetupOrchestrator
 
     /**
      * Execute pre-start commands on host
-     * 
+     *
      * @param CommandDefinition[] $commands
      */
     private function runPreStartCommands(array $commands): void
@@ -95,18 +95,18 @@ class SetupOrchestrator
     private function startDockerServices(string $composeFile, ?string $namespace = null): void
     {
         $this->formatter->section('Starting Docker services');
-        
+
         if ($namespace !== null) {
             $this->formatter->info("Using namespace: {$namespace}");
         }
-        
+
         $this->dockerCompose->up($composeFile, $namespace);
         $this->formatter->info('Docker services started');
     }
 
     /**
      * Wait for services to become healthy
-     * 
+     *
      * @param \Cortex\Config\Schema\ServiceWaitConfig[] $waitFor
      */
     private function waitForServices(string $composeFile, array $waitFor, ?string $namespace = null): void
@@ -134,7 +134,7 @@ class SetupOrchestrator
 
     /**
      * Execute initialize commands in container
-     * 
+     *
      * @param CommandDefinition[] $commands
      */
     private function runInitializeCommands(
@@ -211,4 +211,3 @@ class SetupOrchestrator
         }
     }
 }
-

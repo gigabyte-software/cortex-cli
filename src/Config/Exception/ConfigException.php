@@ -9,4 +9,3 @@ use Exception;
 class ConfigException extends Exception
 {
 }
-

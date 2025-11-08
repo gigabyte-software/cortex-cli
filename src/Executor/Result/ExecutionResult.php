@@ -33,4 +33,3 @@ readonly class ExecutionResult
         return $this->successful;
     }
 }
-

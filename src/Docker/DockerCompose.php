@@ -10,7 +10,7 @@ class DockerCompose
 {
     /**
      * Start Docker Compose services
-     * 
+     *
      * @param string $composeFile Path to docker-compose.yml
      * @param string|null $projectName Optional project name for container isolation
      * @throws \RuntimeException
@@ -18,15 +18,15 @@ class DockerCompose
     public function up(string $composeFile, ?string $projectName = null): void
     {
         $command = ['docker-compose', '-f', $composeFile];
-        
+
         if ($projectName !== null) {
             $command[] = '-p';
             $command[] = $projectName;
         }
-        
+
         $command[] = 'up';
         $command[] = '-d';
-        
+
         $process = new Process($command);
         $process->setTimeout(300);
         $process->run();
@@ -40,7 +40,7 @@ class DockerCompose
 
     /**
      * Stop Docker Compose services
-     * 
+     *
      * @param string $composeFile Path to docker-compose.yml
      * @param bool $volumes Remove volumes as well
      * @param string|null $projectName Optional project name for container isolation
@@ -49,14 +49,14 @@ class DockerCompose
     public function down(string $composeFile, bool $volumes = false, ?string $projectName = null): void
     {
         $command = ['docker-compose', '-f', $composeFile];
-        
+
         if ($projectName !== null) {
             $command[] = '-p';
             $command[] = $projectName;
         }
-        
+
         $command[] = 'down';
-        
+
         if ($volumes) {
             $command[] = '-v';
         }
@@ -74,7 +74,7 @@ class DockerCompose
 
     /**
      * List running services
-     * 
+     *
      * @param string $composeFile Path to docker-compose.yml
      * @param string|null $projectName Optional project name for container isolation
      * @return array<string, array<string, string>>
@@ -82,16 +82,16 @@ class DockerCompose
     public function ps(string $composeFile, ?string $projectName = null): array
     {
         $command = ['docker-compose', '-f', $composeFile];
-        
+
         if ($projectName !== null) {
             $command[] = '-p';
             $command[] = $projectName;
         }
-        
+
         $command[] = 'ps';
         $command[] = '--format';
         $command[] = 'json';
-        
+
         $process = new Process($command);
         $process->run();
 
@@ -117,7 +117,7 @@ class DockerCompose
 
     /**
      * Check if any services are running
-     * 
+     *
      * @param string $composeFile Path to docker-compose.yml
      * @param string|null $projectName Optional project name for container isolation
      */
@@ -126,4 +126,3 @@ class DockerCompose
         return !empty($this->ps($composeFile, $projectName));
     }
 }
-

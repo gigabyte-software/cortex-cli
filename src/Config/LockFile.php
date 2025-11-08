@@ -26,7 +26,7 @@ class LockFile
 
     /**
      * Read the lock file data
-     * 
+     *
      * @return LockFileData|null
      */
     public function read(): ?LockFileData
@@ -85,4 +85,3 @@ class LockFile
         return $dir . '/' . self::LOCK_FILE;
     }
 }
-

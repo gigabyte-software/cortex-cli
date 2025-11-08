@@ -40,7 +40,7 @@ class DownCommandTest extends TestCase
 
         $this->assertSame('down', $command->getName());
         $this->assertSame('Tear down the development environment', $command->getDescription());
-        
+
         $definition = $command->getDefinition();
         $this->assertTrue($definition->hasOption('volumes'));
     }
@@ -48,7 +48,7 @@ class DownCommandTest extends TestCase
     public function test_it_stops_services_with_namespace_from_lock_file(): void
     {
         $config = $this->createMockConfig();
-        
+
         $lockData = new LockFileData(
             namespace: 'cortex-agent-1-project',
             portOffset: 1000,
@@ -226,4 +226,3 @@ class DownCommandTest extends TestCase
         );
     }
 }
-

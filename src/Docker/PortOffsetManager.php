@@ -16,7 +16,7 @@ class PortOffsetManager
 
     /**
      * Extract base ports from docker-compose.yml
-     * 
+     *
      * @return int[] Array of base port numbers
      */
     public function extractBasePorts(string $composeFile): array
@@ -26,6 +26,10 @@ class PortOffsetManager
         }
 
         $content = file_get_contents($composeFile);
+        if ($content === false) {
+            return [];
+        }
+
         $config = Yaml::parse($content);
 
         $ports = [];
@@ -52,7 +56,7 @@ class PortOffsetManager
 
     /**
      * Find an available port offset by scanning for conflicts
-     * 
+     *
      * @param int[] $basePorts Base ports to check
      * @return int Available port offset
      * @throws \RuntimeException If no available offset found
@@ -86,7 +90,7 @@ class PortOffsetManager
 
     /**
      * Check if all ports with given offset are available
-     * 
+     *
      * @param int[] $basePorts
      * @param int $offset
      * @return bool
@@ -108,18 +112,18 @@ class PortOffsetManager
     private function isPortAvailable(int $port): bool
     {
         $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
-        
+
         if ($socket !== false) {
             fclose($socket);
             return false; // Port is in use
         }
-        
+
         return true; // Port is available
     }
 
     /**
      * Parse port mapping string to extract host port number
-     * 
+     *
      * Supports formats:
      *   - "80:80"
      *   - "8080:80"
@@ -131,7 +135,7 @@ class PortOffsetManager
         if (is_string($portMapping)) {
             // Handle "80:80" or "127.0.0.1:80:80" format
             $parts = explode(':', $portMapping);
-            
+
             if (count($parts) === 2) {
                 // "80:80" format - host port is first
                 return (int) $parts[0];
@@ -147,4 +151,3 @@ class PortOffsetManager
         return null;
     }
 }
-

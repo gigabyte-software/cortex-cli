@@ -60,16 +60,16 @@ class DownCommand extends Command
             }
 
             $removeVolumes = $input->getOption('volumes');
-            
+
             // Stop Docker services
             $this->dockerCompose->down($config->docker->composeFile, $removeVolumes, $namespace);
-            
+
             // Clean up override file
             $this->overrideGenerator->cleanup();
-            
+
             // Delete lock file
             $this->lockFile->delete();
-            
+
             if ($removeVolumes) {
                 $formatter->info('Docker services stopped and volumes removed');
             } else {
@@ -90,4 +90,3 @@ class DownCommand extends Command
         }
     }
 }
-

@@ -43,7 +43,7 @@ class ConfigLoader
         }
 
         if (!is_array($config)) {
-            throw new ConfigException("Invalid configuration: expected array, got " . gettype($config));
+            throw new ConfigException('Invalid configuration: expected array, got ' . gettype($config));
         }
 
         $this->validator->validate($config);
@@ -53,14 +53,14 @@ class ConfigLoader
 
     /**
      * Find cortex.yml in current or parent directories
-     * 
+     *
      * @throws ConfigException
      */
     public function findConfigFile(): string
     {
         $currentDir = getcwd();
         if ($currentDir === false) {
-            throw new ConfigException("Failed to get current working directory");
+            throw new ConfigException('Failed to get current working directory');
         }
 
         $maxDepth = 10;
@@ -81,7 +81,7 @@ class ConfigLoader
             $depth++;
         }
 
-        throw new ConfigException("cortex.yml not found in current directory or any parent directory");
+        throw new ConfigException('cortex.yml not found in current directory or any parent directory');
     }
 
     private function resolveConfigPath(string $path): string
@@ -92,7 +92,7 @@ class ConfigLoader
 
         $cwd = getcwd();
         if ($cwd === false) {
-            throw new ConfigException("Failed to get current working directory");
+            throw new ConfigException('Failed to get current working directory');
         }
 
         return $cwd . '/' . $path;
@@ -205,4 +205,3 @@ class ConfigLoader
         );
     }
 }
-

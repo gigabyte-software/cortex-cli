@@ -19,9 +19,10 @@ class ComposeOverrideGeneratorTest extends TestCase
         $this->generator = new ComposeOverrideGenerator();
         $this->tempDir = sys_get_temp_dir() . '/cortex-test-' . uniqid();
         mkdir($this->tempDir);
-        
+
         // Save original directory and change to temp dir
-        $this->originalDir = getcwd();
+        $cwd = getcwd();
+        $this->originalDir = $cwd !== false ? $cwd : '/';
         chdir($this->tempDir);
     }
 
@@ -29,12 +30,14 @@ class ComposeOverrideGeneratorTest extends TestCase
     {
         // Restore original directory
         chdir($this->originalDir);
-        
+
         // Clean up temp directory
         $files = glob($this->tempDir . '/*');
-        foreach ($files as $file) {
-            if (is_file($file)) {
-                unlink($file);
+        if ($files !== false) {
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
             }
         }
         if (is_dir($this->tempDir)) {
@@ -48,9 +51,9 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
-                ]
-            ]
+                    'ports' => ['80:80'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 0);
@@ -64,9 +67,9 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
-                ]
-            ]
+                    'ports' => ['80:80'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 1000);
@@ -80,14 +83,15 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
-                ]
-            ]
+                    'ports' => ['80:80'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 1000);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
         $override = Yaml::parse($overrideContent);
 
         $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
@@ -99,14 +103,15 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80', '443:443']
-                ]
-            ]
+                    'ports' => ['80:80', '443:443'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 1000);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
         $override = Yaml::parse($overrideContent);
 
         $this->assertEquals(['1080:80', '1443:443'], $override['services']['app']['ports']);
@@ -118,14 +123,15 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['127.0.0.1:80:80']
-                ]
-            ]
+                    'ports' => ['127.0.0.1:80:80'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 1000);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
         $override = Yaml::parse($overrideContent);
 
         $this->assertEquals(['127.0.0.1:1080:80'], $override['services']['app']['ports']);
@@ -137,18 +143,19 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
+                    'ports' => ['80:80'],
                 ],
                 'db' => [
                     'image' => 'postgres',
-                    'ports' => ['5432:5432']
-                ]
-            ]
+                    'ports' => ['5432:5432'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 1000);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
         $override = Yaml::parse($overrideContent);
 
         $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
@@ -161,14 +168,15 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
-                ]
-            ]
+                    'ports' => ['80:80'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 1000);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertIsString($overrideContent);
 
         $this->assertStringContainsString('Generated by Cortex CLI', $overrideContent);
         $this->assertStringContainsString('DO NOT EDIT MANUALLY', $overrideContent);
@@ -180,9 +188,9 @@ class ComposeOverrideGeneratorTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
-                ]
-            ]
+                    'ports' => ['80:80'],
+                ],
+            ],
         ]);
 
         $this->generator->generate($composeFile, 1000);
@@ -195,9 +203,9 @@ class ComposeOverrideGeneratorTest extends TestCase
     public function test_it_handles_cleanup_when_no_override_exists(): void
     {
         $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
-        
+
         $this->generator->cleanup(); // Should not throw
-        
+
         $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
     }
 
@@ -209,6 +217,9 @@ class ComposeOverrideGeneratorTest extends TestCase
         $this->generator->generate('/nonexistent/docker-compose.yml', 1000);
     }
 
+    /**
+     * @param array<string, mixed> $content
+     */
     private function createComposeFile(array $content): string
     {
         $filename = $this->tempDir . '/docker-compose.yml';
@@ -217,4 +228,3 @@ class ComposeOverrideGeneratorTest extends TestCase
         return $filename;
     }
 }
-

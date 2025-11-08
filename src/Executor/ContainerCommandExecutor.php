@@ -20,7 +20,7 @@ class ContainerCommandExecutor
 
     /**
      * Execute a command inside the Docker container
-     * 
+     *
      * @param callable|null $outputCallback Optional callback for real-time output
      */
     public function execute(CommandDefinition $cmd, ?callable $outputCallback = null): ExecutionResult
@@ -47,4 +47,3 @@ class ContainerCommandExecutor
         );
     }
 }
-

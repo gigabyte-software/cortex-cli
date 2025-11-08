@@ -37,12 +37,12 @@ class Application extends BaseApplication
             new \Symfony\Component\Console\Command\ListCommand(),
             new \Symfony\Component\Console\Command\CompleteCommand(), // This is the _complete command for tab completion
         ];
-        
+
         // Only add completion dump command when NOT running as PHAR (it breaks in PHAR)
         if (!\Phar::running()) {
             $defaultCommands[] = new \Symfony\Component\Console\Command\DumpCompletionCommand();
         }
-        
+
         return $defaultCommands;
     }
 
@@ -57,7 +57,7 @@ class Application extends BaseApplication
         $hostExecutor = new HostCommandExecutor();
         $containerExecutor = new ContainerExecutor();
         $healthChecker = new HealthChecker();
-        
+
         // Multi-instance support services
         $lockFile = new LockFile();
         $namespaceResolver = new NamespaceResolver();
@@ -115,14 +115,14 @@ class Application extends BaseApplication
         try {
             $configPath = $configLoader->findConfigFile();
             $config = $configLoader->load($configPath);
-            
+
             // Register each custom command as a real command
             foreach ($config->commands as $name => $cmdDef) {
                 // Skip if command name conflicts with built-in commands
                 if ($this->has($name)) {
                     continue;
                 }
-                
+
                 $this->add(new DynamicCommand(
                     $name,
                     $cmdDef,
@@ -136,4 +136,3 @@ class Application extends BaseApplication
         }
     }
 }
-

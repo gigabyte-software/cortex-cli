@@ -13,7 +13,7 @@ class HostCommandExecutor
 {
     /**
      * Execute a command on the host machine
-     * 
+     *
      * @param callable|null $outputCallback Optional callback for real-time output
      */
     public function execute(CommandDefinition $cmd, ?callable $outputCallback = null): ExecutionResult
@@ -22,7 +22,7 @@ class HostCommandExecutor
 
         $process = Process::fromShellCommandline($cmd->command);
         $process->setTimeout($cmd->timeout);
-        
+
         try {
             if ($outputCallback !== null) {
                 // Run with real-time output streaming
@@ -46,4 +46,3 @@ class HostCommandExecutor
         );
     }
 }
-

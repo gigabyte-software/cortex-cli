@@ -24,7 +24,7 @@ class InitCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $formatter = new OutputFormatter($output);
-        
+
         try {
             $cwd = getcwd();
             if ($cwd === false) {
@@ -119,7 +119,7 @@ class InitCommand extends Command
     private function createGitkeep(string $directory, OutputFormatter $formatter, string $subdirName): void
     {
         $gitkeepPath = $directory . '/.gitkeep';
-        
+
         if (!file_exists($gitkeepPath)) {
             if (file_put_contents($gitkeepPath, '') === false) {
                 throw new \RuntimeException("Failed to create .gitkeep in $directory");
@@ -143,7 +143,7 @@ class InitCommand extends Command
         }
 
         if (file_put_contents($readmePath, $content) === false) {
-            throw new \RuntimeException("Failed to create README.md");
+            throw new \RuntimeException('Failed to create README.md');
         }
 
         $formatter->info('✓ Created .cortex/README.md');
@@ -171,7 +171,7 @@ class InitCommand extends Command
         }
 
         if (file_put_contents($cortexYmlPath, $content) === false) {
-            throw new \RuntimeException("Failed to create cortex.yml");
+            throw new \RuntimeException('Failed to create cortex.yml');
         }
 
         $formatter->info('✓ Created cortex.yml');
@@ -181,7 +181,7 @@ class InitCommand extends Command
     {
         // When running as PHAR, templates are bundled inside
         $pharPath = \Phar::running(false);
-        
+
         if (!empty($pharPath)) {
             // Running as PHAR - templates are in phar://path/to/cortex.phar/templates/
             return \Phar::running() . '/templates/' . $templateName;
@@ -198,7 +198,7 @@ class InitCommand extends Command
         $formatter->section('Initialization Complete');
         $formatter->info('');
         $formatter->success('✓ Cortex initialized successfully!');
-        
+
         $formatter->info('');
         $formatter->info('Created:');
         $formatter->info('  ✓ .cortex/ directory structure');
@@ -206,14 +206,14 @@ class InitCommand extends Command
         $formatter->info('  ✓ .cortex/tickets/.gitkeep');
         $formatter->info('  ✓ .cortex/specs/.gitkeep');
         $formatter->info('  ✓ .cortex/meetings/.gitkeep');
-        
+
         if (!$skipYaml) {
             $formatter->info('  ✓ cortex.yml');
         }
-        
+
         $formatter->info('');
         $formatter->info('Next steps:');
-        
+
         if (!$skipYaml) {
             $formatter->info('  1. Review and customize cortex.yml for your project');
             $formatter->info('  2. Ensure docker-compose.yml exists in your project');
@@ -222,7 +222,7 @@ class InitCommand extends Command
             $formatter->info('  1. Create a cortex.yml file (see cortex.example.yml)');
             $formatter->info('  2. Run: cortex up');
         }
-        
+
         $formatter->info('  4. Read .cortex/README.md for documentation');
         $formatter->info('');
         $formatter->info('For help: cortex --help');

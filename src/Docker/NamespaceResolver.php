@@ -13,7 +13,7 @@ class NamespaceResolver
 
     /**
      * Derive namespace from directory path
-     * 
+     *
      * Examples:
      *   /workspace/agent-1/project/ -> cortex-agent-1-project
      *   /home/user/myapp/ -> cortex-user-myapp
@@ -21,25 +21,29 @@ class NamespaceResolver
     public function deriveFromDirectory(?string $directory = null): string
     {
         $path = $directory ?? getcwd();
-        
+
+        if ($path === false) {
+            $path = '/';
+        }
+
         // Get path segments
         $segments = array_filter(explode('/', $path));
-        
+
         // Take last 2 segments
         $segments = array_slice($segments, -2);
-        
+
         // Sanitize segments (remove special characters)
         $segments = array_map(function ($segment) {
             return preg_replace('/[^a-z0-9-]/', '-', strtolower($segment));
         }, $segments);
-        
+
         // Build namespace
         return self::NAMESPACE_PREFIX . '-' . implode('-', $segments);
     }
 
     /**
      * Validate a custom namespace
-     * 
+     *
      * @throws \InvalidArgumentException
      */
     public function validate(string $namespace): void
@@ -57,4 +61,3 @@ class NamespaceResolver
         }
     }
 }
-

@@ -63,9 +63,9 @@ class ShellCommand extends Command
             $purple = '\\[\\033[38;2;125;85;199m\\]';   // #7D55C7
             $teal = '\\[\\033[38;2;46;217;195m\\]';     // #2ED9C3
             $reset = '\\[\\033[0m\\]';                  // Reset color
-            
+
             $prompt = $purple . $primaryService . $reset . ':' . $teal . '\\w' . $reset . '\\$ ';
-            
+
             // Execute interactive bash shell with custom prompt
             // Use /bin/sh to run a command that exports PS1 and execs bash in interactive mode
             // The -i flag is crucial for bash to recognize PS1

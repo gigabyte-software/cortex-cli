@@ -78,7 +78,7 @@ class StatusCommandTest extends TestCase
     public function test_it_displays_instance_information_from_lock_file(): void
     {
         $config = $this->createMockConfig();
-        
+
         $lockData = new LockFileData(
             namespace: 'cortex-agent-1-project',
             portOffset: 1000,
@@ -110,7 +110,7 @@ class StatusCommandTest extends TestCase
             ->method('ps')
             ->with('docker-compose.yml', 'cortex-agent-1-project')
             ->willReturn([
-                'app' => ['Service' => 'app', 'State' => 'running']
+                'app' => ['Service' => 'app', 'State' => 'running'],
             ]);
 
         $this->healthChecker->expects($this->once())
@@ -159,7 +159,7 @@ class StatusCommandTest extends TestCase
             ->with('docker-compose.yml', 'cortex-test-project')
             ->willReturn([
                 'app' => ['Service' => 'app', 'State' => 'running'],
-                'db' => ['Service' => 'db', 'State' => 'running']
+                'db' => ['Service' => 'db', 'State' => 'running'],
             ]);
 
         $this->healthChecker->expects($this->exactly(2))
@@ -249,4 +249,3 @@ class StatusCommandTest extends TestCase
         );
     }
 }
-

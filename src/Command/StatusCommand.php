@@ -47,11 +47,11 @@ class StatusCommand extends Command
             // Read lock file to get namespace and port offset
             $namespace = null;
             $portOffset = 0;
-            
+
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
-                $namespace = $lockData?->namespace;
-                $portOffset = $lockData?->portOffset ?? 0;
+                $namespace = $lockData->namespace ?? null;
+                $portOffset = $lockData->portOffset ?? 0;
             }
 
             // If no lock file, derive namespace from directory
@@ -68,7 +68,7 @@ class StatusCommand extends Command
                 if ($portOffset > 0) {
                     $output->writeln(sprintf('<fg=cyan>Port offset:</> +%d', $portOffset));
                 }
-                $output->writeln(sprintf('<fg=cyan>Started:</> %s', $lockData?->startedAt ?? 'unknown'));
+                $output->writeln(sprintf('<fg=cyan>Started:</> %s', $lockData->startedAt ?? 'unknown'));
                 $output->writeln('');
             }
 
@@ -94,7 +94,7 @@ class StatusCommand extends Command
             foreach ($services as $serviceName => $serviceData) {
                 $status = $serviceData['State'] ?? 'unknown';
                 $health = $this->healthChecker->getHealthStatus($config->docker->composeFile, $serviceName, $namespace);
-                
+
                 // Color code the status
                 $statusFormatted = match($status) {
                     'running' => "<fg=green>$status</>",
@@ -132,4 +132,3 @@ class StatusCommand extends Command
         }
     }
 }
-

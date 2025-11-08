@@ -27,17 +27,17 @@ class OutputFormatter
     public function section(string $title): void
     {
         $this->output->writeln('');
-        $this->output->writeln("<fg=" . self::COLOR_TEAL . ">▸ $title</>");
+        $this->output->writeln('<fg=' . self::COLOR_TEAL . ">▸ $title</>");
     }
 
     public function command(CommandDefinition $cmd): void
     {
-        $this->output->writeln("  <fg=" . self::COLOR_SMOKE . ">{$cmd->description}</>");
+        $this->output->writeln('  <fg=' . self::COLOR_SMOKE . ">{$cmd->description}</>");
     }
 
     public function success(string $message): void
     {
-        $this->output->writeln("<fg=" . self::COLOR_PURPLE . ">$message</>");
+        $this->output->writeln('<fg=' . self::COLOR_PURPLE . ">$message</>");
     }
 
     public function error(string $message): void
@@ -52,7 +52,7 @@ class OutputFormatter
 
     public function info(string $message): void
     {
-        $this->output->writeln("<fg=" . self::COLOR_SMOKE . ">  $message</>");
+        $this->output->writeln('<fg=' . self::COLOR_SMOKE . ">  $message</>");
     }
 
     public function commandOutput(string $output): void
@@ -82,4 +82,3 @@ class OutputFormatter
         $this->output->writeln('');
     }
 }
-

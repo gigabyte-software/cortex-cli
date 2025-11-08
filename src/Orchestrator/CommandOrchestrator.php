@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Cortex\Orchestrator;
 
-use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Config\Schema\CortexConfig;
 use Cortex\Docker\ContainerExecutor;
 use Cortex\Executor\ContainerCommandExecutor;
@@ -20,7 +19,7 @@ class CommandOrchestrator
 
     /**
      * Run a custom command from cortex.yml
-     * 
+     *
      * @throws \RuntimeException
      */
     public function run(string $commandName, CortexConfig $config): float
@@ -74,7 +73,7 @@ class CommandOrchestrator
 
     /**
      * List all available custom commands
-     * 
+     *
      * @return array<string, string> Command name => description
      */
     public function listAvailableCommands(CortexConfig $config): array
@@ -86,4 +85,3 @@ class CommandOrchestrator
         return $commands;
     }
 }
-

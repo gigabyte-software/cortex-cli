@@ -31,4 +31,3 @@ class HealthCheckerTest extends TestCase
         $this->assertEquals('unknown', $status);
     }
 }
-

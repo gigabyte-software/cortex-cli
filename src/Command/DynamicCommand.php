@@ -37,7 +37,7 @@ class DynamicCommand extends Command
             if ($commandName === null) {
                 throw new \RuntimeException('Command name is not set');
             }
-            
+
             $executionTime = $this->orchestrator->run($commandName, $this->config);
 
             $output->writeln('');
@@ -54,4 +54,3 @@ class DynamicCommand extends Command
         }
     }
 }
-

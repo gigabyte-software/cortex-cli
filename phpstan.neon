@@ -1,0 +1,16 @@
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    
+    # Ignore PHPUnit mock method calls
+    ignoreErrors:
+        - '#Call to an undefined method [a-zA-Z0-9\\_]+::expects\(\)#'
+        - '#Call to function assert\(\) with true will always evaluate to true#'
+        - '#Call to function is_string\(\) with string will always evaluate to true#'
+        - '#Call to method PHPUnit\\Framework\\Assert::assertTrue\(\) with true will always evaluate to true#'
+

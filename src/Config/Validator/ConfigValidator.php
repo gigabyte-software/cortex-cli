@@ -16,11 +16,11 @@ class ConfigValidator
     {
         $this->validateRequiredFields($config);
         $this->validateDockerSection($config['docker']);
-        
+
         if (isset($config['setup'])) {
             $this->validateSetupSection($config['setup']);
         }
-        
+
         if (isset($config['commands'])) {
             $this->validateCommandsSection($config['commands']);
         }
@@ -110,10 +110,6 @@ class ConfigValidator
      */
     private function validateCommandList(array $commands, string $path): void
     {
-        if (!is_array($commands)) {
-            throw new ConfigException("$path must be an array");
-        }
-
         foreach ($commands as $index => $command) {
             $this->validateCommandDefinition($command, "$path[$index]");
         }
@@ -150,4 +146,3 @@ class ConfigValidator
         }
     }
 }
-

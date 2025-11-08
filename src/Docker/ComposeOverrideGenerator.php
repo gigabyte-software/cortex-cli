@@ -35,6 +35,10 @@ YAML;
 
         // Parse original compose file
         $content = file_get_contents($composeFile);
+        if ($content === false) {
+            throw new \RuntimeException("Failed to read compose file: {$composeFile}");
+        }
+
         $config = Yaml::parse($content);
 
         if (!isset($config['services'])) {
@@ -43,7 +47,7 @@ YAML;
 
         // Build override structure
         $override = [
-            'services' => []
+            'services' => [],
         ];
 
         foreach ($config['services'] as $serviceName => $service) {
@@ -61,7 +65,7 @@ YAML;
 
             if (!empty($newPorts)) {
                 $override['services'][$serviceName] = [
-                    'ports' => $newPorts
+                    'ports' => $newPorts,
                 ];
             }
         }
@@ -90,7 +94,7 @@ YAML;
     {
         if (is_string($portMapping)) {
             $parts = explode(':', $portMapping);
-            
+
             if (count($parts) === 2) {
                 // "80:80" format
                 $hostPort = (int) $parts[0];
@@ -111,14 +115,15 @@ YAML;
 
     /**
      * Write the override file to disk
+     *
+     * @param array<string, mixed> $override
      */
     private function writeOverrideFile(array $override): void
     {
         $yaml = Yaml::dump($override, 10, 2);
         $content = self::HEADER_COMMENT . $yaml;
-        
+
         $overridePath = getcwd() . '/' . self::OVERRIDE_FILE;
         file_put_contents($overridePath, $content);
     }
 }
-

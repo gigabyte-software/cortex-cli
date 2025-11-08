@@ -74,4 +74,3 @@ class ConfigLoaderTest extends TestCase
         $this->assertEquals('Run test suite', $testCommand->description);
     }
 }
-

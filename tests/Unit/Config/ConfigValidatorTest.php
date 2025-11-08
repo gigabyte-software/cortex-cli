@@ -198,4 +198,3 @@ class ConfigValidatorTest extends TestCase
         $this->validator->validate($config);
     }
 }
-

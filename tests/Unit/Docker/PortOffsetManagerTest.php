@@ -23,9 +23,11 @@ class PortOffsetManagerTest extends TestCase
     {
         // Clean up temp directory
         $files = glob($this->tempDir . '/*');
-        foreach ($files as $file) {
-            if (is_file($file)) {
-                unlink($file);
+        if ($files !== false) {
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
             }
         }
         if (is_dir($this->tempDir)) {
@@ -39,9 +41,9 @@ class PortOffsetManagerTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80', '443:443']
-                ]
-            ]
+                    'ports' => ['80:80', '443:443'],
+                ],
+            ],
         ]);
 
         $ports = $this->manager->extractBasePorts($composeFile);
@@ -57,9 +59,9 @@ class PortOffsetManagerTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['127.0.0.1:8080:80']
-                ]
-            ]
+                    'ports' => ['127.0.0.1:8080:80'],
+                ],
+            ],
         ]);
 
         $ports = $this->manager->extractBasePorts($composeFile);
@@ -74,13 +76,13 @@ class PortOffsetManagerTest extends TestCase
             'services' => [
                 'app' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
+                    'ports' => ['80:80'],
                 ],
                 'db' => [
                     'image' => 'postgres',
-                    'ports' => ['5432:5432']
-                ]
-            ]
+                    'ports' => ['5432:5432'],
+                ],
+            ],
         ]);
 
         $ports = $this->manager->extractBasePorts($composeFile);
@@ -96,13 +98,13 @@ class PortOffsetManagerTest extends TestCase
             'services' => [
                 'app1' => [
                     'image' => 'nginx',
-                    'ports' => ['80:80']
+                    'ports' => ['80:80'],
                 ],
                 'app2' => [
                     'image' => 'nginx',
-                    'ports' => ['80:8080']
-                ]
-            ]
+                    'ports' => ['80:8080'],
+                ],
+            ],
         ]);
 
         $ports = $this->manager->extractBasePorts($composeFile);
@@ -116,9 +118,9 @@ class PortOffsetManagerTest extends TestCase
         $composeFile = $this->createComposeFile([
             'services' => [
                 'app' => [
-                    'image' => 'nginx'
-                ]
-            ]
+                    'image' => 'nginx',
+                ],
+            ],
         ]);
 
         $ports = $this->manager->extractBasePorts($composeFile);
@@ -136,7 +138,7 @@ class PortOffsetManagerTest extends TestCase
     public function test_it_returns_empty_array_for_file_without_services(): void
     {
         $composeFile = $this->createComposeFile([
-            'version' => '3.8'
+            'version' => '3.8',
         ]);
 
         $ports = $this->manager->extractBasePorts($composeFile);
@@ -161,6 +163,9 @@ class PortOffsetManagerTest extends TestCase
         $this->assertEquals(0, $offset);
     }
 
+    /**
+     * @param array<string, mixed> $content
+     */
     private function createComposeFile(array $content): string
     {
         $filename = $this->tempDir . '/docker-compose-' . uniqid() . '.yml';
@@ -169,4 +174,3 @@ class PortOffsetManagerTest extends TestCase
         return $filename;
     }
 }
-

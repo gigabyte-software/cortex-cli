@@ -84,11 +84,11 @@ class UpCommand extends Command
                 $portOffset
             );
 
-            // Write lock file if using namespace or port offset
-            if ($namespace !== null || $portOffset > 0) {
+            // Write lock file if using port offset (namespace is always set)
+            if ($portOffset > 0) {
                 $lockData = new LockFileData(
                     namespace: $namespace,
-                    portOffset: $portOffset > 0 ? $portOffset : null,
+                    portOffset: $portOffset,
                     startedAt: date('c')
                 );
                 $this->lockFile->write($lockData);
@@ -115,7 +115,7 @@ class UpCommand extends Command
     /**
      * Resolve the namespace from input options
      */
-    private function resolveNamespace(InputInterface $input, OutputFormatter $formatter): ?string
+    private function resolveNamespace(InputInterface $input, OutputFormatter $formatter): string
     {
         $avoidConflicts = $input->getOption('avoid-conflicts');
         $namespaceOption = $input->getOption('namespace');
@@ -163,11 +163,11 @@ class UpCommand extends Command
 
             $formatter->info('Scanning for available ports...');
             $offset = $this->portOffsetManager->findAvailableOffset($basePorts);
-            
+
             if ($offset > 0) {
                 $formatter->info("Port offset allocated: +{$offset}");
             }
-            
+
             return $offset;
         }
 
@@ -181,7 +181,7 @@ class UpCommand extends Command
     private function displayCompletionSummary(
         OutputFormatter $formatter,
         float $totalTime,
-        $config,
+        \Cortex\Config\Schema\CortexConfig $config,
         int $portOffset
     ): void {
         $output = $formatter->getOutput();
@@ -192,17 +192,16 @@ class UpCommand extends Command
         // Display URL with port offset if applicable
         if (isset($config->docker->appUrl) && !empty($config->docker->appUrl)) {
             $url = $config->docker->appUrl;
-            
+
             // Apply port offset to URL if present
             if ($portOffset > 0 && preg_match('/^(https?:\/\/[^:]+):(\d+)(.*)$/', $url, $matches)) {
                 $basePort = (int) $matches[2];
                 $newPort = $basePort + $portOffset;
                 $url = $matches[1] . ':' . $newPort . $matches[3];
             }
-            
+
             $output->writeln(sprintf('<fg=green>→</> Access at: <fg=cyan>%s</>', $url));
             $output->writeln('');
         }
     }
 }
-

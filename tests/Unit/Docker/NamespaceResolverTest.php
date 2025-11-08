@@ -57,8 +57,8 @@ class NamespaceResolverTest extends TestCase
         $this->resolver->validate('a');
         $this->resolver->validate('namespace');
 
-        // No exception thrown means validation passed
-        $this->assertTrue(true);
+        // Test passes if no exception is thrown
+        $this->addToAssertionCount(1);
     }
 
     public function test_it_rejects_namespace_with_uppercase(): void
@@ -104,8 +104,7 @@ class NamespaceResolverTest extends TestCase
         $namespace = str_repeat('a', 63);
         $this->resolver->validate($namespace);
 
-        // No exception thrown means validation passed
-        $this->assertTrue(true);
+        // Test passes if no exception is thrown
+        $this->addToAssertionCount(1);
     }
 }
-

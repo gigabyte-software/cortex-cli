@@ -122,6 +122,7 @@ class LockFileTest extends TestCase
         $this->lockFile->write($data);
 
         $content = file_get_contents($this->tempDir . '/.cortex.lock');
+        $this->assertNotFalse($content, 'Failed to read lock file');
         $decoded = json_decode($content, true);
 
         $this->assertIsArray($decoded);
@@ -130,4 +131,3 @@ class LockFileTest extends TestCase
         $this->assertArrayHasKey('started_at', $decoded);
     }
 }
-
