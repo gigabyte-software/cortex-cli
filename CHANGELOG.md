@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1](https://github.com/gigabyte-software/cortex-cli/compare/v1.5.0...v1.5.1) (2025-11-08)
+
+
+### Bug Fixes
+
+* container namespacing wasn't working correctly ([e6b00b1](https://github.com/gigabyte-software/cortex-cli/commit/e6b00b1cd8792e9d90d7135c753bf7b06e0572a7))
+
 # [1.5.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.4.0...v1.5.0) (2025-11-08)
 
 
