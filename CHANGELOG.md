@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.4.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.3.0...v1.4.0) (2025-11-08)
+
+
+### Features
+
+* Added app_url option to specify how to access the app after cortex up ([af01d60](https://github.com/gigabyte-software/cortex-cli/commit/af01d6052241acf1fe1f98c81adefb03e2add224))
+* Added app_url option to specify how to access the app after cotext up ([cd51c30](https://github.com/gigabyte-software/cortex-cli/commit/cd51c3089619d6f8687fb976623284cdd6d8427e))
+
 # [1.3.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.2.2...v1.3.0) (2025-11-06)
 
 
