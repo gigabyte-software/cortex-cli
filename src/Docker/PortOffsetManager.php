@@ -72,7 +72,10 @@ class PortOffsetManager
             return 0;
         }
 
-        // Scan for available offset
+        // Scan for available offset with longer timeout to allow port release
+        // Wait a bit longer after cleanup before scanning
+        usleep(200000); // 200ms additional wait
+        
         for ($offset = self::DEFAULT_SCAN_START; $offset <= self::DEFAULT_SCAN_END; $offset += 100) {
             if ($this->arePortsAvailable($basePorts, $offset)) {
                 return $offset;
@@ -108,17 +111,28 @@ class PortOffsetManager
 
     /**
      * Check if a specific port is available on the host
+     * Checks both localhost and all interfaces to ensure port is truly free
      */
     private function isPortAvailable(int $port): bool
     {
-        $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
-
+        // Check localhost (127.0.0.1)
+        $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 1.0);
         if ($socket !== false) {
             fclose($socket);
             return false; // Port is in use
         }
 
-        return true; // Port is available
+        // Also check all interfaces (0.0.0.0) by trying to bind
+        // Some services bind only to specific interfaces
+        $socket = @stream_socket_server("tcp://0.0.0.0:{$port}", $errno, $errstr);
+        if ($socket === false) {
+            // Could not bind - port is in use
+            return false;
+        }
+        
+        // Port is available - close test socket
+        fclose($socket);
+        return true;
     }
 
     /**
