@@ -8,7 +8,6 @@ use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
 use Cortex\Docker\ContainerExecutor;
-use Cortex\Docker\NamespaceResolver;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,7 +19,6 @@ class ShellCommand extends Command
         private readonly ConfigLoader $configLoader,
         private readonly ContainerExecutor $containerExecutor,
         private readonly LockFile $lockFile,
-        private readonly NamespaceResolver $namespaceResolver,
     ) {
         parent::__construct();
     }
@@ -51,10 +49,7 @@ class ShellCommand extends Command
                 $namespace = $lockData?->namespace;
             }
 
-            // If no lock file, derive namespace from directory
-            if ($namespace === null) {
-                $namespace = $this->namespaceResolver->deriveFromDirectory();
-            }
+            // If no lock file, use null (default mode - no namespace isolation)
 
             // Build a custom PS1 prompt with Gigabyte brand colors
             // Purple (#7D55C7 - Pantone 2665C) for container name

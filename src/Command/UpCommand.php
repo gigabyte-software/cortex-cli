@@ -70,9 +70,11 @@ class UpCommand extends Command
             // Determine port offset
             $portOffset = $this->resolvePortOffset($input, $config->docker->composeFile, $formatter);
 
-            // Generate override file if port offset is needed
-            if ($portOffset > 0) {
-                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset);
+            // Generate override file if port offset is needed or if using namespace
+            // (need to remove explicit container_name fields to allow project name to work)
+            $needsOverride = $portOffset > 0 || $namespace !== null;
+            if ($needsOverride) {
+                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace !== null);
             }
 
             // Run setup through orchestrator
@@ -84,11 +86,11 @@ class UpCommand extends Command
                 $portOffset
             );
 
-            // Write lock file if using port offset (namespace is always set)
-            if ($portOffset > 0) {
+            // Write lock file if we generated an override file
+            if ($needsOverride) {
                 $lockData = new LockFileData(
                     namespace: $namespace,
-                    portOffset: $portOffset,
+                    portOffset: $portOffset > 0 ? $portOffset : null,
                     startedAt: date('c')
                 );
                 $this->lockFile->write($lockData);
@@ -114,8 +116,9 @@ class UpCommand extends Command
 
     /**
      * Resolve the namespace from input options
+     * Returns null for default mode (no namespace isolation)
      */
-    private function resolveNamespace(InputInterface $input, OutputFormatter $formatter): string
+    private function resolveNamespace(InputInterface $input, OutputFormatter $formatter): ?string
     {
         $avoidConflicts = $input->getOption('avoid-conflicts');
         $namespaceOption = $input->getOption('namespace');
@@ -133,8 +136,8 @@ class UpCommand extends Command
             return $namespace;
         }
 
-        // Use directory-derived namespace as default
-        return $this->namespaceResolver->deriveFromDirectory();
+        // Default mode: no namespace isolation
+        return null;
     }
 
     /**

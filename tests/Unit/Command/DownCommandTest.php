@@ -13,7 +13,6 @@ use Cortex\Config\Schema\DockerConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
-use Cortex\Docker\NamespaceResolver;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -22,7 +21,6 @@ class DownCommandTest extends TestCase
     private ConfigLoader $configLoader;
     private DockerCompose $dockerCompose;
     private LockFile $lockFile;
-    private NamespaceResolver $namespaceResolver;
     private ComposeOverrideGenerator $overrideGenerator;
 
     protected function setUp(): void
@@ -30,7 +28,6 @@ class DownCommandTest extends TestCase
         $this->configLoader = $this->createMock(ConfigLoader::class);
         $this->dockerCompose = $this->createMock(DockerCompose::class);
         $this->lockFile = $this->createMock(LockFile::class);
-        $this->namespaceResolver = $this->createMock(NamespaceResolver::class);
         $this->overrideGenerator = $this->createMock(ComposeOverrideGenerator::class);
     }
 
@@ -88,7 +85,7 @@ class DownCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
     }
 
-    public function test_it_derives_namespace_when_no_lock_file(): void
+    public function test_it_uses_default_mode_when_no_lock_file(): void
     {
         $config = $this->createMockConfig();
 
@@ -104,13 +101,9 @@ class DownCommandTest extends TestCase
             ->method('exists')
             ->willReturn(false);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
-
         $this->dockerCompose->expects($this->once())
             ->method('down')
-            ->with('docker-compose.yml', false, 'cortex-test-project');
+            ->with('docker-compose.yml', false, null);
 
         $this->overrideGenerator->expects($this->once())
             ->method('cleanup');
@@ -141,13 +134,15 @@ class DownCommandTest extends TestCase
             ->method('exists')
             ->willReturn(false);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
-
         $this->dockerCompose->expects($this->once())
             ->method('down')
-            ->with('docker-compose.yml', true, 'cortex-test-project');
+            ->with('docker-compose.yml', true, null);
+
+        $this->overrideGenerator->expects($this->once())
+            ->method('cleanup');
+
+        $this->lockFile->expects($this->once())
+            ->method('delete');
 
         $command = $this->createCommand();
         $tester = new CommandTester($command);
@@ -173,12 +168,9 @@ class DownCommandTest extends TestCase
             ->method('exists')
             ->willReturn(false);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
-
         $this->dockerCompose->expects($this->once())
-            ->method('down');
+            ->method('down')
+            ->with('docker-compose.yml', false, null);
 
         $this->overrideGenerator->expects($this->once())
             ->method('cleanup');
@@ -199,7 +191,6 @@ class DownCommandTest extends TestCase
             $this->configLoader,
             $this->dockerCompose,
             $this->lockFile,
-            $this->namespaceResolver,
             $this->overrideGenerator
         );
     }

@@ -9,7 +9,6 @@ use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
 use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
-use Cortex\Docker\NamespaceResolver;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -22,7 +21,6 @@ class DownCommand extends Command
         private readonly ConfigLoader $configLoader,
         private readonly DockerCompose $dockerCompose,
         private readonly LockFile $lockFile,
-        private readonly NamespaceResolver $namespaceResolver,
         private readonly ComposeOverrideGenerator $overrideGenerator,
     ) {
         parent::__construct();
@@ -54,10 +52,7 @@ class DownCommand extends Command
                 $namespace = $lockData?->namespace;
             }
 
-            // If no lock file, derive namespace from directory
-            if ($namespace === null) {
-                $namespace = $this->namespaceResolver->deriveFromDirectory();
-            }
+            // If no lock file, use null (default mode - no namespace isolation)
 
             $removeVolumes = $input->getOption('volumes');
 

@@ -92,21 +92,18 @@ class Application extends BaseApplication
             $configLoader,
             $dockerCompose,
             $lockFile,
-            $namespaceResolver,
             $overrideGenerator
         ));
         $this->add(new StatusCommand(
             $configLoader,
             $dockerCompose,
             $healthChecker,
-            $lockFile,
-            $namespaceResolver
+            $lockFile
         ));
         $this->add(new ShellCommand(
             $configLoader,
             $containerExecutor,
-            $lockFile,
-            $namespaceResolver
+            $lockFile
         ));
         $this->add(new SelfUpdateCommand());
         $this->add(new StyleDemoCommand());

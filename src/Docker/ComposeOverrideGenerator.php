@@ -20,12 +20,12 @@ class ComposeOverrideGenerator
 YAML;
 
     /**
-     * Generate override file with port offset applied
+     * Generate override file with port offset and container name handling
      */
-    public function generate(string $composeFile, int $portOffset): void
+    public function generate(string $composeFile, int $portOffset, bool $removeContainerNames = false): void
     {
-        if ($portOffset === 0) {
-            // No offset needed, don't generate override
+        if ($portOffset === 0 && !$removeContainerNames) {
+            // No override needed
             return;
         }
 
@@ -51,22 +51,31 @@ YAML;
         ];
 
         foreach ($config['services'] as $serviceName => $service) {
-            if (!isset($service['ports'])) {
-                continue;
-            }
+            $serviceOverride = [];
 
-            $newPorts = [];
-            foreach ($service['ports'] as $portMapping) {
-                $newPort = $this->applyOffset($portMapping, $portOffset);
-                if ($newPort !== null) {
-                    $newPorts[] = $newPort;
+            // Handle port offset
+            if (isset($service['ports']) && $portOffset > 0) {
+                $newPorts = [];
+                foreach ($service['ports'] as $portMapping) {
+                    $newPort = $this->applyOffset($portMapping, $portOffset);
+                    if ($newPort !== null) {
+                        $newPorts[] = $newPort;
+                    }
+                }
+
+                if (!empty($newPorts)) {
+                    $serviceOverride['ports'] = $newPorts;
                 }
             }
 
-            if (!empty($newPorts)) {
-                $override['services'][$serviceName] = [
-                    'ports' => $newPorts,
-                ];
+            // Handle container_name removal for namespace isolation
+            if ($removeContainerNames && isset($service['container_name'])) {
+                // Setting container_name to null removes it in the override
+                $serviceOverride['container_name'] = null;
+            }
+
+            if (!empty($serviceOverride)) {
+                $override['services'][$serviceName] = $serviceOverride;
             }
         }
 

@@ -9,7 +9,6 @@ use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
-use Cortex\Docker\NamespaceResolver;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
@@ -23,7 +22,6 @@ class StatusCommand extends Command
         private readonly DockerCompose $dockerCompose,
         private readonly HealthChecker $healthChecker,
         private readonly LockFile $lockFile,
-        private readonly NamespaceResolver $namespaceResolver,
     ) {
         parent::__construct();
     }
@@ -47,17 +45,14 @@ class StatusCommand extends Command
             // Read lock file to get namespace and port offset
             $namespace = null;
             $portOffset = 0;
-
+            
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
                 $namespace = $lockData->namespace ?? null;
                 $portOffset = $lockData->portOffset ?? 0;
             }
 
-            // If no lock file, derive namespace from directory
-            if ($namespace === null) {
-                $namespace = $this->namespaceResolver->deriveFromDirectory();
-            }
+            // If no lock file, use null (default mode - no namespace isolation)
 
             $formatter->section('Environment Status');
 

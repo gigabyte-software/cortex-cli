@@ -82,9 +82,13 @@ class UpCommandTest extends TestCase
             ->method('load')
             ->willReturn($config);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
+        // No namespace resolution in default mode
+        $this->namespaceResolver->expects($this->never())
+            ->method('deriveFromDirectory');
+
+        // No override generation in default mode
+        $this->overrideGenerator->expects($this->never())
+            ->method('generate');
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -92,14 +96,18 @@ class UpCommandTest extends TestCase
                 $config,
                 false,
                 false,
-                'cortex-test-project',
+                null,
                 0
             )
             ->willReturn([
                 'time' => 1.5,
-                'namespace' => 'cortex-test-project',
+                'namespace' => '',
                 'port_offset' => 0,
             ]);
+
+        // No lock file in default mode
+        $this->lockFile->expects($this->never())
+            ->method('write');
 
         $command = $this->createCommand();
         $tester = new CommandTester($command);
@@ -128,6 +136,11 @@ class UpCommandTest extends TestCase
             ->method('validate')
             ->with('custom-namespace');
 
+        // Override file should be generated to remove container names
+        $this->overrideGenerator->expects($this->once())
+            ->method('generate')
+            ->with('docker-compose.yml', 0, true);
+
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
             ->with(
@@ -143,9 +156,12 @@ class UpCommandTest extends TestCase
                 'port_offset' => 0,
             ]);
 
-        // Lock file should not be written when port offset is 0
-        $this->lockFile->expects($this->never())
-            ->method('write');
+        // Lock file should be written when using namespace (even with port offset 0)
+        $this->lockFile->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (LockFileData $data) {
+                return $data->namespace === 'custom-namespace' && $data->portOffset === null;
+            }));
 
         $command = $this->createCommand();
         $tester = new CommandTester($command);
@@ -170,13 +186,13 @@ class UpCommandTest extends TestCase
             ->method('load')
             ->willReturn($config);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
+        // No explicit namespace, so default mode (no namespace)
+        $this->namespaceResolver->expects($this->never())
+            ->method('deriveFromDirectory');
 
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 1000);
+            ->with('docker-compose.yml', 1000, false);
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -184,12 +200,12 @@ class UpCommandTest extends TestCase
                 $config,
                 false,
                 false,
-                'cortex-test-project',
+                null,
                 1000
             )
             ->willReturn([
                 'time' => 1.5,
-                'namespace' => 'cortex-test-project',
+                'namespace' => '',
                 'port_offset' => 1000,
             ]);
 
@@ -235,9 +251,10 @@ class UpCommandTest extends TestCase
             ->with([80, 443])
             ->willReturn(8000);
 
+        // Should generate override with both port offset and container name removal
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 8000);
+            ->with('docker-compose.yml', 8000, true);
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -257,7 +274,7 @@ class UpCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
     }
 
-    public function test_it_does_not_generate_override_for_zero_offset(): void
+    public function test_it_does_not_generate_override_in_default_mode(): void
     {
         $config = $this->createMockConfig();
 
@@ -273,20 +290,26 @@ class UpCommandTest extends TestCase
             ->method('load')
             ->willReturn($config);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
+        // No namespace derivation in default mode
+        $this->namespaceResolver->expects($this->never())
+            ->method('deriveFromDirectory');
 
+        // No override generation in default mode
         $this->overrideGenerator->expects($this->never())
             ->method('generate');
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
+            ->with($config, false, false, null, 0)
             ->willReturn([
                 'time' => 1.5,
-                'namespace' => 'cortex-test-project',
+                'namespace' => '',
                 'port_offset' => 0,
             ]);
+
+        // No lock file in default mode
+        $this->lockFile->expects($this->never())
+            ->method('write');
 
         $command = $this->createCommand();
         $tester = new CommandTester($command);

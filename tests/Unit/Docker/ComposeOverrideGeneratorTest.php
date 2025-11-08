@@ -56,7 +56,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 0);
+        $this->generator->generate($composeFile, 0, false);
 
         $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
     }
@@ -72,7 +72,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 1000);
+        $this->generator->generate($composeFile, 1000, false);
 
         $this->assertFileExists($this->tempDir . '/docker-compose.override.yml');
     }
@@ -88,7 +88,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 1000);
+        $this->generator->generate($composeFile, 1000, false);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
@@ -108,7 +108,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 1000);
+        $this->generator->generate($composeFile, 1000, false);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
@@ -128,7 +128,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 1000);
+        $this->generator->generate($composeFile, 1000, false);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
@@ -152,7 +152,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 1000);
+        $this->generator->generate($composeFile, 1000, false);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
@@ -173,7 +173,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 1000);
+        $this->generator->generate($composeFile, 1000, false);
 
         $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
         $this->assertIsString($overrideContent);
@@ -193,7 +193,7 @@ class ComposeOverrideGeneratorTest extends TestCase
             ],
         ]);
 
-        $this->generator->generate($composeFile, 1000);
+        $this->generator->generate($composeFile, 1000, false);
         $this->assertFileExists($this->tempDir . '/docker-compose.override.yml');
 
         $this->generator->cleanup();
@@ -209,12 +209,60 @@ class ComposeOverrideGeneratorTest extends TestCase
         $this->assertFileDoesNotExist($this->tempDir . '/docker-compose.override.yml');
     }
 
+    public function test_it_removes_container_names_when_requested(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'container_name' => 'my-app',
+                    'ports' => ['80:80'],
+                ],
+                'db' => [
+                    'image' => 'postgres',
+                    'container_name' => 'my-db',
+                ],
+            ],
+        ]);
+
+        $this->generator->generate($composeFile, 0, true);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
+        $override = Yaml::parse($overrideContent);
+
+        $this->assertNull($override['services']['app']['container_name']);
+        $this->assertNull($override['services']['db']['container_name']);
+    }
+
+    public function test_it_applies_both_port_offset_and_removes_container_names(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'container_name' => 'my-app',
+                    'ports' => ['80:80'],
+                ],
+            ],
+        ]);
+
+        $this->generator->generate($composeFile, 1000, true);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
+        $override = Yaml::parse($overrideContent);
+
+        $this->assertEquals(['1080:80'], $override['services']['app']['ports']);
+        $this->assertNull($override['services']['app']['container_name']);
+    }
+
     public function test_it_throws_exception_for_nonexistent_compose_file(): void
     {
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Compose file not found');
 
-        $this->generator->generate('/nonexistent/docker-compose.yml', 1000);
+        $this->generator->generate('/nonexistent/docker-compose.yml', 1000, false);
     }
 
     /**

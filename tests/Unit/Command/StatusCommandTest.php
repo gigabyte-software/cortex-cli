@@ -13,7 +13,6 @@ use Cortex\Config\Schema\DockerConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
-use Cortex\Docker\NamespaceResolver;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -23,7 +22,6 @@ class StatusCommandTest extends TestCase
     private DockerCompose $dockerCompose;
     private HealthChecker $healthChecker;
     private LockFile $lockFile;
-    private NamespaceResolver $namespaceResolver;
 
     protected function setUp(): void
     {
@@ -31,7 +29,6 @@ class StatusCommandTest extends TestCase
         $this->dockerCompose = $this->createMock(DockerCompose::class);
         $this->healthChecker = $this->createMock(HealthChecker::class);
         $this->lockFile = $this->createMock(LockFile::class);
-        $this->namespaceResolver = $this->createMock(NamespaceResolver::class);
     }
 
     public function test_command_is_configured_correctly(): void
@@ -58,13 +55,9 @@ class StatusCommandTest extends TestCase
             ->method('exists')
             ->willReturn(false);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
-
         $this->dockerCompose->expects($this->once())
             ->method('isRunning')
-            ->with('docker-compose.yml', 'cortex-test-project')
+            ->with('docker-compose.yml', null)
             ->willReturn(false);
 
         $command = $this->createCommand();
@@ -145,18 +138,14 @@ class StatusCommandTest extends TestCase
             ->method('exists')
             ->willReturn(false);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
-
         $this->dockerCompose->expects($this->once())
             ->method('isRunning')
-            ->with('docker-compose.yml', 'cortex-test-project')
+            ->with('docker-compose.yml', null)
             ->willReturn(true);
 
         $this->dockerCompose->expects($this->once())
             ->method('ps')
-            ->with('docker-compose.yml', 'cortex-test-project')
+            ->with('docker-compose.yml', null)
             ->willReturn([
                 'app' => ['Service' => 'app', 'State' => 'running'],
                 'db' => ['Service' => 'db', 'State' => 'running'],
@@ -167,7 +156,7 @@ class StatusCommandTest extends TestCase
             ->with(
                 'docker-compose.yml',
                 $this->logicalOr('app', 'db'),
-                'cortex-test-project'
+                null
             )
             ->willReturnOnConsecutiveCalls('healthy', 'healthy');
 
@@ -184,7 +173,7 @@ class StatusCommandTest extends TestCase
         $this->assertStringContainsString('db', $display);
     }
 
-    public function test_it_derives_namespace_when_no_lock_file(): void
+    public function test_it_uses_default_mode_when_no_lock_file(): void
     {
         $config = $this->createMockConfig();
 
@@ -200,13 +189,9 @@ class StatusCommandTest extends TestCase
             ->method('exists')
             ->willReturn(false);
 
-        $this->namespaceResolver->expects($this->once())
-            ->method('deriveFromDirectory')
-            ->willReturn('cortex-test-project');
-
         $this->dockerCompose->expects($this->once())
             ->method('isRunning')
-            ->with('docker-compose.yml', 'cortex-test-project')
+            ->with('docker-compose.yml', null)
             ->willReturn(false);
 
         $command = $this->createCommand();
@@ -222,8 +207,7 @@ class StatusCommandTest extends TestCase
             $this->configLoader,
             $this->dockerCompose,
             $this->healthChecker,
-            $this->lockFile,
-            $this->namespaceResolver
+            $this->lockFile
         );
     }
 
