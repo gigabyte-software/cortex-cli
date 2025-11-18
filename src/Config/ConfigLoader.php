@@ -199,7 +199,7 @@ class ConfigLoader
         return new CommandDefinition(
             command: $command['command'],
             description: $command['description'],
-            timeout: $command['timeout'] ?? 60,
+            timeout: $command['timeout'] ?? 600,
             retry: $command['retry'] ?? 0,
             ignoreFailure: $command['ignore_failure'] ?? false,
         );

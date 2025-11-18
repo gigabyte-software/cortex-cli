@@ -18,7 +18,7 @@ class ContainerExecutor
         string $composeFile,
         string $service,
         string $command,
-        int $timeout = 60,
+        int $timeout = 600,
         ?callable $outputCallback = null,
         ?string $projectName = null
     ): Process {

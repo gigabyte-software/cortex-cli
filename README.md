@@ -240,7 +240,7 @@ commands:       # Optional: Custom commands
 
 - `command` (required): The command to execute
 - `description` (required): Human-readable description
-- `timeout` (optional, default: 60): Timeout in seconds
+- `timeout` (optional, default: 600): Timeout in seconds
 - `retry` (optional, default: 0): Number of retry attempts
 - `ignore_failure` (optional, default: false): Continue even if command fails
 
