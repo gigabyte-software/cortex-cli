@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2](https://github.com/gigabyte-software/cortex-cli/compare/v1.6.1...v1.6.2) (2025-11-18)
+
+
+### Bug Fixes
+
+* change default timeout on user commands ([8ef7db7](https://github.com/gigabyte-software/cortex-cli/commit/8ef7db7f104b0cbbfdfaf63f152ed481810ace2d))
+
 ## [1.6.1](https://github.com/gigabyte-software/cortex-cli/compare/v1.6.0...v1.6.1) (2025-11-08)
 
 
