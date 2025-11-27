@@ -16,6 +16,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
+use Symfony\Component\Process\Process;
 
 class ReviewCommand extends Command
 {
@@ -64,70 +65,26 @@ class ReviewCommand extends Command
 
             $formatter->section("Reviewing Ticket: $ticketNumber");
 
-            // Step 1: Fetch from origin
+            // Step 1: Fetch from origin (run on host machine)
             $formatter->info('Fetching latest changes from origin...');
             
-            // First, check if remote uses SSH and convert to HTTPS if needed
-            $remoteUrlProcess = $this->containerExecutor->exec(
-                $composeFile,
-                $primaryService,
-                'git remote get-url origin',
-                30,
-                null,
-                $namespace
-            );
-
-            $remoteUrl = '';
-            if ($remoteUrlProcess->isSuccessful()) {
-                $remoteUrl = trim($remoteUrlProcess->getOutput());
+            // Get the directory where cortex.yml is located (this is where the git repo should be)
+            $configDir = dirname($configPath);
+            $currentDir = getcwd();
+            if ($currentDir === false) {
+                $formatter->error('Failed to get current working directory');
+                return Command::FAILURE;
             }
 
-            // If remote uses SSH, try to convert to HTTPS for this operation
-            $fetchCommand = 'git fetch origin';
-            $remoteChanged = false;
-            if (str_starts_with($remoteUrl, 'git@') || str_starts_with($remoteUrl, 'ssh://')) {
-                // Convert SSH URL to HTTPS
-                // git@github.com:user/repo.git -> https://github.com/user/repo.git
-                // ssh://git@github.com/user/repo.git -> https://github.com/user/repo.git
-                $httpsUrl = $remoteUrl;
-                
-                // Remove ssh:// prefix if present
-                $httpsUrl = preg_replace('/^ssh:\/\//', '', $httpsUrl);
-                
-                // Replace git@host: with https://host/
-                $httpsUrl = preg_replace('/^git@([^:]+):(.+)$/', 'https://$1/$2', $httpsUrl);
-                
-                // Remove .git suffix if present
-                $httpsUrl = preg_replace('/\.git$/', '', $httpsUrl);
-                
-                // Escape for shell
-                $escapedHttpsUrl = escapeshellarg($httpsUrl);
-                $escapedOriginalUrl = escapeshellarg($remoteUrl);
-                
-                // Temporarily set remote to HTTPS for fetch, then restore
-                $fetchCommand = "git remote set-url origin $escapedHttpsUrl && git fetch origin && git remote set-url origin $escapedOriginalUrl";
-                $remoteChanged = true;
-                $formatter->info('Converting SSH remote to HTTPS for fetch...');
-            }
-
-            $fetchProcess = $this->containerExecutor->exec(
-                $composeFile,
-                $primaryService,
-                $fetchCommand,
-                60,
-                null,
-                $namespace
-            );
+            // Run git fetch on the host machine
+            $fetchProcess = new Process(['git', 'fetch', 'origin'], $configDir);
+            $fetchProcess->setTimeout(60);
+            $fetchProcess->run();
 
             if (!$fetchProcess->isSuccessful()) {
                 $errorOutput = $fetchProcess->getErrorOutput();
-                if (str_contains($errorOutput, 'ssh') || str_contains($errorOutput, 'No such file or directory')) {
-                    $formatter->error('Git remote is configured to use SSH, but SSH is not available in the container.');
-                    $formatter->info('Please configure your git remote to use HTTPS, or ensure SSH is available in your Docker container.');
-                    $formatter->info('You can change the remote URL with: git remote set-url origin <https-url>');
-                } else {
-                    $formatter->error('Failed to fetch from origin: ' . $errorOutput);
-                }
+                $formatter->error('Failed to fetch from origin: ' . $errorOutput);
+                $formatter->info('Make sure you have git configured on your host machine and have access to the repository.');
                 return Command::FAILURE;
             }
 
@@ -157,13 +114,26 @@ class ReviewCommand extends Command
             // Parse branches
             $branches = array_filter(
                 array_map('trim', explode("\n", $branchOutput)),
-                fn($branch) => !empty($branch)
+                fn($branch) => !empty($branch) && !str_contains($branch, 'HEAD ->')
             );
 
             // Remove 'origin/' prefix and get local branch names
+            // Also handle cases like "HEAD -> origin/main" by extracting just the branch name
             $branchNames = array_map(function ($branch) {
-                return preg_replace('/^origin\//', '', $branch);
+                // Remove origin/ prefix
+                $branch = preg_replace('/^origin\//', '', $branch);
+                // If it contains "->", extract the part after the arrow
+                if (str_contains($branch, '->')) {
+                    $parts = explode('->', $branch);
+                    $branch = trim(end($parts));
+                    // Remove origin/ prefix again if present
+                    $branch = preg_replace('/^origin\//', '', $branch);
+                }
+                return $branch;
             }, $branches);
+            
+            // Remove duplicates and re-index array
+            $branchNames = array_values(array_unique($branchNames));
 
             // Step 3: Select branch (if multiple)
             $selectedBranch = $this->selectBranch(
@@ -272,7 +242,7 @@ class ReviewCommand extends Command
         $formatter->info('Found ' . count($branches) . ' branches containing ticket number:');
         foreach ($branches as $branch) {
             $marker = ($branch === $defaultBranch) ? ' (most recent)' : '';
-            $output->writeln('  <fg=#D2DCE5>- $branch$marker</>');
+            $output->writeln('  <fg=#D2DCE5>- ' . $branch . $marker . '</>');
         }
 
         $question = new ChoiceQuestion(
