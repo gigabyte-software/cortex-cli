@@ -33,8 +33,8 @@ class ReviewCommand extends Command
     {
         $this
             ->setName('review')
-            ->setDescription('Review a ticket by checking out its branch and resetting the database')
-            ->addArgument('ticket', InputArgument::REQUIRED, 'The ticket number to review');
+            ->setDescription('Prepare the development environment for reviewing a ticket by checking out its branch and resetting the database')
+            ->addArgument('ticket', InputArgument::REQUIRED, 'The ticket number to prepare for review');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -63,7 +63,7 @@ class ReviewCommand extends Command
                 return Command::FAILURE;
             }
 
-            $formatter->section("Reviewing Ticket: $ticketNumber");
+            $formatter->section("Preparing for Ticket Review: $ticketNumber");
 
             // Step 1: Fetch from origin (run on host machine)
             $formatter->info('Fetching latest changes from origin...');
@@ -205,7 +205,7 @@ class ReviewCommand extends Command
                 $formatter->warning('Laravel artisan not found, skipping database reset');
             }
 
-            $formatter->success("✓ Successfully reviewed ticket $ticketNumber on branch $selectedBranch");
+            $formatter->success("✓ Successfully prepared for ticket $ticketNumber review on branch $selectedBranch");
             $output->writeln('');
 
             return Command::SUCCESS;
