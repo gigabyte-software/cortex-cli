@@ -7,6 +7,7 @@ namespace Cortex;
 use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
+use Cortex\Command\ReviewCommand;
 use Cortex\Command\SelfUpdateCommand;
 use Cortex\Command\ShellCommand;
 use Cortex\Command\StatusCommand;
@@ -94,6 +95,12 @@ class Application extends BaseApplication
             $dockerCompose,
             $lockFile,
             $overrideGenerator
+        ));
+        $this->add(new ReviewCommand(
+            $configLoader,
+            $containerExecutor,
+            $dockerCompose,
+            $lockFile
         ));
         $this->add(new StatusCommand(
             $configLoader,
