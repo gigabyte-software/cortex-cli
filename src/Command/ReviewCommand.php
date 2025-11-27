@@ -11,6 +11,7 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Git\GitRepositoryService;
 use Cortex\Laravel\LaravelService;
 use Cortex\Output\OutputFormatter;
+use Exception;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -128,7 +129,7 @@ class ReviewCommand extends Command
         } catch (ConfigException $e) {
             $formatter->error("Configuration error: {$e->getMessage()}");
             return Command::FAILURE;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $formatter->error("Error: {$e->getMessage()}");
             return Command::FAILURE;
         }
