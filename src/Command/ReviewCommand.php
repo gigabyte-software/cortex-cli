@@ -66,75 +66,22 @@ class ReviewCommand extends Command
 
             $formatter->section("Preparing for Ticket Review: $ticketNumber");
 
-            // Step 1: Fetch from origin (run on host machine)
-            $formatter->info('Fetching latest changes from origin...');
-            
-            // Get the directory where cortex.yml is located (this is where the git repo should be)
-            $configDir = dirname($configPath);
-            $currentDir = getcwd();
-            if ($currentDir === false) {
-                $formatter->error('Failed to get current working directory');
-                return Command::FAILURE;
-            }
-
-            // Run git fetch on the host machine
-            $fetchProcess = new Process(['git', 'fetch', 'origin'], $configDir);
-            $fetchProcess->setTimeout(60);
-            $fetchProcess->run();
-
-            if (!$fetchProcess->isSuccessful()) {
-                $errorOutput = $fetchProcess->getErrorOutput();
-                $formatter->error('Failed to fetch from origin: ' . $errorOutput);
-                $formatter->info('Make sure you have git configured on your host machine and have access to the repository.');
+            // Step 1: Fetch from origin
+            if (!$this->fetchFromOrigin($configPath, $formatter)) {
                 return Command::FAILURE;
             }
 
             // Step 2: Find branches containing ticket number
-            $formatter->info('Searching for branches containing ticket number...');
-            $escapedTicket = escapeshellarg($ticketNumber);
-            $branchProcess = $this->containerExecutor->exec(
+            $branchNames = $this->findBranchesContainingTicket(
+                $ticketNumber,
                 $composeFile,
                 $primaryService,
-                "git branch -r | grep $escapedTicket",
-                30,
-                null,
-                $namespace
+                $namespace,
+                $formatter
             );
-
-            if (!$branchProcess->isSuccessful()) {
-                $formatter->error('Failed to search for branches: ' . $branchProcess->getErrorOutput());
+            if (empty($branchNames)) {
                 return Command::FAILURE;
             }
-
-            $branchOutput = trim($branchProcess->getOutput());
-            if (empty($branchOutput)) {
-                $formatter->error("No branches found containing ticket number: $ticketNumber");
-                return Command::FAILURE;
-            }
-
-            // Parse branches
-            $branches = array_filter(
-                array_map('trim', explode("\n", $branchOutput)),
-                fn($branch) => !empty($branch) && !str_contains($branch, 'HEAD ->')
-            );
-
-            // Remove 'origin/' prefix and get local branch names
-            // Also handle cases like "HEAD -> origin/main" by extracting just the branch name
-            $branchNames = array_map(function ($branch) {
-                // Remove origin/ prefix
-                $branch = preg_replace('/^origin\//', '', $branch);
-                // If it contains "->", extract the part after the arrow
-                if (str_contains($branch, '->')) {
-                    $parts = explode('->', $branch);
-                    $branch = trim(end($parts));
-                    // Remove origin/ prefix again if present
-                    $branch = preg_replace('/^origin\//', '', $branch);
-                }
-                return $branch;
-            }, $branches);
-            
-            // Remove duplicates and re-index array
-            $branchNames = array_values(array_unique($branchNames));
 
             // Step 3: Select branch (if multiple)
             $selectedBranch = $this->selectBranch(
@@ -149,61 +96,18 @@ class ReviewCommand extends Command
             );
 
             // Step 4: Checkout branch
-            $formatter->info("Checking out branch: $selectedBranch");
-            $escapedBranch = escapeshellarg($selectedBranch);
-            // Try to checkout directly, if it fails create a tracking branch
-            $checkoutProcess = $this->containerExecutor->exec(
-                $composeFile,
-                $primaryService,
-                "git checkout $escapedBranch 2>/dev/null || git checkout -b $escapedBranch origin/$escapedBranch",
-                60,
-                null,
-                $namespace
-            );
-
-            if (!$checkoutProcess->isSuccessful()) {
-                $formatter->error('Failed to checkout branch: ' . $checkoutProcess->getErrorOutput());
+            if (!$this->checkoutBranch($selectedBranch, $composeFile, $primaryService, $namespace, $formatter)) {
                 return Command::FAILURE;
             }
 
             // Step 5: Clear caches (if Laravel is present)
-            if ($this->hasArtisan($composeFile, $primaryService, $namespace)) {
-                $formatter->info('Clearing application caches...');
-                $clearProcess = $this->containerExecutor->exec(
-                    $composeFile,
-                    $primaryService,
-                    'php artisan optimize:clear',
-                    120,
-                    null,
-                    $namespace
-                );
-
-                if (!$clearProcess->isSuccessful()) {
-                    $formatter->error('Failed to clear caches: ' . $clearProcess->getErrorOutput());
-                    return Command::FAILURE;
-                }
-            } else {
-                $formatter->warning('Laravel artisan not found, skipping cache clear');
+            if (!$this->clearCaches($composeFile, $primaryService, $namespace, $formatter)) {
+                return Command::FAILURE;
             }
 
             // Step 6: Reset database (if Laravel is present)
-            if ($this->hasArtisan($composeFile, $primaryService, $namespace)) {
-                $formatter->info('Resetting development database...');
-                $migrateProcess = $this->containerExecutor->exec(
-                    $composeFile,
-                    $primaryService,
-                    'php artisan migrate:fresh --seed',
-                    300,
-                    null,
-                    $namespace
-                );
-
-                if (!$migrateProcess->isSuccessful()) {
-                    $formatter->error('Failed to reset database: ' . $migrateProcess->getErrorOutput());
-                    return Command::FAILURE;
-                }
-            } else {
-                $formatter->warning('Laravel artisan not found, skipping database reset');
+            if (!$this->resetDatabase($composeFile, $primaryService, $namespace, $formatter)) {
+                return Command::FAILURE;
             }
 
             $formatter->success("✓ Successfully prepared for ticket $ticketNumber review on branch $selectedBranch");
@@ -217,6 +121,189 @@ class ReviewCommand extends Command
             $formatter->error("Error: {$e->getMessage()}");
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * Fetch from origin (run on host machine)
+     */
+    private function fetchFromOrigin(string $configPath, OutputFormatter $formatter): bool
+    {
+        $formatter->info('Fetching latest changes from origin...');
+        
+        // Get the directory where cortex.yml is located (this is where the git repo should be)
+        $configDir = dirname($configPath);
+        $currentDir = getcwd();
+        if ($currentDir === false) {
+            $formatter->error('Failed to get current working directory');
+            return false;
+        }
+
+        // Run git fetch on the host machine
+        $fetchProcess = new Process(['git', 'fetch', 'origin'], $configDir);
+        $fetchProcess->setTimeout(60);
+        $fetchProcess->run();
+
+        if (!$fetchProcess->isSuccessful()) {
+            $errorOutput = $fetchProcess->getErrorOutput();
+            $formatter->error('Failed to fetch from origin: ' . $errorOutput);
+            $formatter->info('Make sure you have git configured on your host machine and have access to the repository.');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Find branches containing the ticket number
+     *
+     * @return array<string> Array of branch names (without origin/ prefix)
+     */
+    private function findBranchesContainingTicket(
+        string $ticketNumber,
+        string $composeFile,
+        string $primaryService,
+        ?string $namespace,
+        OutputFormatter $formatter
+    ): array {
+        $formatter->info('Searching for branches containing ticket number...');
+        $escapedTicket = escapeshellarg($ticketNumber);
+        $branchProcess = $this->containerExecutor->exec(
+            $composeFile,
+            $primaryService,
+            "git branch -r | grep $escapedTicket",
+            30,
+            null,
+            $namespace
+        );
+
+        if (!$branchProcess->isSuccessful()) {
+            $formatter->error('Failed to search for branches: ' . $branchProcess->getErrorOutput());
+            return [];
+        }
+
+        $branchOutput = trim($branchProcess->getOutput());
+        if (empty($branchOutput)) {
+            $formatter->error("No branches found containing ticket number: $ticketNumber");
+            return [];
+        }
+
+        // Parse branches
+        $branches = array_filter(
+            array_map('trim', explode("\n", $branchOutput)),
+            fn($branch) => !empty($branch) && !str_contains($branch, 'HEAD ->')
+        );
+
+        // Remove 'origin/' prefix and get local branch names
+        // Also handle cases like "HEAD -> origin/main" by extracting just the branch name
+        $branchNames = array_map(function ($branch) {
+            // Remove origin/ prefix
+            $branch = preg_replace('/^origin\//', '', $branch);
+            // If it contains "->", extract the part after the arrow
+            if (str_contains($branch, '->')) {
+                $parts = explode('->', $branch);
+                $branch = trim(end($parts));
+                // Remove origin/ prefix again if present
+                $branch = preg_replace('/^origin\//', '', $branch);
+            }
+            return $branch;
+        }, $branches);
+        
+        // Remove duplicates and re-index array
+        return array_values(array_unique($branchNames));
+    }
+
+    /**
+     * Checkout the specified branch
+     */
+    private function checkoutBranch(
+        string $branch,
+        string $composeFile,
+        string $primaryService,
+        ?string $namespace,
+        OutputFormatter $formatter
+    ): bool {
+        $formatter->info("Checking out branch: $branch");
+        $escapedBranch = escapeshellarg($branch);
+        // Try to checkout directly, if it fails create a tracking branch
+        $checkoutProcess = $this->containerExecutor->exec(
+            $composeFile,
+            $primaryService,
+            "git checkout $escapedBranch 2>/dev/null || git checkout -b $escapedBranch origin/$escapedBranch",
+            60,
+            null,
+            $namespace
+        );
+
+        if (!$checkoutProcess->isSuccessful()) {
+            $formatter->error('Failed to checkout branch: ' . $checkoutProcess->getErrorOutput());
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Clear application caches (if Laravel is present)
+     */
+    private function clearCaches(
+        string $composeFile,
+        string $primaryService,
+        ?string $namespace,
+        OutputFormatter $formatter
+    ): bool {
+        if (!$this->hasArtisan($composeFile, $primaryService, $namespace)) {
+            $formatter->warning('Laravel artisan not found, skipping cache clear');
+            return true;
+        }
+
+        $formatter->info('Clearing application caches...');
+        $clearProcess = $this->containerExecutor->exec(
+            $composeFile,
+            $primaryService,
+            'php artisan optimize:clear',
+            120,
+            null,
+            $namespace
+        );
+
+        if (!$clearProcess->isSuccessful()) {
+            $formatter->error('Failed to clear caches: ' . $clearProcess->getErrorOutput());
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Reset development database (if Laravel is present)
+     */
+    private function resetDatabase(
+        string $composeFile,
+        string $primaryService,
+        ?string $namespace,
+        OutputFormatter $formatter
+    ): bool {
+        if (!$this->hasArtisan($composeFile, $primaryService, $namespace)) {
+            $formatter->warning('Laravel artisan not found, skipping database reset');
+            return true;
+        }
+
+        $formatter->info('Resetting development database...');
+        $migrateProcess = $this->containerExecutor->exec(
+            $composeFile,
+            $primaryService,
+            'php artisan migrate:fresh --seed',
+            300,
+            null,
+            $namespace
+        );
+
+        if (!$migrateProcess->isSuccessful()) {
+            $formatter->error('Failed to reset database: ' . $migrateProcess->getErrorOutput());
+            return false;
+        }
+
+        return true;
     }
 
     /**
