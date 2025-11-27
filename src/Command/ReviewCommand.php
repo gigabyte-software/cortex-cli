@@ -74,9 +74,7 @@ class ReviewCommand extends Command
             // Step 2: Find branches containing ticket number
             $branchNames = $this->findBranchesContainingTicket(
                 $ticketNumber,
-                $composeFile,
-                $primaryService,
-                $namespace,
+                $configPath,
                 $formatter
             );
             if (empty($branchNames)) {
@@ -90,13 +88,11 @@ class ReviewCommand extends Command
                 $formatter,
                 $branchNames,
                 $ticketNumber,
-                $composeFile,
-                $primaryService,
-                $namespace
+                $configPath
             );
 
             // Step 4: Checkout branch
-            if (!$this->checkoutBranch($selectedBranch, $composeFile, $primaryService, $namespace, $formatter)) {
+            if (!$this->checkoutBranch($selectedBranch, $configPath, $formatter)) {
                 return Command::FAILURE;
             }
 
@@ -160,21 +156,19 @@ class ReviewCommand extends Command
      */
     private function findBranchesContainingTicket(
         string $ticketNumber,
-        string $composeFile,
-        string $primaryService,
-        ?string $namespace,
+        string $configPath,
         OutputFormatter $formatter
     ): array {
         $formatter->info('Searching for branches containing ticket number...');
+        
+        // Get the directory where cortex.yml is located (this is where the git repo should be)
+        $configDir = dirname($configPath);
         $escapedTicket = escapeshellarg($ticketNumber);
-        $branchProcess = $this->containerExecutor->exec(
-            $composeFile,
-            $primaryService,
-            "git branch -r | grep $escapedTicket",
-            30,
-            null,
-            $namespace
-        );
+        
+        // Run git branch -r | grep on the host machine
+        $branchProcess = Process::fromShellCommandline("git branch -r | grep $escapedTicket", $configDir);
+        $branchProcess->setTimeout(30);
+        $branchProcess->run();
 
         if (!$branchProcess->isSuccessful()) {
             $formatter->error('Failed to search for branches: ' . $branchProcess->getErrorOutput());
@@ -217,22 +211,23 @@ class ReviewCommand extends Command
      */
     private function checkoutBranch(
         string $branch,
-        string $composeFile,
-        string $primaryService,
-        ?string $namespace,
+        string $configPath,
         OutputFormatter $formatter
     ): bool {
         $formatter->info("Checking out branch: $branch");
+        
+        // Get the directory where cortex.yml is located (this is where the git repo should be)
+        $configDir = dirname($configPath);
         $escapedBranch = escapeshellarg($branch);
+        
         // Try to checkout directly, if it fails create a tracking branch
-        $checkoutProcess = $this->containerExecutor->exec(
-            $composeFile,
-            $primaryService,
+        // Run on the host machine
+        $checkoutProcess = Process::fromShellCommandline(
             "git checkout $escapedBranch 2>/dev/null || git checkout -b $escapedBranch origin/$escapedBranch",
-            60,
-            null,
-            $namespace
+            $configDir
         );
+        $checkoutProcess->setTimeout(60);
+        $checkoutProcess->run();
 
         if (!$checkoutProcess->isSuccessful()) {
             $formatter->error('Failed to checkout branch: ' . $checkoutProcess->getErrorOutput());
@@ -315,9 +310,7 @@ class ReviewCommand extends Command
         OutputFormatter $formatter,
         array $branches,
         string $ticketNumber,
-        string $composeFile,
-        string $primaryService,
-        ?string $namespace
+        string $configPath
     ): string {
         if (count($branches) === 1) {
             $formatter->info('Found single branch: ' . $branches[0]);
@@ -325,7 +318,7 @@ class ReviewCommand extends Command
         }
 
         // If multiple branches, find the most recent one
-        $defaultBranch = $this->findMostRecentBranch($branches, $ticketNumber, $composeFile, $primaryService, $namespace);
+        $defaultBranch = $this->findMostRecentBranch($branches, $ticketNumber, $configPath);
 
         $formatter->info('Found ' . count($branches) . ' branches containing ticket number:');
         foreach ($branches as $branch) {
@@ -353,13 +346,14 @@ class ReviewCommand extends Command
     private function findMostRecentBranch(
         array $branches,
         string $ticketNumber,
-        string $composeFile,
-        string $primaryService,
-        ?string $namespace
+        string $configPath
     ): string {
         if (empty($branches)) {
             throw new RuntimeException('No branches found');
         }
+
+        // Get the directory where cortex.yml is located (this is where the git repo should be)
+        $configDir = dirname($configPath);
 
         // Try to find the branch with the most recent commit
         $mostRecentBranch = null;
@@ -367,14 +361,10 @@ class ReviewCommand extends Command
 
         foreach ($branches as $branch) {
             // Get the last commit date for this branch
-            $dateProcess = $this->containerExecutor->exec(
-                $composeFile,
-                $primaryService,
-                'git log -1 --format=%ct origin/' . escapeshellarg($branch),
-                30,
-                null,
-                $namespace
-            );
+            // Run on the host machine
+            $dateProcess = new Process(['git', 'log', '-1', '--format=%ct', "origin/$branch"], $configDir);
+            $dateProcess->setTimeout(30);
+            $dateProcess->run();
 
             if ($dateProcess->isSuccessful()) {
                 $timestamp = (int) trim($dateProcess->getOutput());
