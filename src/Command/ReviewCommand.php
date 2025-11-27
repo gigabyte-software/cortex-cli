@@ -10,6 +10,7 @@ use Cortex\Config\LockFile;
 use Cortex\Docker\ContainerExecutor;
 use Cortex\Docker\DockerCompose;
 use Cortex\Output\OutputFormatter;
+use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
@@ -270,7 +271,7 @@ class ReviewCommand extends Command
         ?string $namespace
     ): string {
         if (empty($branches)) {
-            throw new \RuntimeException('No branches found');
+            throw new RuntimeException('No branches found');
         }
 
         // Try to find the branch with the most recent commit
