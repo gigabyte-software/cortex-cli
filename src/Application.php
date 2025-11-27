@@ -23,6 +23,8 @@ use Cortex\Docker\HealthChecker;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
 use Cortex\Executor\HostCommandExecutor;
+use Cortex\Git\GitRepositoryService;
+use Cortex\Laravel\LaravelService;
 use Cortex\Orchestrator\CommandOrchestrator;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
@@ -79,6 +81,10 @@ class Application extends BaseApplication
 
         $commandOrchestrator = new CommandOrchestrator($outputFormatter);
 
+        // Create Git and Laravel services
+        $gitRepositoryService = new GitRepositoryService();
+        $laravelService = new LaravelService($containerExecutor);
+
         // Register built-in commands (these take precedence over custom commands)
         $this->add(new InitCommand());
         $this->add(new UpCommand(
@@ -98,9 +104,10 @@ class Application extends BaseApplication
         ));
         $this->add(new ReviewCommand(
             $configLoader,
-            $containerExecutor,
             $dockerCompose,
-            $lockFile
+            $lockFile,
+            $gitRepositoryService,
+            $laravelService
         ));
         $this->add(new StatusCommand(
             $configLoader,

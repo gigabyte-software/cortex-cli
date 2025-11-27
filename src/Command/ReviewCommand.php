@@ -7,8 +7,9 @@ namespace Cortex\Command;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
-use Cortex\Docker\ContainerExecutor;
 use Cortex\Docker\DockerCompose;
+use Cortex\Git\GitRepositoryService;
+use Cortex\Laravel\LaravelService;
 use Cortex\Output\OutputFormatter;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
@@ -17,15 +18,15 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
-use Symfony\Component\Process\Process;
 
 class ReviewCommand extends Command
 {
     public function __construct(
         private readonly ConfigLoader $configLoader,
-        private readonly ContainerExecutor $containerExecutor,
         private readonly DockerCompose $dockerCompose,
         private readonly LockFile $lockFile,
+        private readonly GitRepositoryService $gitRepositoryService,
+        private readonly LaravelService $laravelService,
     ) {
         parent::__construct();
     }
@@ -66,18 +67,20 @@ class ReviewCommand extends Command
 
             $formatter->section("Preparing for Ticket Review: $ticketNumber");
 
+            $repositoryPath = dirname($configPath);
+
             // Step 1: Fetch from origin
-            if (!$this->fetchFromOrigin($configPath, $formatter)) {
+            $formatter->info('Fetching latest changes from origin...');
+            if (!$this->gitRepositoryService->fetchFromOrigin($repositoryPath)) {
+                $formatter->error('Failed to fetch from origin. Make sure you have git configured on your host machine and have access to the repository.');
                 return Command::FAILURE;
             }
 
             // Step 2: Find branches containing ticket number
-            $branchNames = $this->findBranchesContainingTicket(
-                $ticketNumber,
-                $configPath,
-                $formatter
-            );
+            $formatter->info('Searching for branches containing ticket number...');
+            $branchNames = $this->gitRepositoryService->findBranchesContaining($repositoryPath, $ticketNumber);
             if (empty($branchNames)) {
+                $formatter->error("No branches found containing ticket number: $ticketNumber");
                 return Command::FAILURE;
             }
 
@@ -88,22 +91,36 @@ class ReviewCommand extends Command
                 $formatter,
                 $branchNames,
                 $ticketNumber,
-                $configPath
+                $repositoryPath
             );
 
             // Step 4: Checkout branch
-            if (!$this->checkoutBranch($selectedBranch, $configPath, $formatter)) {
+            $formatter->info("Checking out branch: $selectedBranch");
+            if (!$this->gitRepositoryService->checkoutBranch($repositoryPath, $selectedBranch)) {
+                $formatter->error('Failed to checkout branch');
                 return Command::FAILURE;
             }
 
             // Step 5: Clear caches (if Laravel is present)
-            if (!$this->clearCaches($composeFile, $primaryService, $namespace, $formatter)) {
-                return Command::FAILURE;
+            if (!$this->laravelService->hasArtisan($composeFile, $primaryService, $namespace)) {
+                $formatter->warning('Laravel artisan not found, skipping cache clear');
+            } else {
+                $formatter->info('Clearing application caches...');
+                if (!$this->laravelService->clearCaches($composeFile, $primaryService, $namespace)) {
+                    $formatter->error('Failed to clear caches');
+                    return Command::FAILURE;
+                }
             }
 
             // Step 6: Reset database (if Laravel is present)
-            if (!$this->resetDatabase($composeFile, $primaryService, $namespace, $formatter)) {
-                return Command::FAILURE;
+            if (!$this->laravelService->hasArtisan($composeFile, $primaryService, $namespace)) {
+                $formatter->warning('Laravel artisan not found, skipping database reset');
+            } else {
+                $formatter->info('Resetting development database...');
+                if (!$this->laravelService->resetDatabase($composeFile, $primaryService, $namespace)) {
+                    $formatter->error('Failed to reset database');
+                    return Command::FAILURE;
+                }
             }
 
             $formatter->success("✓ Successfully prepared for ticket $ticketNumber review on branch $selectedBranch");
@@ -119,187 +136,6 @@ class ReviewCommand extends Command
         }
     }
 
-    /**
-     * Fetch from origin (run on host machine)
-     */
-    private function fetchFromOrigin(string $configPath, OutputFormatter $formatter): bool
-    {
-        $formatter->info('Fetching latest changes from origin...');
-        
-        // Get the directory where cortex.yml is located (this is where the git repo should be)
-        $configDir = dirname($configPath);
-        $currentDir = getcwd();
-        if ($currentDir === false) {
-            $formatter->error('Failed to get current working directory');
-            return false;
-        }
-
-        // Run git fetch on the host machine
-        $fetchProcess = new Process(['git', 'fetch', 'origin'], $configDir);
-        $fetchProcess->setTimeout(60);
-        $fetchProcess->run();
-
-        if (!$fetchProcess->isSuccessful()) {
-            $errorOutput = $fetchProcess->getErrorOutput();
-            $formatter->error('Failed to fetch from origin: ' . $errorOutput);
-            $formatter->info('Make sure you have git configured on your host machine and have access to the repository.');
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Find branches containing the ticket number
-     *
-     * @return array<string> Array of branch names (without origin/ prefix)
-     */
-    private function findBranchesContainingTicket(
-        string $ticketNumber,
-        string $configPath,
-        OutputFormatter $formatter
-    ): array {
-        $formatter->info('Searching for branches containing ticket number...');
-        
-        // Get the directory where cortex.yml is located (this is where the git repo should be)
-        $configDir = dirname($configPath);
-        $escapedTicket = escapeshellarg($ticketNumber);
-        
-        // Run git branch -r | grep on the host machine
-        $branchProcess = Process::fromShellCommandline("git branch -r | grep $escapedTicket", $configDir);
-        $branchProcess->setTimeout(30);
-        $branchProcess->run();
-
-        if (!$branchProcess->isSuccessful()) {
-            $formatter->error('Failed to search for branches: ' . $branchProcess->getErrorOutput());
-            return [];
-        }
-
-        $branchOutput = trim($branchProcess->getOutput());
-        if (empty($branchOutput)) {
-            $formatter->error("No branches found containing ticket number: $ticketNumber");
-            return [];
-        }
-
-        // Parse branches
-        $branches = array_filter(
-            array_map('trim', explode("\n", $branchOutput)),
-            fn($branch) => !empty($branch) && !str_contains($branch, 'HEAD ->')
-        );
-
-        // Remove 'origin/' prefix and get local branch names
-        // Also handle cases like "HEAD -> origin/main" by extracting just the branch name
-        $branchNames = array_map(function ($branch) {
-            // Remove origin/ prefix
-            $branch = preg_replace('/^origin\//', '', $branch);
-            // If it contains "->", extract the part after the arrow
-            if (str_contains($branch, '->')) {
-                $parts = explode('->', $branch);
-                $branch = trim(end($parts));
-                // Remove origin/ prefix again if present
-                $branch = preg_replace('/^origin\//', '', $branch);
-            }
-            return $branch;
-        }, $branches);
-        
-        // Remove duplicates and re-index array
-        return array_values(array_unique($branchNames));
-    }
-
-    /**
-     * Checkout the specified branch
-     */
-    private function checkoutBranch(
-        string $branch,
-        string $configPath,
-        OutputFormatter $formatter
-    ): bool {
-        $formatter->info("Checking out branch: $branch");
-        
-        // Get the directory where cortex.yml is located (this is where the git repo should be)
-        $configDir = dirname($configPath);
-        $escapedBranch = escapeshellarg($branch);
-        
-        // Try to checkout directly, if it fails create a tracking branch
-        // Run on the host machine
-        $checkoutProcess = Process::fromShellCommandline(
-            "git checkout $escapedBranch 2>/dev/null || git checkout -b $escapedBranch origin/$escapedBranch",
-            $configDir
-        );
-        $checkoutProcess->setTimeout(60);
-        $checkoutProcess->run();
-
-        if (!$checkoutProcess->isSuccessful()) {
-            $formatter->error('Failed to checkout branch: ' . $checkoutProcess->getErrorOutput());
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Clear application caches (if Laravel is present)
-     */
-    private function clearCaches(
-        string $composeFile,
-        string $primaryService,
-        ?string $namespace,
-        OutputFormatter $formatter
-    ): bool {
-        if (!$this->hasArtisan($composeFile, $primaryService, $namespace)) {
-            $formatter->warning('Laravel artisan not found, skipping cache clear');
-            return true;
-        }
-
-        $formatter->info('Clearing application caches...');
-        $clearProcess = $this->containerExecutor->exec(
-            $composeFile,
-            $primaryService,
-            'php artisan optimize:clear',
-            120,
-            null,
-            $namespace
-        );
-
-        if (!$clearProcess->isSuccessful()) {
-            $formatter->error('Failed to clear caches: ' . $clearProcess->getErrorOutput());
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Reset development database (if Laravel is present)
-     */
-    private function resetDatabase(
-        string $composeFile,
-        string $primaryService,
-        ?string $namespace,
-        OutputFormatter $formatter
-    ): bool {
-        if (!$this->hasArtisan($composeFile, $primaryService, $namespace)) {
-            $formatter->warning('Laravel artisan not found, skipping database reset');
-            return true;
-        }
-
-        $formatter->info('Resetting development database...');
-        $migrateProcess = $this->containerExecutor->exec(
-            $composeFile,
-            $primaryService,
-            'php artisan migrate:fresh --seed',
-            300,
-            null,
-            $namespace
-        );
-
-        if (!$migrateProcess->isSuccessful()) {
-            $formatter->error('Failed to reset database: ' . $migrateProcess->getErrorOutput());
-            return false;
-        }
-
-        return true;
-    }
 
     /**
      * Select a branch from the list, defaulting to the most recent one
@@ -310,7 +146,7 @@ class ReviewCommand extends Command
         OutputFormatter $formatter,
         array $branches,
         string $ticketNumber,
-        string $configPath
+        string $repositoryPath
     ): string {
         if (count($branches) === 1) {
             $formatter->info('Found single branch: ' . $branches[0]);
@@ -318,7 +154,21 @@ class ReviewCommand extends Command
         }
 
         // If multiple branches, find the most recent one
-        $defaultBranch = $this->findMostRecentBranch($branches, $ticketNumber, $configPath);
+        try {
+            $defaultBranch = $this->gitRepositoryService->findMostRecentBranch($repositoryPath, $branches);
+        } catch (RuntimeException $e) {
+            $defaultBranch = $branches[0];
+        }
+
+        // Prefer branches starting with ticket number if the most recent doesn't
+        if (!str_starts_with($defaultBranch, $ticketNumber)) {
+            foreach ($branches as $branch) {
+                if (str_starts_with($branch, $ticketNumber)) {
+                    $defaultBranch = $branch;
+                    break;
+                }
+            }
+        }
 
         $formatter->info('Found ' . count($branches) . ' branches containing ticket number:');
         foreach ($branches as $branch) {
@@ -338,72 +188,6 @@ class ReviewCommand extends Command
         $selected = $helper->ask($input, $output, $question);
 
         return $selected ?? $defaultBranch;
-    }
-
-    /**
-     * Find the most recent branch by checking commit dates
-     */
-    private function findMostRecentBranch(
-        array $branches,
-        string $ticketNumber,
-        string $configPath
-    ): string {
-        if (empty($branches)) {
-            throw new RuntimeException('No branches found');
-        }
-
-        // Get the directory where cortex.yml is located (this is where the git repo should be)
-        $configDir = dirname($configPath);
-
-        // Try to find the branch with the most recent commit
-        $mostRecentBranch = null;
-        $mostRecentDate = 0;
-
-        foreach ($branches as $branch) {
-            // Get the last commit date for this branch
-            // Run on the host machine
-            $dateProcess = new Process(['git', 'log', '-1', '--format=%ct', "origin/$branch"], $configDir);
-            $dateProcess->setTimeout(30);
-            $dateProcess->run();
-
-            if ($dateProcess->isSuccessful()) {
-                $timestamp = (int) trim($dateProcess->getOutput());
-                if ($timestamp > $mostRecentDate) {
-                    $mostRecentDate = $timestamp;
-                    $mostRecentBranch = $branch;
-                }
-            }
-        }
-
-        // If we couldn't determine the most recent, prefer branches starting with ticket number
-        if ($mostRecentBranch === null) {
-            foreach ($branches as $branch) {
-                if (str_starts_with($branch, $ticketNumber)) {
-                    return $branch;
-                }
-            }
-            return $branches[0];
-        }
-
-        return $mostRecentBranch;
-    }
-
-    /**
-     * Check if Laravel artisan file exists in the container
-     */
-    private function hasArtisan(string $composeFile, string $service, ?string $namespace): bool
-    {
-        // Check if artisan exists in current directory or common locations
-        $checkProcess = $this->containerExecutor->exec(
-            $composeFile,
-            $service,
-            '[ -f artisan ] || [ -f /var/www/html/artisan ] || [ -f /app/artisan ]',
-            10,
-            null,
-            $namespace
-        );
-
-        return $checkProcess->isSuccessful();
     }
 }
 
