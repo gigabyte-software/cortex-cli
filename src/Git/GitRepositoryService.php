@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Cortex\Git;
 
 use RuntimeException;
+use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Process\Process;
 
 final class GitRepositoryService
@@ -112,6 +116,62 @@ final class GitRepositoryService
         }
 
         return $mostRecentBranch;
+    }
+
+    /**
+     * Select a branch from the list, defaulting to the most recent one
+     *
+     * @param array<string> $branches
+     * @param callable(string): bool $preferenceCallback Optional callback to prefer certain branches (returns true if branch should be preferred)
+     */
+    public function selectBranch(
+        string $repositoryPath,
+        array $branches,
+        InputInterface $input,
+        OutputInterface $output,
+        callable $infoCallback,
+        callable $warningCallback,
+        ?callable $preferenceCallback = null
+    ): string {
+        if (count($branches) === 1) {
+            $infoCallback('Found single branch: ' . $branches[0]);
+            return $branches[0];
+        }
+
+        // If multiple branches, find the most recent one
+        try {
+            $defaultBranch = $this->findMostRecentBranch($repositoryPath, $branches);
+        } catch (RuntimeException $e) {
+            $defaultBranch = $branches[0];
+        }
+
+        // Apply preference callback if provided
+        if ($preferenceCallback !== null && !$preferenceCallback($defaultBranch)) {
+            foreach ($branches as $branch) {
+                if ($preferenceCallback($branch)) {
+                    $defaultBranch = $branch;
+                    break;
+                }
+            }
+        }
+
+        $infoCallback('Found ' . count($branches) . ' branches:');
+        foreach ($branches as $branch) {
+            $marker = ($branch === $defaultBranch) ? ' (most recent)' : '';
+            $output->writeln('  <fg=#D2DCE5>- ' . $branch . $marker . '</>');
+        }
+
+        $question = new ChoiceQuestion(
+            'Select a branch to checkout:',
+            $branches,
+            $defaultBranch
+        );
+        $question->setNormalizer(fn($value) => $value);
+
+        $helper = new QuestionHelper();
+        $selected = $helper->ask($input, $output, $question);
+
+        return $selected ?? $defaultBranch;
     }
 }
 

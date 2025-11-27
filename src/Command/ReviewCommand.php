@@ -11,13 +11,10 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Git\GitRepositoryService;
 use Cortex\Laravel\LaravelService;
 use Cortex\Output\OutputFormatter;
-use RuntimeException;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Question\ChoiceQuestion;
 
 class ReviewCommand extends Command
 {
@@ -85,13 +82,14 @@ class ReviewCommand extends Command
             }
 
             // Step 3: Select branch (if multiple)
-            $selectedBranch = $this->selectBranch(
+            $selectedBranch = $this->gitRepositoryService->selectBranch(
+                $repositoryPath,
+                $branchNames,
                 $input,
                 $output,
-                $formatter,
-                $branchNames,
-                $ticketNumber,
-                $repositoryPath
+                fn(string $message) => $formatter->info($message),
+                fn(string $message) => $formatter->warning($message),
+                fn(string $branch) => str_starts_with($branch, $ticketNumber)
             );
 
             // Step 4: Checkout branch
@@ -134,60 +132,6 @@ class ReviewCommand extends Command
             $formatter->error("Error: {$e->getMessage()}");
             return Command::FAILURE;
         }
-    }
-
-
-    /**
-     * Select a branch from the list, defaulting to the most recent one
-     */
-    private function selectBranch(
-        InputInterface $input,
-        OutputInterface $output,
-        OutputFormatter $formatter,
-        array $branches,
-        string $ticketNumber,
-        string $repositoryPath
-    ): string {
-        if (count($branches) === 1) {
-            $formatter->info('Found single branch: ' . $branches[0]);
-            return $branches[0];
-        }
-
-        // If multiple branches, find the most recent one
-        try {
-            $defaultBranch = $this->gitRepositoryService->findMostRecentBranch($repositoryPath, $branches);
-        } catch (RuntimeException $e) {
-            $defaultBranch = $branches[0];
-        }
-
-        // Prefer branches starting with ticket number if the most recent doesn't
-        if (!str_starts_with($defaultBranch, $ticketNumber)) {
-            foreach ($branches as $branch) {
-                if (str_starts_with($branch, $ticketNumber)) {
-                    $defaultBranch = $branch;
-                    break;
-                }
-            }
-        }
-
-        $formatter->info('Found ' . count($branches) . ' branches containing ticket number:');
-        foreach ($branches as $branch) {
-            $marker = ($branch === $defaultBranch) ? ' (most recent)' : '';
-            $output->writeln('  <fg=#D2DCE5>- ' . $branch . $marker . '</>');
-        }
-
-        $question = new ChoiceQuestion(
-            'Select a branch to checkout:',
-            $branches,
-            $defaultBranch
-        );
-        $question->setNormalizer(fn($value) => $value);
-
-        /** @var QuestionHelper $helper */
-        $helper = $this->getHelper('question');
-        $selected = $helper->ask($input, $output, $question);
-
-        return $selected ?? $defaultBranch;
     }
 }
 
