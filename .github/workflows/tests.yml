@@ -36,9 +36,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        composer install --prefer-dist --no-progress || \
-        (echo "Lock file incompatible with PHP version, updating dependencies..." && \
-         composer update --prefer-dist --no-progress --no-scripts)
+        composer install --prefer-dist --no-progress
     
     - name: Run PHPStan
       run: composer phpstan
