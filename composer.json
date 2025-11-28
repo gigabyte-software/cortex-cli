@@ -27,6 +27,11 @@
         "humbug/box": "^4.6"
     },
     "bin": ["bin/cortex"],
+    "config": {
+        "platform": {
+            "php": "8.2"
+        }
+    },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "scripts": {
