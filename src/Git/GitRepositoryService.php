@@ -47,20 +47,28 @@ final class GitRepositoryService
             return [];
         }
 
+        $branchLines = explode("\n", $branchOutput);
         $branches = array_filter(
-            array_map('trim', explode("\n", $branchOutput)),
-            fn($branch) => !empty($branch) && !str_contains($branch, 'HEAD ->')
+            array_map('trim', $branchLines),
+            fn($branch): bool => is_string($branch) && $branch !== '' && !str_contains($branch, 'HEAD ->')
         );
 
-        $branchNames = array_map(function ($branch) {
-            $branch = preg_replace('/^origin\//', '', $branch);
-            if (str_contains($branch, '->')) {
-                $parts = explode('->', $branch);
-                $branch = trim(end($parts));
-                $branch = preg_replace('/^origin\//', '', $branch);
+        /** @var array<string> $branchNames */
+        $branchNames = [];
+        foreach ($branches as $branch) {
+            if (!is_string($branch)) {
+                continue;
             }
-            return $branch;
-        }, $branches);
+            $branchName = preg_replace('/^origin\//', '', $branch) ?? $branch;
+            if (str_contains($branchName, '->')) {
+                $parts = explode('->', $branchName);
+                $branchName = trim(end($parts));
+                $branchName = preg_replace('/^origin\//', '', $branchName) ?? $branchName;
+            }
+            if ($branchName !== '') {
+                $branchNames[] = $branchName;
+            }
+        }
         
         return array_values(array_unique($branchNames));
     }

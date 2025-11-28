@@ -298,6 +298,9 @@ class GitRepositoryServiceTest extends TestCase
     private function createStreamableInput(string $input): StreamableInputInterface
     {
         $stream = fopen('php://memory', 'r+', false);
+        if ($stream === false) {
+            throw new \RuntimeException('Failed to create stream for testing');
+        }
         fwrite($stream, $input);
         rewind($stream);
         
@@ -387,7 +390,12 @@ class GitRepositoryServiceTest extends TestCase
             return;
         }
         
-        $files = array_diff(scandir($dir), ['.', '..']);
+        $scandirResult = scandir($dir);
+        if ($scandirResult === false) {
+            return;
+        }
+        
+        $files = array_diff($scandirResult, ['.', '..']);
         foreach ($files as $file) {
             $path = $dir . '/' . $file;
             if (is_dir($path)) {
