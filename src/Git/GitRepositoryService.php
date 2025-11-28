@@ -56,9 +56,6 @@ final class GitRepositoryService
         /** @var array<string> $branchNames */
         $branchNames = [];
         foreach ($branches as $branch) {
-            if (!is_string($branch)) {
-                continue;
-            }
             $branchName = preg_replace('/^origin\//', '', $branch) ?? $branch;
             if (str_contains($branchName, '->')) {
                 $parts = explode('->', $branchName);
