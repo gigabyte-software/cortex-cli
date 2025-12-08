@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.7.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.6.2...v1.7.0) (2025-12-08)
+
+
+### Features
+
+* **commands:** add new 'review' command ([403aa81](https://github.com/gigabyte-software/cortex-cli/commit/403aa818b9e94ef6103af4271769ffbef9035661))
+
 ## [1.6.2](https://github.com/gigabyte-software/cortex-cli/compare/v1.6.1...v1.6.2) (2025-11-18)
 
 
