@@ -23,9 +23,15 @@
         "phpunit/phpunit": "^11.0",
         "phpstan/phpstan": "^1.10",
         "friendsofphp/php-cs-fixer": "^3.40",
-        "mockery/mockery": "^1.6"
+        "mockery/mockery": "^1.6",
+        "humbug/box": "^4.6"
     },
     "bin": ["bin/cortex"],
+    "config": {
+        "platform": {
+            "php": "8.2"
+        }
+    },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "scripts": {
@@ -34,4 +40,3 @@
         "cs-fix": "vendor/bin/php-cs-fixer fix"
     }
 }
-
