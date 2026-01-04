@@ -13,6 +13,7 @@ use Cortex\Command\ShellCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
+use Cortex\Command\N8nExportCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\LockFile;
 use Cortex\Config\Validator\ConfigValidator;
@@ -122,6 +123,10 @@ class Application extends BaseApplication
         ));
         $this->add(new SelfUpdateCommand());
         $this->add(new StyleDemoCommand());
+
+        $this->add(new N8NExportCommand(
+            $configLoader,
+        ));
 
         // Try to load cortex.yml and register custom commands dynamically
         try {

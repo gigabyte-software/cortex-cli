@@ -10,11 +10,14 @@ use Cortex\Config\Schema\CortexConfig;
 use Cortex\Config\Schema\DockerConfig;
 use Cortex\Config\Schema\ServiceWaitConfig;
 use Cortex\Config\Schema\SetupConfig;
+use Cortex\Config\Schema\N8nConfig;
 use Cortex\Config\Validator\ConfigValidator;
 use Symfony\Component\Yaml\Yaml;
 
 class ConfigLoader
 {
+    private const DEFAULT_N8N_WORKFLOWS_DIR = './.n8n';
+
     public function __construct(
         private readonly ConfigValidator $validator,
     ) {
@@ -105,12 +108,14 @@ class ConfigLoader
     {
         $docker = $this->buildDockerConfig($config['docker'], $configDir);
         $setup = $this->buildSetupConfig($config['setup'] ?? []);
+        $n8n = $this->buildN8nConfig($config['n8n'] ?? [], $configDir);
         $commands = $this->buildCommandsMap($config['commands'] ?? []);
 
         return new CortexConfig(
             version: $config['version'],
             docker: $docker,
             setup: $setup,
+            n8n: $n8n,
             commands: $commands,
         );
     }
@@ -164,6 +169,35 @@ class ConfigLoader
             initialize: $initialize,
         );
     }
+
+    private function normalizePath(string $path, string $projectRoot): string
+    {
+        if ($path === '') {
+            throw new \RuntimeException('Path cannot be empty');
+        }
+
+        if ($path[0] === '/') {
+            return rtrim($path, '/');
+        }
+
+        return rtrim($projectRoot . '/' . $path, '/');
+    }
+
+
+    /**
+     * @param array<string, mixed> $n8nConfig
+     */
+    private function buildN8nConfig(array $n8nConfig, string $configDir): N8nConfig
+    {
+        $workflowsDir = $this->normalizePath(
+            $n8nConfig['workflows_dir'] ?? self::DEFAULT_N8N_WORKFLOWS_DIR,
+            $configDir
+        );
+        return new N8nConfig(
+            workflowsDir: $workflowsDir,
+        );
+    }
+
 
     /**
      * @param array<int, array<string, mixed>> $commands
