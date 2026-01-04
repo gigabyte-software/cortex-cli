@@ -106,8 +106,9 @@ final class N8nExportCommand extends Command
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing files');
     }
 
-    private function performExport(array $env, string $dest, bool $force, OutputFormatter $formatter): void
+    private function performExport(array $env, string $dest, bool $force, OutputFormatter $formatter): bool
     {
+        $skipped = false;
         $options = [
             'headers' => [
             'X-N8N-API-KEY' => $env['CORTEX_N8N_API_KEY'],
@@ -132,6 +133,8 @@ final class N8nExportCommand extends Command
 
                 if (file_exists($destFile) && !$force) {
                     $formatter->info(sprintf('File "%s" already exists', $destFile));
+                    $skipped = true;
+                    continue;
                 }
 
                 $response = $client->get('/api/v1/workflows/' . $workflow['id'], $options);
@@ -158,6 +161,7 @@ final class N8nExportCommand extends Command
                 $e
             );
         }
+        return $skipped;
     }
 
 
@@ -191,8 +195,12 @@ final class N8nExportCommand extends Command
                 mkdir($dest, 0755, true);
             }
 
-            $this->performExport($env, $dest, $force, $formatter);
-            $formatter->success(sprintf('<info>✓ Workflows have been written to %s</info>', $dest));
+            $skipped = $this->performExport($env, $dest, $force, $formatter);
+            $skippedIno = $skipped ? 'Some exports were skipped. Use -f (force)': '';
+            $formatter->success(sprintf(
+                '<info>✓ Workflow export complete to %s. %s</info>'
+                , $dest, $skippedIno
+            ));
 
             return Command::SUCCESS;
         } catch (\Throwable $e) {
