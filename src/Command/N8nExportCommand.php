@@ -23,6 +23,9 @@ final class N8nExportCommand extends Command
         'CORTEX_N8N_API_KEY',
     ];
 
+    /**
+     * @return array<string, string>
+     */
     private function loadEnv(string $path): array
     {
         if (!file_exists($path)) {
@@ -35,6 +38,10 @@ final class N8nExportCommand extends Command
         return $dotenv->parse(file_get_contents($path));
     }
 
+    /**
+     * @param array<string, string> $env
+     * @return array<string, string>
+     */
     private function promptForMissingEnvValues(
         array $env,
         InputInterface $input,
@@ -67,6 +74,9 @@ final class N8nExportCommand extends Command
         return $env;
     }
 
+    /**
+     * @param array<string, string> $env
+     */
     private function writeEnv(string $path, array $env): void
     {
         ksort($env);
@@ -107,6 +117,10 @@ final class N8nExportCommand extends Command
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing files');
     }
 
+    /**
+     * @param array<string, string> $env
+     * @return array<string, array<string, string>>
+     */
     private function buildApiOptions(array $env): array
     {
         return [
@@ -117,6 +131,9 @@ final class N8nExportCommand extends Command
         ];
     }
 
+    /**
+     * @param array<string, string> $env
+     */
     private function buildBaseUri(array $env): string
     {
         return "{$env['CORTEX_N8N_HOST']}:{$env['CORTEX_N8N_PORT']}";
@@ -132,6 +149,10 @@ final class N8nExportCommand extends Command
         return rtrim($baseUri, '/') . '/api/v1/workflows/' . $workflowId;
     }
 
+    /**
+     * @param array<string, mixed> $options
+     * @return array<int, array<string, mixed>>
+     */
     private function fetchWorkflowsList(string $workflowsUri, array $options): array
     {
         $response = $this->httpClient->request('GET', $workflowsUri, $options);
@@ -144,6 +165,10 @@ final class N8nExportCommand extends Command
         return $data['data'];
     }
 
+    /**
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
     private function fetchWorkflowDetails(string $workflowUri, array $options): array
     {
         $response = $this->httpClient->request('GET', $workflowUri, $options);
@@ -151,6 +176,9 @@ final class N8nExportCommand extends Command
         return json_decode($rawJson, true, flags: JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     private function formatWorkflowJson(array $data): string
     {
         return json_encode(
@@ -169,6 +197,9 @@ final class N8nExportCommand extends Command
         return file_exists($destFile) && !$force;
     }
 
+    /**
+     * @param array<string, string> $env
+     */
     private function performExport(array $env, string $dest, bool $force, OutputFormatter $formatter): bool
     {
         $skipped = false;
