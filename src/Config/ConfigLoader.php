@@ -180,7 +180,20 @@ class ConfigLoader
             return rtrim($path, '/');
         }
 
-        return rtrim($projectRoot . '/' . $path, '/');
+        // Remove leading './' from relative paths
+        $normalizedPath = preg_replace('#^\./#', '', $path);
+        
+        $fullPath = rtrim($projectRoot . '/' . $normalizedPath, '/');
+        
+        // Use realpath if the path exists to resolve any remaining . or .. components
+        if (file_exists($fullPath)) {
+            $resolved = realpath($fullPath);
+            if ($resolved !== false) {
+                return $resolved;
+            }
+        }
+        
+        return $fullPath;
     }
 
 

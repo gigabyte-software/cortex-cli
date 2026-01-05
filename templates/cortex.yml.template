@@ -38,3 +38,7 @@ commands:
   fresh_db:
     command: "php artisan migrate:fresh --seed"
     description: "Reset database with fresh data"
+
+n8n:
+  workflows_dir: "./.n8n"
+
