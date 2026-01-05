@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Dotenv\Dotenv;
 use GuzzleHttp\Client;
@@ -34,8 +35,13 @@ final class N8nExportCommand extends Command
             return [];
         }
 
+        $content = file_get_contents($path);
+        if ($content === false) {
+            throw new \RuntimeException("Failed to read .env file: {$path}");
+        }
+
         $dotenv = new Dotenv();
-        return $dotenv->parse(file_get_contents($path));
+        return $dotenv->parse($content);
     }
 
     /**
@@ -48,6 +54,9 @@ final class N8nExportCommand extends Command
         OutputInterface $output
     ): array {
         $helper = $this->getHelper('question');
+        if (!$helper instanceof QuestionHelper) {
+            throw new \RuntimeException('Question helper is not available');
+        }
 
         foreach (self::REQUIRED_ENV_KEYS as $key) {
             if (!isset($env[$key]) || trim((string) $env[$key]) === '') {
