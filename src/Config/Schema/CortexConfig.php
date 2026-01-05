@@ -13,6 +13,7 @@ readonly class CortexConfig
         public string $version,
         public DockerConfig $docker,
         public SetupConfig $setup,
+        public N8nConfig $n8n,
         public array $commands = [],
     ) {
     }

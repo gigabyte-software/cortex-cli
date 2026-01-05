@@ -13,6 +13,7 @@ use Cortex\Command\ShellCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
+use Cortex\Command\N8nExportCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\LockFile;
 use Cortex\Config\Validator\ConfigValidator;
@@ -28,6 +29,7 @@ use Cortex\Laravel\LaravelService;
 use Cortex\Orchestrator\CommandOrchestrator;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
+use GuzzleHttp\Client;
 use Symfony\Component\Console\Application as BaseApplication;
 use Symfony\Component\Console\Output\ConsoleOutput;
 
@@ -122,6 +124,17 @@ class Application extends BaseApplication
         ));
         $this->add(new SelfUpdateCommand());
         $this->add(new StyleDemoCommand());
+
+        // Create HTTP client for n8n export command
+        $httpClient = new Client([
+            'timeout' => 10,
+            'verify' => false,
+        ]);
+
+        $this->add(new N8NExportCommand(
+            $configLoader,
+            $httpClient
+        ));
 
         // Try to load cortex.yml and register custom commands dynamically
         try {

@@ -9,6 +9,7 @@ use Cortex\Config\ConfigLoader;
 use Cortex\Config\LockFile;
 use Cortex\Config\Schema\CortexConfig;
 use Cortex\Config\Schema\DockerConfig;
+use Cortex\Config\Schema\N8nConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Docker\ContainerExecutor;
 use PHPUnit\Framework\TestCase;
@@ -46,10 +47,15 @@ class ShellCommandTest extends TestCase
             initialize: []
         );
 
+        $n8nConfig = new N8nConfig(
+            workflowsDir: './.n8n'
+        );
+
         $config = new CortexConfig(
             version: '1.0',
             docker: $dockerConfig,
             setup: $setupConfig,
+            n8n: $n8nConfig,
             commands: []
         );
 
