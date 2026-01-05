@@ -94,6 +94,7 @@ final class N8nExportCommand extends Command
 
     public function __construct(
         private readonly ConfigLoader $configLoader,
+        private readonly Client $httpClient,
     ) {
         parent::__construct();
     }
@@ -106,51 +107,96 @@ final class N8nExportCommand extends Command
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing files');
     }
 
+    private function buildApiOptions(array $env): array
+    {
+        return [
+            'headers' => [
+                'X-N8N-API-KEY' => $env['CORTEX_N8N_API_KEY'],
+                'Accept' => 'application/json',
+            ]
+        ];
+    }
+
+    private function buildBaseUri(array $env): string
+    {
+        return "{$env['CORTEX_N8N_HOST']}:{$env['CORTEX_N8N_PORT']}";
+    }
+
+    private function buildWorkflowsUri(string $baseUri): string
+    {
+        return rtrim($baseUri, '/') . '/api/v1/workflows';
+    }
+
+    private function buildWorkflowUri(string $baseUri, string $workflowId): string
+    {
+        return rtrim($baseUri, '/') . '/api/v1/workflows/' . $workflowId;
+    }
+
+    private function fetchWorkflowsList(string $workflowsUri, array $options): array
+    {
+        $response = $this->httpClient->request('GET', $workflowsUri, $options);
+        $data = json_decode($response->getBody()->getContents(), true, flags: JSON_THROW_ON_ERROR);
+        
+        if (!isset($data['data']) || !is_array($data['data'])) {
+            throw new \RuntimeException('Invalid workflows response: missing data array');
+        }
+        
+        return $data['data'];
+    }
+
+    private function fetchWorkflowDetails(string $workflowUri, array $options): array
+    {
+        $response = $this->httpClient->request('GET', $workflowUri, $options);
+        $rawJson = (string) $response->getBody();
+        return json_decode($rawJson, true, flags: JSON_THROW_ON_ERROR);
+    }
+
+    private function formatWorkflowJson(array $data): string
+    {
+        return json_encode(
+            $data,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
+    }
+
+    private function saveWorkflow(string $destFile, string $jsonContent): void
+    {
+        file_put_contents($destFile, $jsonContent);
+    }
+
+    private function shouldSkipFile(string $destFile, bool $force): bool
+    {
+        return file_exists($destFile) && !$force;
+    }
+
     private function performExport(array $env, string $dest, bool $force, OutputFormatter $formatter): bool
     {
         $skipped = false;
-        $options = [
-            'headers' => [
-            'X-N8N-API-KEY' => $env['CORTEX_N8N_API_KEY'],
-            'Accept'       => 'application/json',
-            ]
-        ];
+        $baseUri = $this->buildBaseUri($env);
+        $options = $this->buildApiOptions($env);
 
         try {
-            $client = new Client([
-                'base_uri' => "{$env['CORTEX_N8N_HOST']}:{$env['CORTEX_N8N_PORT']}",
-                'timeout'  => 10,
-                'verify' => false,
-            ]);
+            $workflowsUri = $this->buildWorkflowsUri($baseUri);
+            $workflows = $this->fetchWorkflowsList($workflowsUri, $options);
 
-            $responseWorkflows = $client->get('api/v1/workflows', $options);
-
-            $dataWorkflows = json_decode($responseWorkflows->getBody()->getContents(), true, flags: JSON_THROW_ON_ERROR);
-
-            foreach ($dataWorkflows['data'] as $workflow) {
+            foreach ($workflows as $workflow) {
+                if (!isset($workflow['id']) || !isset($workflow['name'])) {
+                    continue; // Skip invalid workflow entries
+                }
 
                 $destFile = $dest . '/' . $workflow['name'] . '.json';
 
-                if (file_exists($destFile) && !$force) {
+                if ($this->shouldSkipFile($destFile, $force)) {
                     $formatter->info(sprintf('File "%s" already exists', $destFile));
                     $skipped = true;
                     continue;
                 }
 
-                $response = $client->get('/api/v1/workflows/' . $workflow['id'], $options);
-
-                $rawJson = (string) $response->getBody();
-                $data = json_decode($rawJson, true, flags: JSON_THROW_ON_ERROR);
-
-                $prettyJson = json_encode(
-                    $data,
-                    JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-                );
-
-                file_put_contents($destFile, $prettyJson);
+                $workflowUri = $this->buildWorkflowUri($baseUri, $workflow['id']);
+                $workflowData = $this->fetchWorkflowDetails($workflowUri, $options);
+                $prettyJson = $this->formatWorkflowJson($workflowData);
+                $this->saveWorkflow($destFile, $prettyJson);
             }
-
-
         } catch (GuzzleException | \JsonException $e) {
             throw new \RuntimeException(
                 sprintf(
@@ -161,27 +207,36 @@ final class N8nExportCommand extends Command
                 $e
             );
         }
+        
         return $skipped;
     }
 
 
+    private function getEnvPath(): string
+    {
+        $cwd = getcwd();
+        if ($cwd === false) {
+            throw new \RuntimeException('Failed to get current working directory');
+        }
+        return $cwd . '/.env';
+    }
+
+    private function ensureDirectoryExists(string $path): void
+    {
+        if (!is_dir($path)) {
+            mkdir($path, 0755, true);
+        }
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $formatter = new OutputFormatter($output);
-
         $force = (bool) $input->getOption('force');
 
-        $envPath = getcwd() . '/.env';
-
         try {
+            $envPath = $this->getEnvPath();
             $env = $this->loadEnv($envPath);
-
-            $env = $this->promptForMissingEnvValues(
-                $env,
-                $input,
-                $output
-            );
-
+            $env = $this->promptForMissingEnvValues($env, $input, $output);
             $this->writeEnv($envPath, $env);
 
             $formatter->success('<info>✓ .env is configured correctly</info>');
@@ -191,15 +246,14 @@ final class N8nExportCommand extends Command
             $formatter->info("Loaded configuration from: $configPath");
 
             $dest = $config->n8n->workflowsDir;
-            if (!is_dir($dest)) {
-                mkdir($dest, 0755, true);
-            }
+            $this->ensureDirectoryExists($dest);
 
             $skipped = $this->performExport($env, $dest, $force, $formatter);
-            $skippedIno = $skipped ? 'Some exports were skipped. Use -f (force)': '';
+            $skippedMessage = $skipped ? 'Some exports were skipped. Use -f (force)' : '';
             $formatter->success(sprintf(
-                '<info>✓ Workflow export complete to %s. %s</info>'
-                , $dest, $skippedIno
+                '<info>✓ Workflow export complete to %s. %s</info>',
+                $dest,
+                $skippedMessage
             ));
 
             return Command::SUCCESS;
@@ -207,6 +261,5 @@ final class N8nExportCommand extends Command
             $formatter->error('<error>' . $e->getMessage() . '</error>');
             return Command::FAILURE;
         }
-
     }
 }
