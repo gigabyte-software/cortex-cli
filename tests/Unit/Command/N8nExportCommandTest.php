@@ -96,7 +96,6 @@ class N8nExportCommandTest extends TestCase
         $envContent = "CORTEX_N8N_HOST=http://localhost\nCORTEX_N8N_PORT=5678\nCORTEX_N8N_API_KEY=test-key-123";
         if (@file_put_contents($this->envPath, $envContent) === false) {
             $this->markTestSkipped('Cannot write .env file (sandbox restrictions)');
-            return;
         }
 
         $command = $this->createCommand();
@@ -164,6 +163,7 @@ class N8nExportCommandTest extends TestCase
 
         if (file_exists($this->envPath)) {
             $content = file_get_contents($this->envPath);
+            $this->assertIsString($content);
             $lines = array_filter(explode(PHP_EOL, trim($content)), fn($line) => $line !== '');
             $this->assertStringStartsWith('CORTEX_N8N_API_KEY', $lines[0] ?? '');
             $this->assertStringStartsWith('CORTEX_N8N_HOST', $lines[1] ?? '');
@@ -184,6 +184,7 @@ class N8nExportCommandTest extends TestCase
 
         if (file_exists($this->envPath)) {
             $content = file_get_contents($this->envPath);
+            $this->assertIsString($content);
             $this->assertStringContainsString('"key with spaces and "quotes""', $content);
         } else {
             $this->markTestSkipped('Cannot write .env file (sandbox restrictions)');
@@ -529,7 +530,8 @@ class N8nExportCommandTest extends TestCase
 
     public function test_getEnvPath_returns_current_directory_env_path(): void
     {
-        $originalDir = getcwd();
+        $cwd = getcwd();
+        $originalDir = $cwd !== false ? $cwd : '/';
         chdir($this->testDir);
 
         try {
@@ -682,7 +684,9 @@ class N8nExportCommandTest extends TestCase
         $skipped = $this->invokeMethod($command, 'performExport', [$env, $this->workflowsDir, true, $formatter]);
 
         $this->assertFalse($skipped);
-        $content = json_decode(file_get_contents($this->workflowsDir . '/Test Workflow.json'), true);
+        $fileContent = file_get_contents($this->workflowsDir . '/Test Workflow.json');
+        $this->assertIsString($fileContent);
+        $content = json_decode($fileContent, true);
         $this->assertSame('1', $content['id']);
     }
 
@@ -782,7 +786,6 @@ class N8nExportCommandTest extends TestCase
     {
         if (@file_put_contents($this->envPath, "CORTEX_N8N_HOST=http://localhost\nCORTEX_N8N_PORT=5678\nCORTEX_N8N_API_KEY=test-key") === false) {
             $this->markTestSkipped('Cannot write .env file (sandbox restrictions)');
-            return;
         }
 
         $config = $this->createMockConfig();
@@ -812,7 +815,8 @@ class N8nExportCommandTest extends TestCase
                 throw new \RuntimeException('Unexpected URI: ' . $uri);
             });
 
-        $originalDir = getcwd();
+        $cwd = getcwd();
+        $originalDir = $cwd !== false ? $cwd : '/';
         chdir($this->testDir);
 
         try {
@@ -834,7 +838,6 @@ class N8nExportCommandTest extends TestCase
     {
         if (@file_put_contents($this->envPath, "CORTEX_N8N_HOST=http://localhost\nCORTEX_N8N_PORT=5678\nCORTEX_N8N_API_KEY=test-key") === false) {
             $this->markTestSkipped('Cannot write .env file (sandbox restrictions)');
-            return;
         }
 
         $config = $this->createMockConfig();
@@ -853,7 +856,8 @@ class N8nExportCommandTest extends TestCase
             ->method('request')
             ->willReturn($workflowsResponse);
 
-        $originalDir = getcwd();
+        $cwd = getcwd();
+        $originalDir = $cwd !== false ? $cwd : '/';
         chdir($this->testDir);
 
         try {
@@ -873,14 +877,14 @@ class N8nExportCommandTest extends TestCase
     {
         if (@file_put_contents($this->envPath, "CORTEX_N8N_HOST=http://localhost\nCORTEX_N8N_PORT=5678\nCORTEX_N8N_API_KEY=test-key") === false) {
             $this->markTestSkipped('Cannot write .env file (sandbox restrictions)');
-            return;
         }
 
         $this->configLoader->expects($this->once())
             ->method('findConfigFile')
             ->willThrowException(new ConfigException('Config not found'));
 
-        $originalDir = getcwd();
+        $cwd = getcwd();
+        $originalDir = $cwd !== false ? $cwd : '/';
         chdir($this->testDir);
 
         try {
@@ -904,7 +908,6 @@ class N8nExportCommandTest extends TestCase
     {
         if (@file_put_contents($this->envPath, "CORTEX_N8N_HOST=http://localhost\nCORTEX_N8N_PORT=5678\nCORTEX_N8N_API_KEY=test-key") === false) {
             $this->markTestSkipped('Cannot write .env file (sandbox restrictions)');
-            return;
         }
 
         $config = $this->createMockConfig();
@@ -919,7 +922,8 @@ class N8nExportCommandTest extends TestCase
             ->method('request')
             ->willThrowException(new RequestException('Connection failed', $this->createMock(RequestInterface::class)));
 
-        $originalDir = getcwd();
+        $cwd = getcwd();
+        $originalDir = $cwd !== false ? $cwd : '/';
         chdir($this->testDir);
 
         try {
@@ -947,9 +951,15 @@ class N8nExportCommandTest extends TestCase
         $command = new N8nExportCommand($this->configLoader, $this->httpClient);
         $application = new Application();
         $application->add($command);
-        return $application->find('n8n:export');
+        $foundCommand = $application->find('n8n:export');
+        $this->assertInstanceOf(N8nExportCommand::class, $foundCommand);
+        /** @var N8nExportCommand $foundCommand */
+        return $foundCommand;
     }
 
+    /**
+     * @param array<int, mixed> $args
+     */
     private function invokeMethod(object $object, string $methodName, array $args = []): mixed
     {
         $reflection = new \ReflectionClass($object);
@@ -993,9 +1003,6 @@ class N8nExportCommandTest extends TestCase
         );
     }
 
-    /**
-     * @param string $content
-     */
     /**
      * @param string $content
      */
