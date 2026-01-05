@@ -83,7 +83,9 @@ class N8nExportCommandTest extends TestCase
         $this->assertIsArray($result);
         $this->assertEmpty($result);
         if (file_exists($this->envPath)) {
-            $this->assertSame('', file_get_contents($this->envPath));
+            $fileContent = file_get_contents($this->envPath);
+            $this->assertIsString($fileContent);
+            $this->assertSame('', $fileContent);
         } else {
             $this->markTestSkipped('Cannot create .env file (sandbox restrictions)');
         }
@@ -353,7 +355,7 @@ class N8nExportCommandTest extends TestCase
             ]
         ];
 
-        $response = $this->createMockResponse(json_encode($workflowsData));
+        $response = $this->createMockResponseFromJson($workflowsData);
         $this->httpClient->expects($this->once())
             ->method('request')
             ->willReturn($response);
@@ -371,7 +373,7 @@ class N8nExportCommandTest extends TestCase
         $command = $this->createCommand();
         $invalidResponse = ['workflows' => []]; // Missing 'data' key
 
-        $response = $this->createMockResponse(json_encode($invalidResponse));
+        $response = $this->createMockResponseFromJson($invalidResponse);
         $this->httpClient->expects($this->once())
             ->method('request')
             ->willReturn($response);
@@ -387,7 +389,7 @@ class N8nExportCommandTest extends TestCase
         $command = $this->createCommand();
         $invalidResponse = ['data' => 'not-an-array'];
 
-        $response = $this->createMockResponse(json_encode($invalidResponse));
+        $response = $this->createMockResponseFromJson($invalidResponse);
         $this->httpClient->expects($this->once())
             ->method('request')
             ->willReturn($response);
@@ -417,7 +419,7 @@ class N8nExportCommandTest extends TestCase
         $command = $this->createCommand();
         $workflowData = ['id' => '1', 'name' => 'Test Workflow', 'nodes' => []];
 
-        $response = $this->createMockResponse(json_encode($workflowData), false);
+        $response = $this->createMockResponseFromJson($workflowData, false);
         $this->httpClient->expects($this->once())
             ->method('request')
             ->willReturn($response);
@@ -480,7 +482,9 @@ class N8nExportCommandTest extends TestCase
         $this->invokeMethod($command, 'saveWorkflow', [$destFile, $jsonContent]);
 
         $this->assertFileExists($destFile);
-        $this->assertSame($jsonContent, file_get_contents($destFile));
+        $fileContent = file_get_contents($destFile);
+        $this->assertIsString($fileContent);
+        $this->assertSame($jsonContent, $fileContent);
     }
 
     // ==================== shouldSkipFile() Tests ====================
@@ -571,15 +575,15 @@ class N8nExportCommandTest extends TestCase
             'CORTEX_N8N_API_KEY' => 'test-key',
         ];
 
-        $workflowsResponse = $this->createMockResponse(json_encode([
+        $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Workflow 1'],
                 ['id' => '2', 'name' => 'Workflow 2'],
             ]
-        ]));
+        ]);
 
-        $workflow1Response = $this->createMockResponse(json_encode(['id' => '1', 'name' => 'Workflow 1', 'nodes' => []]), false);
-        $workflow2Response = $this->createMockResponse(json_encode(['id' => '2', 'name' => 'Workflow 2', 'nodes' => []]), false);
+        $workflow1Response = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Workflow 1', 'nodes' => []], false);
+        $workflow2Response = $this->createMockResponseFromJson(['id' => '2', 'name' => 'Workflow 2', 'nodes' => []], false);
 
         $this->httpClient->expects($this->exactly(3))
             ->method('request')
@@ -616,11 +620,11 @@ class N8nExportCommandTest extends TestCase
         mkdir($this->workflowsDir, 0755, true);
         file_put_contents($this->workflowsDir . '/Test Workflow.json', '{"existing": "content"}');
 
-        $workflowsResponse = $this->createMockResponse(json_encode([
+        $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Test Workflow'],
             ]
-        ]));
+        ]);
 
         $this->httpClient->expects($this->once())
             ->method('request')
@@ -635,7 +639,9 @@ class N8nExportCommandTest extends TestCase
         $skipped = $this->invokeMethod($command, 'performExport', [$env, $this->workflowsDir, false, $formatter]);
 
         $this->assertTrue($skipped);
-        $this->assertSame('{"existing": "content"}', file_get_contents($this->workflowsDir . '/Test Workflow.json'));
+        $fileContent = file_get_contents($this->workflowsDir . '/Test Workflow.json');
+        $this->assertIsString($fileContent);
+        $this->assertSame('{"existing": "content"}', $fileContent);
     }
 
     public function test_performExport_overwrites_existing_files_with_force(): void
@@ -649,13 +655,13 @@ class N8nExportCommandTest extends TestCase
         mkdir($this->workflowsDir, 0755, true);
         file_put_contents($this->workflowsDir . '/Test Workflow.json', '{"old": "content"}');
 
-        $workflowsResponse = $this->createMockResponse(json_encode([
+        $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Test Workflow'],
             ]
-        ]));
+        ]);
 
-        $workflowResponse = $this->createMockResponse(json_encode(['id' => '1', 'name' => 'Test Workflow', 'nodes' => []]), false);
+        $workflowResponse = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Test Workflow', 'nodes' => []], false);
 
         $this->httpClient->expects($this->exactly(2))
             ->method('request')
@@ -688,17 +694,17 @@ class N8nExportCommandTest extends TestCase
             'CORTEX_N8N_API_KEY' => 'test-key',
         ];
 
-        $workflowsResponse = $this->createMockResponse(json_encode([
+        $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Valid Workflow'],
                 ['name' => 'Missing ID'], // Invalid: missing id
                 ['id' => '2'], // Invalid: missing name
                 ['id' => '3', 'name' => 'Valid Workflow 2'],
             ]
-        ]));
+        ]);
 
-        $workflow1Response = $this->createMockResponse(json_encode(['id' => '1', 'name' => 'Valid Workflow', 'nodes' => []]), false);
-        $workflow3Response = $this->createMockResponse(json_encode(['id' => '3', 'name' => 'Valid Workflow 2', 'nodes' => []]), false);
+        $workflow1Response = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Valid Workflow', 'nodes' => []], false);
+        $workflow3Response = $this->createMockResponseFromJson(['id' => '3', 'name' => 'Valid Workflow 2', 'nodes' => []], false);
 
         $this->httpClient->expects($this->exactly(3))
             ->method('request')
@@ -733,7 +739,7 @@ class N8nExportCommandTest extends TestCase
             'CORTEX_N8N_API_KEY' => 'test-key',
         ];
 
-        $workflowsResponse = $this->createMockResponse(json_encode(['data' => []]));
+        $workflowsResponse = $this->createMockResponseFromJson(['data' => []]);
 
         $this->httpClient->expects($this->once())
             ->method('request')
@@ -787,13 +793,13 @@ class N8nExportCommandTest extends TestCase
             ->method('load')
             ->willReturn($config);
 
-        $workflowsResponse = $this->createMockResponse(json_encode([
+        $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Workflow 1'],
             ]
-        ]));
+        ]);
 
-        $workflowResponse = $this->createMockResponse(json_encode(['id' => '1', 'name' => 'Workflow 1', 'nodes' => []]), false);
+        $workflowResponse = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Workflow 1', 'nodes' => []], false);
 
         $this->httpClient->expects($this->exactly(2))
             ->method('request')
@@ -841,7 +847,7 @@ class N8nExportCommandTest extends TestCase
 
         $this->assertDirectoryDoesNotExist($this->workflowsDir);
 
-        $workflowsResponse = $this->createMockResponse(json_encode(['data' => []]));
+        $workflowsResponse = $this->createMockResponseFromJson(['data' => []]);
 
         $this->httpClient->expects($this->once())
             ->method('request')
@@ -987,6 +993,12 @@ class N8nExportCommandTest extends TestCase
         );
     }
 
+    /**
+     * @param string $content
+     */
+    /**
+     * @param string $content
+     */
     private function createMockResponse(string $content, bool $useGetContents = true): ResponseInterface
     {
         $response = $this->createMock(ResponseInterface::class);
@@ -1007,6 +1019,16 @@ class N8nExportCommandTest extends TestCase
             ->willReturn($body);
 
         return $response;
+    }
+
+    /**
+     * Helper to safely encode JSON and create mock response
+     * @param array<string, mixed> $data
+     */
+    private function createMockResponseFromJson(array $data, bool $useGetContents = true): ResponseInterface
+    {
+        $json = json_encode($data, JSON_THROW_ON_ERROR);
+        return $this->createMockResponse($json, $useGetContents);
     }
 
     private function recursiveRemoveDirectory(string $directory): void
