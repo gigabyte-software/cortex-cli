@@ -185,7 +185,8 @@ class N8nExportCommandTest extends TestCase
         if (file_exists($this->envPath)) {
             $content = file_get_contents($this->envPath);
             $this->assertIsString($content);
-            $this->assertStringContainsString('"key with spaces and "quotes""', $content);
+            // Quotes inside a quoted string should be escaped with backslashes
+            $this->assertStringContainsString('"key with spaces and \"quotes\""', $content);
         } else {
             $this->markTestSkipped('Cannot write .env file (sandbox restrictions)');
         }
