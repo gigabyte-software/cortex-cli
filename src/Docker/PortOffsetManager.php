@@ -169,6 +169,37 @@ class PortOffsetManager
     }
 
     /**
+     * Get the host port for a specific service
+     *
+     * @return int|null The host port or null if no port exposed
+     */
+    public function getPrimaryServicePort(string $composeFile, string $serviceName): ?int
+    {
+        if (!file_exists($composeFile)) {
+            return null;
+        }
+
+        $content = file_get_contents($composeFile);
+        if ($content === false) {
+            return null;
+        }
+
+        $config = Yaml::parse($content);
+
+        if (!isset($config['services'][$serviceName]['ports'])) {
+            return null;
+        }
+
+        $ports = $config['services'][$serviceName]['ports'];
+        if (empty($ports)) {
+            return null;
+        }
+
+        // Return the first host port
+        return $this->parsePortMapping($ports[0]);
+    }
+
+    /**
      * Parse port mapping string to extract host port number
      *
      * Supports formats:

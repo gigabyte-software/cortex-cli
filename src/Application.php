@@ -10,6 +10,7 @@ use Cortex\Command\InitCommand;
 use Cortex\Command\ReviewCommand;
 use Cortex\Command\SelfUpdateCommand;
 use Cortex\Command\ShellCommand;
+use Cortex\Command\ShowUrlCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
@@ -123,6 +124,11 @@ class Application extends BaseApplication
             $lockFile
         ));
         $this->add(new SelfUpdateCommand());
+        $this->add(new ShowUrlCommand(
+            $configLoader,
+            $lockFile,
+            $portOffsetManager
+        ));
         $this->add(new StyleDemoCommand());
 
         // Create HTTP client for n8n export command
