@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.8.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.7.0...v1.8.0) (2026-01-07)
+
+
+### Features
+
+* cortex init now creates a cortex.md claude rule file ([da5aba6](https://github.com/gigabyte-software/cortex-cli/commit/da5aba6b461d6d116ae257d910029a86677043b7))
+
 # [1.7.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.6.2...v1.7.0) (2025-12-08)
 
 
