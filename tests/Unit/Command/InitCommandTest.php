@@ -331,6 +331,94 @@ class InitCommandTest extends TestCase
         $this->assertStringContainsString('.claude/rules/cortex.md', $output);
     }
 
+    public function testInitCreatesClaudeMd(): void
+    {
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $this->assertFileExists($this->testDir . '/.claude/CLAUDE.md');
+
+        $content = file_get_contents($this->testDir . '/.claude/CLAUDE.md');
+        $this->assertIsString($content, 'Failed to read CLAUDE.md');
+        assert(is_string($content));
+
+        // Check it contains cortex markers
+        $this->assertStringContainsString('<!-- CORTEX START -->', $content);
+        $this->assertStringContainsString('<!-- CORTEX END -->', $content);
+
+        // Check it contains template content
+        $this->assertStringContainsString('cortex up', $content);
+    }
+
+    public function testInitAppendsToExistingClaudeMd(): void
+    {
+        // Create existing CLAUDE.md without cortex section
+        mkdir($this->testDir . '/.claude', 0755, true);
+        file_put_contents($this->testDir . '/.claude/CLAUDE.md', "# My Project\n\nExisting content here.");
+
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $content = file_get_contents($this->testDir . '/.claude/CLAUDE.md');
+        $this->assertIsString($content, 'Failed to read CLAUDE.md');
+        assert(is_string($content));
+
+        // Check it preserves existing content
+        $this->assertStringContainsString('# My Project', $content);
+        $this->assertStringContainsString('Existing content here.', $content);
+
+        // Check it appended cortex section
+        $this->assertStringContainsString('<!-- CORTEX START -->', $content);
+        $this->assertStringContainsString('<!-- CORTEX END -->', $content);
+        $this->assertStringContainsString('cortex up', $content);
+
+        // Verify existing content comes before cortex section
+        $existingPos = strpos($content, '# My Project');
+        $cortexPos = strpos($content, '<!-- CORTEX START -->');
+        $this->assertNotFalse($existingPos);
+        $this->assertNotFalse($cortexPos);
+        $this->assertLessThan($cortexPos, $existingPos, 'Existing content should come before Cortex section');
+    }
+
+    public function testInitSkipsClaudeMdWhenCortexSectionExists(): void
+    {
+        // Create existing CLAUDE.md with cortex section
+        mkdir($this->testDir . '/.claude', 0755, true);
+        $existingContent = "# My Project\n\n<!-- CORTEX START -->\nOld cortex content\n<!-- CORTEX END -->";
+        file_put_contents($this->testDir . '/.claude/CLAUDE.md', $existingContent);
+
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $content = file_get_contents($this->testDir . '/.claude/CLAUDE.md');
+        $this->assertIsString($content, 'Failed to read CLAUDE.md');
+        assert(is_string($content));
+
+        // Check it preserved the old cortex content (not updated)
+        $this->assertStringContainsString('Old cortex content', $content);
+
+        // Check output mentions it was skipped
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('already has Cortex section', $output);
+    }
+
+    public function testInitSuccessMessageIncludesClaudeMd(): void
+    {
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('.claude/CLAUDE.md', $output);
+    }
+
     private function createCommandTester(InitCommand $command): CommandTester
     {
         // Change to test directory

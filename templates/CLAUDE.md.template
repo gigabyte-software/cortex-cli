@@ -1,0 +1,6 @@
+You should spin up a development environment by running `cortex up`.
+
+Check you can access the application using Playwright. It should be available as an MCP server.
+
+When coding you should use Playwright to verify and test the application does as you expect.
+

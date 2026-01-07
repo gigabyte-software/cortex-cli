@@ -55,6 +55,9 @@ class InitCommand extends Command
             // Create .claude/rules/cortex.md
             $this->createClaudeRules($cwd, $formatter, $force);
 
+            // Create or update .claude/CLAUDE.md
+            $this->createClaudeMd($cwd, $formatter);
+
             // Show success message
             $this->showSuccessMessage($formatter, $skipYaml);
 
@@ -224,6 +227,65 @@ class InitCommand extends Command
         $formatter->info('✓ Created .claude/rules/cortex.md');
     }
 
+    private const CORTEX_MARKER_START = '<!-- CORTEX START -->';
+    private const CORTEX_MARKER_END = '<!-- CORTEX END -->';
+
+    private function createClaudeMd(string $cwd, OutputFormatter $formatter): void
+    {
+        $claudeDir = $cwd . '/.claude';
+        $claudeMdPath = $claudeDir . '/CLAUDE.md';
+
+        // Create .claude directory if it doesn't exist
+        if (!is_dir($claudeDir)) {
+            if (!mkdir($claudeDir, 0755, true)) {
+                throw new \RuntimeException("Failed to create directory: $claudeDir");
+            }
+            $formatter->info('✓ Created .claude/ directory');
+        }
+
+        // Get the cortex content wrapped in markers
+        $templatePath = $this->getTemplatePath('CLAUDE.md.template');
+        if (!file_exists($templatePath)) {
+            throw new \RuntimeException("Template file not found: $templatePath");
+        }
+
+        $templateContent = file_get_contents($templatePath);
+        if ($templateContent === false) {
+            throw new \RuntimeException("Failed to read template: $templatePath");
+        }
+
+        $cortexSection = self::CORTEX_MARKER_START . "\n" . $templateContent . "\n" . self::CORTEX_MARKER_END;
+
+        if (file_exists($claudeMdPath)) {
+            // File exists - check if it already has cortex section
+            $existingContent = file_get_contents($claudeMdPath);
+            if ($existingContent === false) {
+                throw new \RuntimeException("Failed to read existing CLAUDE.md");
+            }
+
+            if (str_contains($existingContent, self::CORTEX_MARKER_START)) {
+                // Already has cortex section - skip
+                $formatter->info('✓ .claude/CLAUDE.md already has Cortex section');
+                return;
+            }
+
+            // Append cortex section to existing content
+            $newContent = $existingContent . "\n\n" . $cortexSection;
+            if (file_put_contents($claudeMdPath, $newContent) === false) {
+                throw new \RuntimeException('Failed to update .claude/CLAUDE.md');
+            }
+
+            $formatter->info('✓ Appended Cortex section to .claude/CLAUDE.md');
+        } else {
+            // Create new file with cortex section
+            if (file_put_contents($claudeMdPath, $cortexSection) === false) {
+                throw new \RuntimeException('Failed to create .claude/CLAUDE.md');
+            }
+
+            $formatter->info('✓ Created .claude/CLAUDE.md');
+        }
+    }
+
     private function compileClaudeRulesContent(): string
     {
         $content = '';
@@ -319,6 +381,7 @@ class InitCommand extends Command
         $formatter->info('  ✓ .cortex/tickets/.gitkeep');
         $formatter->info('  ✓ .cortex/specs/.gitkeep');
         $formatter->info('  ✓ .cortex/meetings/.gitkeep');
+        $formatter->info('  ✓ .claude/CLAUDE.md');
         $formatter->info('  ✓ .claude/rules/cortex.md');
 
         if (!$skipYaml) {
