@@ -104,8 +104,10 @@ class InitCommandTest extends TestCase
 
     public function testInitFailsWhenAlreadyInitialized(): void
     {
-        // Create .cortex directory first
+        // Create .cortex directory and .claude/rules/cortex.md (fully initialized)
         mkdir($this->testDir . '/.cortex', 0755, true);
+        mkdir($this->testDir . '/.claude/rules', 0755, true);
+        file_put_contents($this->testDir . '/.claude/rules/cortex.md', 'existing');
 
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
@@ -139,8 +141,10 @@ class InitCommandTest extends TestCase
 
     public function testInitFailsWhenCortexYmlExistsWithoutForce(): void
     {
-        // Create cortex.yml first
+        // Create cortex.yml and .claude/rules/cortex.md (fully initialized)
         file_put_contents($this->testDir . '/cortex.yml', 'existing content');
+        mkdir($this->testDir . '/.claude/rules', 0755, true);
+        file_put_contents($this->testDir . '/.claude/rules/cortex.md', 'existing');
 
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
@@ -151,18 +155,19 @@ class InitCommandTest extends TestCase
         $this->assertStringContainsString('already initialized', $tester->getDisplay());
     }
 
-    public function testInitWarnsWhenCortexYmlExistsButContinues(): void
+    public function testInitSucceedsWhenClaudeRulesMissing(): void
     {
-        // Create cortex.yml but not .cortex directory
+        // Create cortex.yml but not .claude/rules/cortex.md
         file_put_contents($this->testDir . '/cortex.yml', 'existing content');
 
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
 
-        // This should fail because of the isAlreadyInitialized check
+        // Should succeed because cortex.md is missing - allows re-running to create it
         $tester->execute([], ['interactive' => false]);
 
-        $this->assertEquals(1, $tester->getStatusCode());
+        $this->assertEquals(0, $tester->getStatusCode());
+        $this->assertFileExists($this->testDir . '/.claude/rules/cortex.md');
     }
 
     public function testInitDisplaysSuccessMessage(): void
@@ -176,6 +181,154 @@ class InitCommandTest extends TestCase
         $this->assertStringContainsString('Cortex initialized successfully', $output);
         $this->assertStringContainsString('Next steps:', $output);
         $this->assertStringContainsString('cortex up', $output);
+    }
+
+    public function testInitCreatesClaudeRulesDirectory(): void
+    {
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $this->assertEquals(0, $tester->getStatusCode());
+        $this->assertDirectoryExists($this->testDir . '/.claude');
+        $this->assertDirectoryExists($this->testDir . '/.claude/rules');
+    }
+
+    public function testInitCreatesClaudeRulesCortexMd(): void
+    {
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $this->assertFileExists($this->testDir . '/.claude/rules/cortex.md');
+
+        $content = file_get_contents($this->testDir . '/.claude/rules/cortex.md');
+        $this->assertIsString($content, 'Failed to read cortex.md');
+        assert(is_string($content)); // Type narrowing for PHPStan
+
+        // Check it contains content from parent.md
+        $this->assertStringContainsString('ticket', $content);
+
+        // Check it contains shared steps
+        $this->assertStringContainsString('## Shared Step: Ticket', $content);
+        $this->assertStringContainsString('## Shared Step: Specs', $content);
+        $this->assertStringContainsString('## Shared Step: Approach', $content);
+        $this->assertStringContainsString('## Shared Step: Planning', $content);
+        $this->assertStringContainsString('## Shared Step: Tests', $content);
+        $this->assertStringContainsString('## Shared Step: Code', $content);
+
+        // Check it contains ticket types section
+        $this->assertStringContainsString('# Ticket Types', $content);
+        $this->assertStringContainsString('## Ticket Type: User Story', $content);
+    }
+
+    public function testInitCreatesClaudeRulesInCorrectOrder(): void
+    {
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $content = file_get_contents($this->testDir . '/.claude/rules/cortex.md');
+        $this->assertIsString($content, 'Failed to read cortex.md');
+        assert(is_string($content)); // Type narrowing for PHPStan
+
+        // Verify steps appear in workflow order
+        $ticketPos = strpos($content, '## Shared Step: Ticket');
+        $specsPos = strpos($content, '## Shared Step: Specs');
+        $approachPos = strpos($content, '## Shared Step: Approach');
+        $planningPos = strpos($content, '## Shared Step: Planning');
+        $testsPos = strpos($content, '## Shared Step: Tests');
+        $codePos = strpos($content, '## Shared Step: Code');
+        $ticketTypesPos = strpos($content, '# Ticket Types');
+
+        $this->assertNotFalse($ticketPos);
+        $this->assertNotFalse($specsPos);
+        $this->assertNotFalse($approachPos);
+        $this->assertNotFalse($planningPos);
+        $this->assertNotFalse($testsPos);
+        $this->assertNotFalse($codePos);
+        $this->assertNotFalse($ticketTypesPos);
+
+        // Verify order: ticket -> specs -> approach -> planning -> tests -> code -> ticket types
+        $this->assertLessThan($specsPos, $ticketPos, 'Ticket should come before Specs');
+        $this->assertLessThan($approachPos, $specsPos, 'Specs should come before Approach');
+        $this->assertLessThan($planningPos, $approachPos, 'Approach should come before Planning');
+        $this->assertLessThan($testsPos, $planningPos, 'Planning should come before Tests');
+        $this->assertLessThan($codePos, $testsPos, 'Tests should come before Code');
+        $this->assertLessThan($ticketTypesPos, $codePos, 'Code should come before Ticket Types');
+    }
+
+    public function testInitAllowsRerunWhenClaudeRulesMissing(): void
+    {
+        // Create .cortex directory but not .claude/rules/cortex.md
+        mkdir($this->testDir . '/.cortex', 0755, true);
+        file_put_contents($this->testDir . '/cortex.yml', 'version: "1.0"');
+
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        // Should succeed because cortex.md is missing
+        $tester->execute([], ['interactive' => false]);
+
+        $this->assertEquals(0, $tester->getStatusCode());
+        $this->assertFileExists($this->testDir . '/.claude/rules/cortex.md');
+    }
+
+    public function testInitSkipsClaudeRulesWhenAlreadyExists(): void
+    {
+        // Run init first
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+        $tester->execute([], ['interactive' => false]);
+
+        // Create a marker in the file
+        $cortexMdPath = $this->testDir . '/.claude/rules/cortex.md';
+        file_put_contents($cortexMdPath, 'CUSTOM_MARKER_CONTENT');
+
+        // Run init again (without --force)
+        $command2 = new InitCommand();
+        $tester2 = $this->createCommandTester($command2);
+        $tester2->execute([], ['interactive' => false]);
+
+        // File should still contain the marker (not overwritten)
+        $content = file_get_contents($cortexMdPath);
+        $this->assertIsString($content);
+        assert(is_string($content));
+        $this->assertStringContainsString('CUSTOM_MARKER_CONTENT', $content);
+    }
+
+    public function testInitForceOverwritesClaudeRules(): void
+    {
+        // Create existing .claude/rules/cortex.md
+        mkdir($this->testDir . '/.claude/rules', 0755, true);
+        file_put_contents($this->testDir . '/.claude/rules/cortex.md', 'old content');
+
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute(['--force' => true], ['interactive' => false]);
+
+        $this->assertEquals(0, $tester->getStatusCode());
+
+        $content = file_get_contents($this->testDir . '/.claude/rules/cortex.md');
+        $this->assertIsString($content, 'Failed to read cortex.md');
+        assert(is_string($content));
+        $this->assertStringNotContainsString('old content', $content);
+        $this->assertStringContainsString('## Shared Step:', $content);
+    }
+
+    public function testInitSuccessMessageIncludesClaudeRules(): void
+    {
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('.claude/rules/cortex.md', $output);
     }
 
     private function createCommandTester(InitCommand $command): CommandTester

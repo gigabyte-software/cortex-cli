@@ -52,6 +52,9 @@ class InitCommand extends Command
                 $this->createCortexYml($cwd, $formatter, $force);
             }
 
+            // Create .claude/rules/cortex.md
+            $this->createClaudeRules($cwd, $formatter, $force);
+
             // Show success message
             $this->showSuccessMessage($formatter, $skipYaml);
 
@@ -66,6 +69,12 @@ class InitCommand extends Command
     {
         $cortexDir = $cwd . '/.cortex';
         $cortexYml = $cwd . '/cortex.yml';
+        $claudeRules = $cwd . '/.claude/rules/cortex.md';
+
+        // If .claude/rules/cortex.md is missing, allow re-running to create it
+        if (!file_exists($claudeRules)) {
+            return false;
+        }
 
         // If skipping YAML, only check for .cortex directory
         if ($skipYaml) {
@@ -177,20 +186,124 @@ class InitCommand extends Command
         $formatter->info('✓ Created cortex.yml');
     }
 
-    private function getTemplatePath(string $templateName): string
+    private function createClaudeRules(string $cwd, OutputFormatter $formatter, bool $force): void
+    {
+        $claudeDir = $cwd . '/.claude';
+        $rulesDir = $claudeDir . '/rules';
+        $cortexMdPath = $rulesDir . '/cortex.md';
+
+        // Check if file exists and force is not set
+        if (file_exists($cortexMdPath) && !$force) {
+            $formatter->info('✓ .claude/rules/cortex.md already exists');
+            return;
+        }
+
+        // Create .claude directory if it doesn't exist
+        if (!is_dir($claudeDir)) {
+            if (!mkdir($claudeDir, 0755, true)) {
+                throw new \RuntimeException("Failed to create directory: $claudeDir");
+            }
+            $formatter->info('✓ Created .claude/ directory');
+        }
+
+        // Create .claude/rules directory if it doesn't exist
+        if (!is_dir($rulesDir)) {
+            if (!mkdir($rulesDir, 0755, true)) {
+                throw new \RuntimeException("Failed to create directory: $rulesDir");
+            }
+            $formatter->info('✓ Created .claude/rules/ directory');
+        }
+
+        // Compile templates into cortex.md
+        $content = $this->compileClaudeRulesContent();
+
+        if (file_put_contents($cortexMdPath, $content) === false) {
+            throw new \RuntimeException('Failed to create .claude/rules/cortex.md');
+        }
+
+        $formatter->info('✓ Created .claude/rules/cortex.md');
+    }
+
+    private function compileClaudeRulesContent(): string
+    {
+        $content = '';
+
+        // 1. Start with parent.md (intro content)
+        $parentPath = $this->getTemplatePath('ticket-types/parent.md');
+        if (file_exists($parentPath)) {
+            $parentContent = file_get_contents($parentPath);
+            if ($parentContent !== false) {
+                $content .= $parentContent;
+            }
+        }
+
+        // 2. Add all shared steps in workflow order
+        $stepOrder = [
+            'ticket.md',
+            'specs.md',
+            'approach.md',
+            'planning.md',
+            'tests.md',
+            'code.md',
+        ];
+
+        foreach ($stepOrder as $stepFile) {
+            $stepPath = $this->getTemplatePath('steps/' . $stepFile);
+            if (file_exists($stepPath)) {
+                $stepContent = file_get_contents($stepPath);
+                if ($stepContent !== false) {
+                    $content .= "\n\n" . $stepContent;
+                }
+            }
+        }
+
+        // 3. Add ticket types section header
+        $content .= "\n\n# Ticket Types\n";
+
+        // 4. Add all ticket types (except parent.md), alphabetically
+        $ticketTypesDir = $this->getTemplatesDirectory() . '/ticket-types';
+        if (is_dir($ticketTypesDir)) {
+            $ticketTypeFiles = [];
+            $files = scandir($ticketTypesDir);
+            if ($files !== false) {
+                foreach ($files as $file) {
+                    if ($file !== '.' && $file !== '..' && $file !== 'parent.md' && pathinfo($file, PATHINFO_EXTENSION) === 'md') {
+                        $ticketTypeFiles[] = $file;
+                    }
+                }
+            }
+            sort($ticketTypeFiles);
+
+            foreach ($ticketTypeFiles as $ticketTypeFile) {
+                $ticketTypePath = $ticketTypesDir . '/' . $ticketTypeFile;
+                $ticketTypeContent = file_get_contents($ticketTypePath);
+                if ($ticketTypeContent !== false) {
+                    $content .= "\n\n" . $ticketTypeContent;
+                }
+            }
+        }
+
+        return $content;
+    }
+
+    private function getTemplatesDirectory(): string
     {
         // When running as PHAR, templates are bundled inside
         $pharPath = \Phar::running(false);
 
         if (!empty($pharPath)) {
             // Running as PHAR - templates are in phar://path/to/cortex.phar/templates/
-            return \Phar::running() . '/templates/' . $templateName;
+            return \Phar::running() . '/templates';
         }
 
         // Running from source - look for templates relative to project root
-        // This file is in src/Command/, so go up two levels to reach project root
         $projectRoot = dirname(__DIR__, 2);
-        return $projectRoot . '/templates/' . $templateName;
+        return $projectRoot . '/templates';
+    }
+
+    private function getTemplatePath(string $templateName): string
+    {
+        return $this->getTemplatesDirectory() . '/' . $templateName;
     }
 
     private function showSuccessMessage(OutputFormatter $formatter, bool $skipYaml): void
@@ -206,6 +319,7 @@ class InitCommand extends Command
         $formatter->info('  ✓ .cortex/tickets/.gitkeep');
         $formatter->info('  ✓ .cortex/specs/.gitkeep');
         $formatter->info('  ✓ .cortex/meetings/.gitkeep');
+        $formatter->info('  ✓ .claude/rules/cortex.md');
 
         if (!$skipYaml) {
             $formatter->info('  ✓ cortex.yml');
