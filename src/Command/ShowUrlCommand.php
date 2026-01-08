@@ -43,7 +43,7 @@ class ShowUrlCommand extends Command
             $portOffset = 0;
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
-                $portOffset = $lockData?->portOffset ?? 0;
+                $portOffset = $lockData->portOffset ?? 0;
             }
 
             // Get the primary service's base port
