@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.10.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.9.0...v1.10.0) (2026-01-08)
+
+
+### Bug Fixes
+
+* tests on 8.3 ([715c117](https://github.com/gigabyte-software/cortex-cli/commit/715c11759b032924e1ad6aba6f310209f3346fbf))
+
+
+### Features
+
+* Added cortex show-url to show the url for the applicaton running in the development environment ([16235ac](https://github.com/gigabyte-software/cortex-cli/commit/16235acd9238da51376ccbaa3d5c26cb78165e1f))
+
 # [1.9.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.8.0...v1.9.0) (2026-01-07)
 
 
