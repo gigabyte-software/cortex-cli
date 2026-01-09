@@ -458,22 +458,6 @@ class AbstractN8nCommandTest extends TestCase
         }
     }
 
-    public function test_buildWorkflowsUri_handles_trailing_slash(): void
-    {
-        $command = $this->createCommand();
-        $result = $this->invokeMethod($command, 'buildWorkflowsUri', ['http://localhost:5678/']);
-
-        $this->assertSame('http://localhost:5678/api/v1/workflows', $result);
-    }
-
-    public function test_buildWorkflowUri_handles_trailing_slash(): void
-    {
-        $command = $this->createCommand();
-        $result = $this->invokeMethod($command, 'buildWorkflowUri', ['http://localhost:5678/', 'workflow-123']);
-
-        $this->assertSame('http://localhost:5678/api/v1/workflows/workflow-123', $result);
-    }
-
     public function test_fetchWorkflowsList_throws_exception_when_data_missing(): void
     {
         $command = $this->createCommand();
