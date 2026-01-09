@@ -116,7 +116,7 @@ final class N8nImportCommand extends AbstractN8nCommand
     {
         // Ensure parameters is always an object (not null or empty array)
         // Empty PHP array [] serializes to [] in JSON, but API needs {} (object)
-        if (!isset($node['parameters']) || $node['parameters'] === null) {
+        if (!isset($node['parameters'])) {
             $node['parameters'] = new \stdClass();
         } elseif (is_array($node['parameters']) && empty($node['parameters'])) {
             // Empty array - convert to object so it serializes as {} not []
@@ -173,7 +173,7 @@ final class N8nImportCommand extends AbstractN8nCommand
 
         if (isset($cleaned['connections'])) {
             // Ensure connections is always an object (not null or empty array)
-            if ($cleaned['connections'] === null || (is_array($cleaned['connections']) && empty($cleaned['connections']))) {
+            if (is_array($cleaned['connections']) && empty($cleaned['connections'])) {
                 $apiData['connections'] = new \stdClass();
             } elseif (is_array($cleaned['connections'])) {
                 // Convert associative array to object
@@ -201,6 +201,7 @@ final class N8nImportCommand extends AbstractN8nCommand
     }
 
     /**
+     * @param array<string, mixed> $workflowData
      * @param array<string, mixed> $options
      */
     private function importWorkflow(string $workflowsUri, array $workflowData, array $options): void
@@ -227,6 +228,7 @@ final class N8nImportCommand extends AbstractN8nCommand
     }
 
     /**
+     * @param array<string, mixed> $workflowData
      * @param array<string, mixed> $options
      */
     private function updateWorkflow(string $workflowUri, array $workflowData, array $options): void

@@ -179,7 +179,7 @@ abstract class AbstractN8nCommand extends Command
     }
 
     /**
-     * @param array<string, string> $env
+     * @return array<string, string>
      */
     protected function setupEnvironment(
         InputInterface $input,
