@@ -644,4 +644,266 @@ class N8nImportCommandTest extends TestCase
             commands: []
         );
     }
+
+    // ==================== cleanNodeData() Tests ====================
+
+    public function test_cleanNodeData_handles_missing_parameters(): void
+    {
+        $command = $this->createCommand();
+        $node = ['name' => 'Test Node', 'type' => 'n8n-nodes-base.start'];
+
+        $result = $this->invokeMethod($command, 'cleanNodeData', [$node]);
+
+        $this->assertInstanceOf(\stdClass::class, $result['parameters']);
+        $this->assertArrayNotHasKey('id', $result);
+    }
+
+    public function test_cleanNodeData_handles_empty_array_parameters(): void
+    {
+        $command = $this->createCommand();
+        $node = ['name' => 'Test Node', 'parameters' => []];
+
+        $result = $this->invokeMethod($command, 'cleanNodeData', [$node]);
+
+        $this->assertInstanceOf(\stdClass::class, $result['parameters']);
+    }
+
+    public function test_cleanNodeData_handles_non_array_non_object_parameters(): void
+    {
+        $command = $this->createCommand();
+        $node = ['name' => 'Test Node', 'parameters' => 'invalid'];
+
+        $result = $this->invokeMethod($command, 'cleanNodeData', [$node]);
+
+        $this->assertInstanceOf(\stdClass::class, $result['parameters']);
+    }
+
+    public function test_cleanNodeData_removes_read_only_fields(): void
+    {
+        $command = $this->createCommand();
+        $node = [
+            'name' => 'Test Node',
+            'id' => 'node-123',
+            'webhookId' => 'webhook-456',
+            'continueOnFail' => true,
+            'parameters' => ['key' => 'value'],
+        ];
+
+        $result = $this->invokeMethod($command, 'cleanNodeData', [$node]);
+
+        $this->assertArrayNotHasKey('id', $result);
+        $this->assertArrayNotHasKey('webhookId', $result);
+        $this->assertArrayNotHasKey('continueOnFail', $result);
+        $this->assertArrayHasKey('parameters', $result);
+    }
+
+    // ==================== prepareWorkflowForApi() Tests ====================
+
+    public function test_prepareWorkflowForApi_handles_empty_connections_array(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'connections' => [],
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'prepareWorkflowForApi', [$workflowData, false]);
+
+        $this->assertInstanceOf(\stdClass::class, $result['connections']);
+    }
+
+    public function test_prepareWorkflowForApi_handles_connections_object(): void
+    {
+        $command = $this->createCommand();
+        $connections = new \stdClass();
+        $connections->node1 = ['main' => []];
+        $workflowData = [
+            'name' => 'Test',
+            'connections' => $connections,
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'prepareWorkflowForApi', [$workflowData, false]);
+
+        $this->assertIsObject($result['connections']);
+    }
+
+    public function test_prepareWorkflowForApi_handles_connections_fallback(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'connections' => 'invalid',
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'prepareWorkflowForApi', [$workflowData, false]);
+
+        $this->assertInstanceOf(\stdClass::class, $result['connections']);
+    }
+
+    public function test_prepareWorkflowForApi_handles_settings_with_allowed_keys(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'settings' => [
+                'executionOrder' => 'v1',
+                'saveDataErrorExecution' => true,
+                'timezone' => 'UTC',
+                'invalidKey' => 'should be removed',
+            ],
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'prepareWorkflowForApi', [$workflowData, false]);
+
+        $this->assertArrayHasKey('settings', $result);
+        $this->assertArrayHasKey('executionOrder', $result['settings']);
+        $this->assertArrayHasKey('saveDataErrorExecution', $result['settings']);
+        $this->assertArrayHasKey('timezone', $result['settings']);
+        $this->assertArrayNotHasKey('invalidKey', $result['settings']);
+    }
+
+    public function test_prepareWorkflowForApi_handles_empty_settings(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'settings' => [],
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'prepareWorkflowForApi', [$workflowData, false]);
+
+        $this->assertArrayNotHasKey('settings', $result);
+    }
+
+    public function test_prepareWorkflowForApi_handles_staticData(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'staticData' => ['key' => 'value'],
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'prepareWorkflowForApi', [$workflowData, false]);
+
+        $this->assertArrayHasKey('staticData', $result);
+        $this->assertSame(['key' => 'value'], $result['staticData']);
+    }
+
+    public function test_prepareWorkflowForApi_handles_non_array_nodes(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'nodes' => ['not an array node', null],
+        ];
+
+        $result = $this->invokeMethod($command, 'prepareWorkflowForApi', [$workflowData, false]);
+
+        $this->assertIsArray($result['nodes']);
+        $this->assertEmpty($result['nodes']); // Non-array nodes are skipped
+    }
+
+    // ==================== cleanWorkflowData() Tests ====================
+
+    public function test_cleanWorkflowData_removes_read_only_fields(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'id' => '1',
+            'name' => 'Test',
+            'createdAt' => '2024-01-01',
+            'updatedAt' => '2024-01-02',
+            'versionId' => 'v1',
+            'pinData' => [],
+            'meta' => [],
+            'tags' => [],
+            'isArchived' => false,
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'cleanWorkflowData', [$workflowData]);
+
+        $this->assertArrayNotHasKey('id', $result);
+        $this->assertArrayNotHasKey('createdAt', $result);
+        $this->assertArrayNotHasKey('updatedAt', $result);
+        $this->assertArrayNotHasKey('versionId', $result);
+        $this->assertArrayNotHasKey('pinData', $result);
+        $this->assertArrayNotHasKey('meta', $result);
+        $this->assertArrayNotHasKey('tags', $result);
+        $this->assertArrayNotHasKey('isArchived', $result);
+    }
+
+    public function test_cleanWorkflowData_filters_settings(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'settings' => [
+                'executionOrder' => 'v1',
+                'saveManualExecutions' => true,
+                'invalidSetting' => 'should be removed',
+            ],
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'cleanWorkflowData', [$workflowData]);
+
+        $this->assertArrayHasKey('settings', $result);
+        $this->assertArrayHasKey('executionOrder', $result['settings']);
+        $this->assertArrayHasKey('saveManualExecutions', $result['settings']);
+        $this->assertArrayNotHasKey('invalidSetting', $result['settings']);
+    }
+
+    public function test_cleanWorkflowData_removes_empty_settings(): void
+    {
+        $command = $this->createCommand();
+        $workflowData = [
+            'name' => 'Test',
+            'settings' => [
+                'invalidSetting' => 'should be removed',
+            ],
+            'nodes' => [],
+        ];
+
+        $result = $this->invokeMethod($command, 'cleanWorkflowData', [$workflowData]);
+
+        $this->assertArrayNotHasKey('settings', $result);
+    }
+
+    // ==================== Additional Edge Cases ====================
+
+    public function test_performImport_handles_workflow_with_non_array_data(): void
+    {
+        $env = [
+            'CORTEX_N8N_HOST' => 'http://localhost',
+            'CORTEX_N8N_PORT' => '5678',
+            'CORTEX_N8N_API_KEY' => 'test-key',
+        ];
+
+        mkdir($this->workflowsDir, 0755, true);
+        // Create a JSON file that decodes to a non-array (e.g., a string or number)
+        file_put_contents($this->workflowsDir . '/Invalid.json', json_encode('not an array'));
+
+        $workflowsResponse = $this->createMockResponseFromJson(['data' => []]);
+
+        $this->httpClient->expects($this->once())
+            ->method('request')
+            ->willReturn($workflowsResponse);
+
+        $formatter = $this->createMock(\Cortex\Output\OutputFormatter::class);
+        $formatter->expects($this->once())
+            ->method('warning')
+            ->with($this->stringContains('Invalid JSON'));
+
+        $command = $this->createCommand();
+        $skipped = $this->invokeMethod($command, 'performImport', [$env, $this->workflowsDir, false, $formatter]);
+
+        $this->assertFalse($skipped);
+    }
 }
