@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.11.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.10.0...v1.11.0) (2026-01-13)
+
+
+### Features
+
+* n8n import command ([e7962ae](https://github.com/gigabyte-software/cortex-cli/commit/e7962aee7415d591159d5a9598c4f302ff9e06c4))
+
 # [1.10.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.9.0...v1.10.0) (2026-01-08)
 
 
