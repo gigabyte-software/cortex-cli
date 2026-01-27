@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1](https://github.com/gigabyte-software/cortex-cli/compare/v1.12.0...v1.12.1) (2026-01-27)
+
+
+### Bug Fixes
+
+* use !reset tag instead of !override for empty ports in compose override ([c1a3f6f](https://github.com/gigabyte-software/cortex-cli/commit/c1a3f6f5302069c91670316c4e51a520a9d792e2))
+
 # [1.12.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.11.0...v1.12.0) (2026-01-27)
 
 
