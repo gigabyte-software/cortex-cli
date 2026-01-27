@@ -336,18 +336,16 @@ class ComposeOverrideGeneratorTest extends TestCase
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
         $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
-        // Ports with !override tag are returned as TaggedValue objects
+        // Ports with !reset tag are returned as TaggedValue objects
         $appPorts = $override['services']['app']['ports'];
-        if ($appPorts instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
-            $appPorts = $appPorts->getValue();
-        }
-        $dbPorts = $override['services']['db']['ports'];
-        if ($dbPorts instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
-            $dbPorts = $dbPorts->getValue();
-        }
+        $this->assertInstanceOf(\Symfony\Component\Yaml\Tag\TaggedValue::class, $appPorts);
+        $this->assertEquals('reset', $appPorts->getTag());
+        $this->assertEquals([], $appPorts->getValue());
 
-        $this->assertEquals([], $appPorts);
-        $this->assertEquals([], $dbPorts);
+        $dbPorts = $override['services']['db']['ports'];
+        $this->assertInstanceOf(\Symfony\Component\Yaml\Tag\TaggedValue::class, $dbPorts);
+        $this->assertEquals('reset', $dbPorts->getTag());
+        $this->assertEquals([], $dbPorts->getValue());
     }
 
     public function test_it_applies_namespace_with_no_host_mapping(): void
@@ -368,13 +366,12 @@ class ComposeOverrideGeneratorTest extends TestCase
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
         $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
-        // Ports with !override tag are returned as TaggedValue objects
+        // Ports with !reset tag are returned as TaggedValue objects
         $ports = $override['services']['app']['ports'];
-        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
-            $ports = $ports->getValue();
-        }
+        $this->assertInstanceOf(\Symfony\Component\Yaml\Tag\TaggedValue::class, $ports);
+        $this->assertEquals('reset', $ports->getTag());
+        $this->assertEquals([], $ports->getValue());
 
-        $this->assertEquals([], $ports);
         $this->assertEquals('test-namespace-my-app', $override['services']['app']['container_name']);
     }
 
@@ -396,12 +393,11 @@ class ComposeOverrideGeneratorTest extends TestCase
         $this->assertNotFalse($overrideContent, 'Failed to read override file');
         $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
 
+        // Ports with !reset tag are returned as TaggedValue objects
         $ports = $override['services']['app']['ports'];
-        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
-            $ports = $ports->getValue();
-        }
-
-        $this->assertEquals([], $ports);
+        $this->assertInstanceOf(\Symfony\Component\Yaml\Tag\TaggedValue::class, $ports);
+        $this->assertEquals('reset', $ports->getTag());
+        $this->assertEquals([], $ports->getValue());
     }
 
     /**

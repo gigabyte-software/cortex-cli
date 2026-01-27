@@ -147,9 +147,10 @@ YAML;
         // This ensures only the offset ports are used, not the original + offset
         $yaml = preg_replace('/^(\s+ports:)$/m', '$1 !override', $yaml) ?? $yaml;
 
-        // For services with empty ports (no-host-mapping), we need to write "ports: !override []"
-        // The Yaml::dump outputs "ports: []" which we need to modify
-        $yaml = preg_replace('/^(\s+ports:) \[\]$/m', '$1 !override []', $yaml) ?? $yaml;
+        // For services with empty ports (no-host-mapping), use !reset [] to clear ports entirely
+        // Docker Compose doesn't accept "!override []" but accepts "!reset []" to clear values
+        // Note: Yaml::dump outputs empty arrays as "{ }" (inline empty map)
+        $yaml = preg_replace('/^(\s+ports:) \{  \}$/m', '$1 !reset []', $yaml) ?? $yaml;
 
         $content = self::HEADER_COMMENT . $yaml;
 
