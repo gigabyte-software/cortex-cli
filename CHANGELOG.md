@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.12.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.11.0...v1.12.0) (2026-01-27)
+
+
+### Bug Fixes
+
+* handle potential null return from preg_replace in ComposeOverrideGenerator ([9c14bd6](https://github.com/gigabyte-software/cortex-cli/commit/9c14bd6bc1da75b832cb051d01eaa0757fea601a))
+
+
+### Features
+
+* add --no-host-mapping flag to cortex up command ([b7613e0](https://github.com/gigabyte-software/cortex-cli/commit/b7613e0e02342c58b517a75b64c1bbfb40bf6971))
+
 # [1.11.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.10.0...v1.11.0) (2026-01-13)
 
 
