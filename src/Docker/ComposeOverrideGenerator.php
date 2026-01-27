@@ -145,11 +145,11 @@ YAML;
 
         // Add !override tag to ports arrays to prevent merging with base file
         // This ensures only the offset ports are used, not the original + offset
-        $yaml = preg_replace('/^(\s+ports:)$/m', '$1 !override', $yaml);
+        $yaml = preg_replace('/^(\s+ports:)$/m', '$1 !override', $yaml) ?? $yaml;
 
         // For services with empty ports (no-host-mapping), we need to write "ports: !override []"
         // The Yaml::dump outputs "ports: []" which we need to modify
-        $yaml = preg_replace('/^(\s+ports:) \[\]$/m', '$1 !override []', $yaml);
+        $yaml = preg_replace('/^(\s+ports:) \[\]$/m', '$1 !override []', $yaml) ?? $yaml;
 
         $content = self::HEADER_COMMENT . $yaml;
 
