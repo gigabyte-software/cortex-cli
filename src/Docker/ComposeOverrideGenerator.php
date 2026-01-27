@@ -22,9 +22,9 @@ YAML;
     /**
      * Generate override file with port offset and container name handling
      */
-    public function generate(string $composeFile, int $portOffset, ?string $namespacePrefix = null): void
+    public function generate(string $composeFile, int $portOffset, ?string $namespacePrefix = null, bool $noHostMapping = false): void
     {
-        if ($portOffset === 0 && $namespacePrefix === null) {
+        if ($portOffset === 0 && $namespacePrefix === null && !$noHostMapping) {
             // No override needed
             return;
         }
@@ -50,11 +50,20 @@ YAML;
             'services' => [],
         ];
 
+        // Track if we need to remove ports (for noHostMapping)
+        $servicesWithPorts = [];
+
         foreach ($config['services'] as $serviceName => $service) {
             $serviceOverride = [];
 
-            // Handle port offset
-            if (isset($service['ports']) && $portOffset > 0) {
+            // Handle port removal for no-host-mapping mode
+            if ($noHostMapping && isset($service['ports'])) {
+                // Mark this service as needing port removal
+                $servicesWithPorts[] = $serviceName;
+                $serviceOverride['ports'] = [];
+            }
+            // Handle port offset (only when not removing ports entirely)
+            elseif (isset($service['ports']) && $portOffset > 0) {
                 $newPorts = [];
                 foreach ($service['ports'] as $portMapping) {
                     $newPort = $this->applyOffset($portMapping, $portOffset);
@@ -81,7 +90,7 @@ YAML;
 
         // Write override file
         if (!empty($override['services'])) {
-            $this->writeOverrideFile($override);
+            $this->writeOverrideFile($override, $servicesWithPorts);
         }
     }
 
@@ -126,8 +135,9 @@ YAML;
      * Write the override file to disk
      *
      * @param array<string, mixed> $override
+     * @param string[] $servicesWithEmptyPorts Services that need ports completely removed
      */
-    private function writeOverrideFile(array $override): void
+    private function writeOverrideFile(array $override, array $servicesWithEmptyPorts = []): void
     {
         // Docker Compose v2 merges arrays by default
         // Use !override tag to force replacement instead of merging
@@ -136,6 +146,10 @@ YAML;
         // Add !override tag to ports arrays to prevent merging with base file
         // This ensures only the offset ports are used, not the original + offset
         $yaml = preg_replace('/^(\s+ports:)$/m', '$1 !override', $yaml);
+
+        // For services with empty ports (no-host-mapping), we need to write "ports: !override []"
+        // The Yaml::dump outputs "ports: []" which we need to modify
+        $yaml = preg_replace('/^(\s+ports:) \[\]$/m', '$1 !override []', $yaml);
 
         $content = self::HEADER_COMMENT . $yaml;
 

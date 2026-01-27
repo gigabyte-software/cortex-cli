@@ -52,6 +52,7 @@ class UpCommandTest extends TestCase
         $this->assertTrue($definition->hasOption('namespace'));
         $this->assertTrue($definition->hasOption('port-offset'));
         $this->assertTrue($definition->hasOption('avoid-conflicts'));
+        $this->assertTrue($definition->hasOption('no-host-mapping'));
         $this->assertTrue($definition->hasOption('no-wait'));
         $this->assertTrue($definition->hasOption('skip-init'));
     }
@@ -143,7 +144,7 @@ class UpCommandTest extends TestCase
         // Override file should be generated with namespace prefix
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 0, 'custom-namespace');
+            ->with('docker-compose.yml', 0, 'custom-namespace', false);
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -196,7 +197,7 @@ class UpCommandTest extends TestCase
 
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 1000, null);
+            ->with('docker-compose.yml', 1000, null, false);
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -258,7 +259,7 @@ class UpCommandTest extends TestCase
         // Should generate override with both port offset and namespace prefix
         $this->overrideGenerator->expects($this->once())
             ->method('generate')
-            ->with('docker-compose.yml', 8000, 'cortex-test-project');
+            ->with('docker-compose.yml', 8000, 'cortex-test-project', false);
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
@@ -318,6 +319,113 @@ class UpCommandTest extends TestCase
         $command = $this->createCommand();
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+    }
+
+    public function test_it_disables_host_port_mapping_with_no_host_mapping_flag(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        // Port offset should not be scanned when no-host-mapping is set
+        $this->portOffsetManager->expects($this->never())
+            ->method('extractBasePorts');
+
+        $this->portOffsetManager->expects($this->never())
+            ->method('findAvailableOffset');
+
+        // Override file should be generated with noHostMapping=true
+        $this->overrideGenerator->expects($this->once())
+            ->method('generate')
+            ->with('docker-compose.yml', 0, null, true);
+
+        $this->setupOrchestrator->expects($this->once())
+            ->method('setup')
+            ->with(
+                $config,
+                false,
+                false,
+                null,
+                0
+            )
+            ->willReturn([
+                'time' => 1.5,
+                'namespace' => '',
+                'port_offset' => 0,
+            ]);
+
+        $this->lockFile->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (LockFileData $data) {
+                return $data->noHostMapping === true && $data->portOffset === null;
+            }));
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute(['--no-host-mapping' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('Host port mapping disabled', $tester->getDisplay());
+    }
+
+    public function test_it_combines_no_host_mapping_with_avoid_conflicts_namespace(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->namespaceResolver->expects($this->once())
+            ->method('deriveFromDirectory')
+            ->willReturn('cortex-test-project');
+
+        // Port offset should not be scanned when no-host-mapping is set
+        $this->portOffsetManager->expects($this->never())
+            ->method('extractBasePorts');
+
+        // Override file should be generated with namespace and noHostMapping=true
+        $this->overrideGenerator->expects($this->once())
+            ->method('generate')
+            ->with('docker-compose.yml', 0, 'cortex-test-project', true);
+
+        $this->setupOrchestrator->expects($this->once())
+            ->method('setup')
+            ->willReturn([
+                'time' => 1.5,
+                'namespace' => 'cortex-test-project',
+                'port_offset' => 0,
+            ]);
+
+        $this->lockFile->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (LockFileData $data) {
+                return $data->namespace === 'cortex-test-project' && $data->noHostMapping === true;
+            }));
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute(['--avoid-conflicts' => true, '--no-host-mapping' => true]);
 
         $this->assertSame(0, $exitCode);
     }

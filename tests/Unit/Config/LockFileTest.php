@@ -130,4 +130,36 @@ class LockFileTest extends TestCase
         $this->assertArrayHasKey('port_offset', $decoded);
         $this->assertArrayHasKey('started_at', $decoded);
     }
+
+    public function test_it_reads_and_writes_no_host_mapping_flag(): void
+    {
+        $data = new LockFileData(
+            namespace: 'test-namespace',
+            portOffset: null,
+            startedAt: '2025-11-08T10:30:00+00:00',
+            noHostMapping: true,
+        );
+
+        $this->lockFile->write($data);
+        $readData = $this->lockFile->read();
+
+        $this->assertNotNull($readData);
+        $this->assertTrue($readData->noHostMapping);
+    }
+
+    public function test_it_defaults_no_host_mapping_to_false_for_legacy_lock_files(): void
+    {
+        // Write a lock file without noHostMapping (simulating legacy format)
+        $legacyContent = json_encode([
+            'namespace' => 'test-namespace',
+            'port_offset' => 1000,
+            'started_at' => '2025-11-08T10:30:00+00:00',
+        ], JSON_PRETTY_PRINT);
+        file_put_contents($this->tempDir . '/.cortex.lock', $legacyContent);
+
+        $readData = $this->lockFile->read();
+
+        $this->assertNotNull($readData);
+        $this->assertFalse($readData->noHostMapping);
+    }
 }

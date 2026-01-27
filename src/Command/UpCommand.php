@@ -43,6 +43,7 @@ class UpCommand extends Command
             ->addOption('namespace', null, InputOption::VALUE_REQUIRED, 'Custom container namespace prefix')
             ->addOption('port-offset', null, InputOption::VALUE_REQUIRED, 'Port offset to add to all exposed ports')
             ->addOption('avoid-conflicts', null, InputOption::VALUE_NONE, 'Automatically avoid container and port conflicts')
+            ->addOption('no-host-mapping', null, InputOption::VALUE_NONE, 'Do not expose container ports to the host')
             ->addOption('no-wait', null, InputOption::VALUE_NONE, 'Skip health checks')
             ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands');
     }
@@ -76,14 +77,19 @@ class UpCommand extends Command
                 $this->cleanupStaleContainers($config, $formatter, $namespace);
             }
 
-            // Determine port offset
-            $portOffset = $this->resolvePortOffset($input, $config->docker->composeFile, $formatter);
+            // Determine port offset and host mapping
+            $noHostMapping = $input->getOption('no-host-mapping');
+            $portOffset = $noHostMapping ? 0 : $this->resolvePortOffset($input, $config->docker->composeFile, $formatter);
 
-            // Generate override file if port offset is needed or if using namespace
+            if ($noHostMapping) {
+                $formatter->info('Host port mapping disabled - containers will not expose ports');
+            }
+
+            // Generate override file if port offset is needed, using namespace, or no host mapping
             // (need to prefix explicit container_name fields to avoid conflicts)
-            $needsOverride = $portOffset > 0 || $namespace !== null;
+            $needsOverride = $portOffset > 0 || $namespace !== null || $noHostMapping;
             if ($needsOverride) {
-                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace);
+                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace, $noHostMapping);
             }
 
             // Run setup through orchestrator
@@ -100,7 +106,8 @@ class UpCommand extends Command
                 $lockData = new LockFileData(
                     namespace: $namespace,
                     portOffset: $portOffset > 0 ? $portOffset : null,
-                    startedAt: date('c')
+                    startedAt: date('c'),
+                    noHostMapping: $noHostMapping,
                 );
                 $this->lockFile->write($lockData);
                 $output->writeln('');

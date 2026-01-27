@@ -299,6 +299,111 @@ class ComposeOverrideGeneratorTest extends TestCase
         $this->generator->generate('/nonexistent/docker-compose.yml', 1000, null);
     }
 
+    public function test_it_generates_override_with_no_host_mapping(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80'],
+                ],
+            ],
+        ]);
+
+        $this->generator->generate($composeFile, 0, null, true);
+
+        $this->assertFileExists($this->tempDir . '/docker-compose.override.yml');
+    }
+
+    public function test_it_removes_all_ports_with_no_host_mapping(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80', '443:443'],
+                ],
+                'db' => [
+                    'image' => 'postgres',
+                    'ports' => ['5432:5432'],
+                ],
+            ],
+        ]);
+
+        $this->generator->generate($composeFile, 0, null, true);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
+
+        // Ports with !override tag are returned as TaggedValue objects
+        $appPorts = $override['services']['app']['ports'];
+        if ($appPorts instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $appPorts = $appPorts->getValue();
+        }
+        $dbPorts = $override['services']['db']['ports'];
+        if ($dbPorts instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $dbPorts = $dbPorts->getValue();
+        }
+
+        $this->assertEquals([], $appPorts);
+        $this->assertEquals([], $dbPorts);
+    }
+
+    public function test_it_applies_namespace_with_no_host_mapping(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'container_name' => 'my-app',
+                    'ports' => ['80:80'],
+                ],
+            ],
+        ]);
+
+        $this->generator->generate($composeFile, 0, 'test-namespace', true);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
+
+        // Ports with !override tag are returned as TaggedValue objects
+        $ports = $override['services']['app']['ports'];
+        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $ports = $ports->getValue();
+        }
+
+        $this->assertEquals([], $ports);
+        $this->assertEquals('test-namespace-my-app', $override['services']['app']['container_name']);
+    }
+
+    public function test_no_host_mapping_takes_precedence_over_port_offset(): void
+    {
+        $composeFile = $this->createComposeFile([
+            'services' => [
+                'app' => [
+                    'image' => 'nginx',
+                    'ports' => ['80:80'],
+                ],
+            ],
+        ]);
+
+        // Even with port offset, noHostMapping should result in empty ports
+        $this->generator->generate($composeFile, 1000, null, true);
+
+        $overrideContent = file_get_contents($this->tempDir . '/docker-compose.override.yml');
+        $this->assertNotFalse($overrideContent, 'Failed to read override file');
+        $override = Yaml::parse($overrideContent, Yaml::PARSE_CUSTOM_TAGS);
+
+        $ports = $override['services']['app']['ports'];
+        if ($ports instanceof \Symfony\Component\Yaml\Tag\TaggedValue) {
+            $ports = $ports->getValue();
+        }
+
+        $this->assertEquals([], $ports);
+    }
+
     /**
      * @param array<string, mixed> $content
      */
