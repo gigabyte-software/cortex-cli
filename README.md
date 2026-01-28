@@ -100,6 +100,30 @@ cortex up
 
 ## Commands
 
+### `cortex init`
+
+Initialize Cortex configuration and directory structure:
+
+```bash
+cortex init                # Full initialization
+cortex init --skip-yaml    # Skip creating cortex.yml
+cortex init --skip-claude  # Skip creating ~/.claude files
+cortex init --force        # Overwrite existing files
+```
+
+This command creates:
+
+**Project-level files:**
+- `.cortex/` directory structure (tickets, specs, meetings)
+- `.cortex/README.md` with documentation
+- `cortex.yml` configuration file (unless `--skip-yaml`)
+
+**User-level files (in `~/.claude/`):**
+- `CLAUDE.md` - Instructions for Claude Code
+- `rules/cortex.md` - Cortex workflow rules
+
+The user-level files are automatically updated if templates change when re-running `cortex init`. Use `--skip-claude` if you maintain your own `~/.claude` files.
+
 ### `cortex update`
 
 Update Cortex CLI to the latest version:
@@ -135,6 +159,25 @@ This will:
 Options:
 - `--no-wait` - Skip health checks
 - `--skip-init` - Skip initialize commands
+- `--avoid-conflicts` - Automatically avoid container name and port conflicts by generating a unique namespace and port offset
+- `--no-host-mapping` - Do not expose container ports to the host (useful for running multiple instances)
+- `--namespace <name>` - Use a custom container namespace prefix
+- `--port-offset <n>` - Add offset to all exposed ports (e.g., `--port-offset 100` maps port 80 to 180)
+
+**Running Multiple Instances:**
+
+To run the same project multiple times (e.g., for different branches):
+
+```bash
+# Option 1: Auto-avoid conflicts (recommended)
+cortex up --avoid-conflicts
+
+# Option 2: Manual namespace and port offset
+cortex up --namespace feature-x --port-offset 100
+
+# Option 3: No host ports (access via Docker network only)
+cortex up --no-host-mapping
+```
 
 ### `cortex down`
 
