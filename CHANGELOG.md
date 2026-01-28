@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.0.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.13.0...v2.0.0) (2026-01-28)
+
+
+### Features
+
+* **init:** save Claude files to ~/.claude for user-wide configuration ([8263ea1](https://github.com/gigabyte-software/cortex-cli/commit/8263ea198db4589bb094f278122fa0d9f625a2c5))
+
+
+### BREAKING CHANGES
+
+* **init:** Claude files are now saved to ~/.claude/ instead of
+.claude/ in the project directory. Existing project-level files will
+not be migrated automatically.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
 # [1.13.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.12.1...v1.13.0) (2026-01-28)
 
 
