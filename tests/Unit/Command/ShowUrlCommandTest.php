@@ -134,6 +134,108 @@ class ShowUrlCommandTest extends TestCase
         $this->assertSame("http://localhost\n", $tester->getDisplay());
     }
 
+    public function test_it_outputs_internal_url_when_no_host_mapping_with_namespace(): void
+    {
+        // Create a temporary docker-compose.yml for the test
+        $tempDir = sys_get_temp_dir() . '/cortex-test-' . uniqid();
+        mkdir($tempDir, 0755, true);
+        $composeFile = $tempDir . '/docker-compose.yml';
+        file_put_contents($composeFile, <<<YAML
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: cortex_nginx
+    ports:
+      - "80:80"
+  app:
+    image: php:8.2
+    container_name: cortex_app
+YAML
+        );
+
+        try {
+            $config = $this->createMockConfig('http://localhost', $composeFile);
+
+            $lockData = new LockFileData(
+                namespace: 'cortex-agent-1-project',
+                portOffset: null,
+                startedAt: '2025-01-07T10:00:00+00:00',
+                noHostMapping: true
+            );
+
+            $this->configLoader->expects($this->once())
+                ->method('findConfigFile')
+                ->willReturn('/path/to/cortex.yml');
+
+            $this->configLoader->expects($this->once())
+                ->method('load')
+                ->willReturn($config);
+
+            $this->lockFile->expects($this->once())
+                ->method('exists')
+                ->willReturn(true);
+
+            $this->lockFile->expects($this->once())
+                ->method('read')
+                ->willReturn($lockData);
+
+            // Should not call getPrimaryServicePort when using internal URL
+            $this->portOffsetManager->expects($this->never())
+                ->method('getPrimaryServicePort');
+
+            $command = $this->createCommand();
+            $tester = new CommandTester($command);
+            $exitCode = $tester->execute([]);
+
+            $this->assertSame(0, $exitCode);
+            $this->assertSame("http://cortex-agent-1-project-cortex_nginx:80\n", $tester->getDisplay());
+        } finally {
+            // Clean up
+            unlink($composeFile);
+            rmdir($tempDir);
+        }
+    }
+
+    public function test_it_falls_back_to_app_url_when_no_host_mapping_but_no_namespace(): void
+    {
+        $config = $this->createMockConfig('http://localhost');
+
+        $lockData = new LockFileData(
+            namespace: null,
+            portOffset: null,
+            startedAt: '2025-01-07T10:00:00+00:00',
+            noHostMapping: true
+        );
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(true);
+
+        $this->lockFile->expects($this->once())
+            ->method('read')
+            ->willReturn($lockData);
+
+        $this->portOffsetManager->expects($this->once())
+            ->method('getPrimaryServicePort')
+            ->with('docker-compose.yml', 'app')
+            ->willReturn(null);
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertSame("http://localhost\n", $tester->getDisplay());
+    }
+
     private function createCommand(): ShowUrlCommand
     {
         return new ShowUrlCommand(
@@ -143,10 +245,10 @@ class ShowUrlCommandTest extends TestCase
         );
     }
 
-    private function createMockConfig(string $appUrl): CortexConfig
+    private function createMockConfig(string $appUrl, string $composeFile = 'docker-compose.yml'): CortexConfig
     {
         $dockerConfig = new DockerConfig(
-            composeFile: 'docker-compose.yml',
+            composeFile: $composeFile,
             primaryService: 'app',
             appUrl: $appUrl,
             waitFor: []
