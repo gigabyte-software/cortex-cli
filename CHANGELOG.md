@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.13.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.12.1...v1.13.0) (2026-01-28)
+
+
+### Features
+
+* show internal Docker URL when using --no-host-mapping with namespace ([adf4b11](https://github.com/gigabyte-software/cortex-cli/commit/adf4b11db81c9d6214a61cd629b5abd6608a40f5))
+
 ## [1.12.1](https://github.com/gigabyte-software/cortex-cli/compare/v1.12.0...v1.12.1) (2026-01-27)
 
 
