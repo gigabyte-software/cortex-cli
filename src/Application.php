@@ -16,6 +16,7 @@ use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
 use Cortex\Command\N8nExportCommand;
 use Cortex\Command\N8nImportCommand;
+use Cortex\Command\N8nNormaliseCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\LockFile;
 use Cortex\Config\Validator\ConfigValidator;
@@ -144,6 +145,11 @@ class Application extends BaseApplication
         ));
 
         $this->add(new N8nImportCommand(
+            $configLoader,
+            $httpClient
+        ));
+
+        $this->add(new N8nNormaliseCommand(
             $configLoader,
             $httpClient
         ));
