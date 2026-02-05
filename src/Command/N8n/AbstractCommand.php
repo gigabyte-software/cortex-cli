@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Cortex\Command;
+namespace Cortex\Command\N8n;
 
 use Cortex\Config\ConfigLoader;
 use Cortex\Output\OutputFormatter;
@@ -13,9 +13,8 @@ use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Dotenv\Dotenv;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
 
-abstract class AbstractN8nCommand extends Command
+abstract class AbstractCommand extends Command
 {
     protected const REQUIRED_ENV_KEYS = [
         'CORTEX_N8N_HOST',

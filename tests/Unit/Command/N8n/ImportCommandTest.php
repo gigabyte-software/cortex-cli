@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Cortex\Tests\Unit\Command;
+namespace Cortex\Tests\Unit\Command\N8n;
 
-use Cortex\Command\N8nImportCommand;
+use Cortex\Command\N8n\ImportCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\Schema\CortexConfig;
@@ -18,9 +18,9 @@ use Psr\Http\Message\RequestInterface;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Tester\CommandTester;
 
-class N8nImportCommandTest extends TestCase
+class ImportCommandTest extends TestCase
 {
-    use N8nCommandTestTrait;
+    use CommandTestTrait;
 
     protected ConfigLoader $configLoader;
     protected Client $httpClient;
@@ -53,7 +53,7 @@ class N8nImportCommandTest extends TestCase
 
     public function test_command_is_configured_correctly(): void
     {
-        $command = new N8nImportCommand($this->configLoader, $this->httpClient);
+        $command = new ImportCommand($this->configLoader, $this->httpClient);
 
         $this->assertSame('n8n:import', $command->getName());
         $this->assertSame('Import n8n workflows from JSON files', $command->getDescription());
@@ -66,9 +66,9 @@ class N8nImportCommandTest extends TestCase
 
     // ==================== Helper Methods ====================
 
-    private function createCommand(): N8nImportCommand
+    private function createCommand(): ImportCommand
     {
-        return new N8nImportCommand($this->configLoader, $this->httpClient);
+        return new ImportCommand($this->configLoader, $this->httpClient);
     }
 
     // ==================== getWorkflowFiles() Tests ====================
@@ -479,7 +479,7 @@ class N8nImportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nImportCommand($this->configLoader, $this->httpClient);
+            $command = new ImportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -513,7 +513,7 @@ class N8nImportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nImportCommand($this->configLoader, $this->httpClient);
+            $command = new ImportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -540,7 +540,7 @@ class N8nImportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nImportCommand($this->configLoader, $this->httpClient);
+            $command = new ImportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -591,7 +591,7 @@ class N8nImportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nImportCommand($this->configLoader, $this->httpClient);
+            $command = new ImportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -605,7 +605,7 @@ class N8nImportCommandTest extends TestCase
 
     // ==================== Helper Methods ====================
 
-    private function createCommandTester(N8nImportCommand $command): CommandTester
+    private function createCommandTester(ImportCommand $command): CommandTester
     {
         $application = new Application();
         $application->add($command);

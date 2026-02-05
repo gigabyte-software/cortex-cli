@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Cortex\Tests\Unit\Command;
+namespace Cortex\Tests\Unit\Command\N8n;
 
-use Cortex\Command\AbstractN8nCommand;
-use Cortex\Command\N8nExportCommand;
+use Cortex\Command\N8n\AbstractCommand;
+use Cortex\Command\N8n\ExportCommand;
 use Cortex\Config\ConfigLoader;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
@@ -17,9 +17,9 @@ use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class AbstractN8nCommandTest extends TestCase
+class AbstractCommandTest extends TestCase
 {
-    use N8nCommandTestTrait;
+    use CommandTestTrait;
 
     protected ConfigLoader $configLoader;
     protected Client $httpClient;
@@ -53,22 +53,22 @@ class AbstractN8nCommandTest extends TestCase
     /**
      * Create an instance of a command for testing (using N8nExportCommand as a concrete implementation)
      */
-    private function createCommand(): AbstractN8nCommand
+    private function createCommand(): AbstractCommand
     {
-        return new N8nExportCommand($this->configLoader, $this->httpClient);
+        return new ExportCommand($this->configLoader, $this->httpClient);
     }
 
     /**
      * Create an instance of a command with a helper set
      */
-    private function createCommandWithHelperSet(): AbstractN8nCommand
+    private function createCommandWithHelperSet(): AbstractCommand
     {
-        $command = new N8nExportCommand($this->configLoader, $this->httpClient);
+        $command = new ExportCommand($this->configLoader, $this->httpClient);
         $application = new Application();
         $application->add($command);
         $foundCommand = $application->find('n8n:export');
-        $this->assertInstanceOf(N8nExportCommand::class, $foundCommand);
-        /** @var N8nExportCommand $foundCommand */
+        $this->assertInstanceOf(ExportCommand::class, $foundCommand);
+        /** @var ExportCommand $foundCommand */
         return $foundCommand;
     }
 

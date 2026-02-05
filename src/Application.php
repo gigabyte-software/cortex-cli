@@ -14,8 +14,9 @@ use Cortex\Command\ShowUrlCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
-use Cortex\Command\N8nExportCommand;
-use Cortex\Command\N8nImportCommand;
+use Cortex\Command\N8n\ExportCommand;
+use Cortex\Command\N8n\ImportCommand;
+use Cortex\Command\N8n\NormaliseCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\LockFile;
 use Cortex\Config\Validator\ConfigValidator;
@@ -138,12 +139,17 @@ class Application extends BaseApplication
             'verify' => false,
         ]);
 
-        $this->add(new N8NExportCommand(
+        $this->add(new ExportCommand(
             $configLoader,
             $httpClient
         ));
 
-        $this->add(new N8nImportCommand(
+        $this->add(new ImportCommand(
+            $configLoader,
+            $httpClient
+        ));
+
+        $this->add(new NormaliseCommand(
             $configLoader,
             $httpClient
         ));
