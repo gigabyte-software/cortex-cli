@@ -101,6 +101,9 @@ class N8nNormaliseCommandTest extends TestCase
         return $foundCommand;
     }
 
+    /**
+     * @param array<int, array<string, mixed>> $nodes
+     */
     private function createWorkflowJson(array $nodes = []): string
     {
         return json_encode([

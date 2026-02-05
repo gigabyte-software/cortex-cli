@@ -20,7 +20,7 @@ final class N8nNormaliseCommand extends AbstractN8nCommand
     private array $requiredCredentials = [];
 
     /**
-     * @var array<string, array{id: string, type: string, name: string}>
+     * @var array<string, array<int, array{id: string, type: string, name: string}>>
      */
     private array $targetCredentials = [];
 
@@ -109,7 +109,7 @@ final class N8nNormaliseCommand extends AbstractN8nCommand
     /**
      * Fetch credentials from target n8n instance
      * @param array<string, string> $env
-     * @return array<string, array{id: string, type: string, name: string}>
+     * @return array<string, array<int, array{id: string, type: string, name: string}>>
      */
     private function fetchTargetCredentials(array $env): array
     {
@@ -217,7 +217,8 @@ final class N8nNormaliseCommand extends AbstractN8nCommand
             }
 
             $targetCreds = $this->targetCredentials[$targetKey];
-            if (count($targetCreds) > 1) {
+            $targetCredsCount = count($targetCreds);
+            if ($targetCredsCount > 1) {
                 $duplicates[$key] = $targetCreds;
             }
         }
@@ -262,10 +263,12 @@ final class N8nNormaliseCommand extends AbstractN8nCommand
                 }
 
                 $targetCreds = $this->targetCredentials[$targetKey];
-                $targetCred = $targetCreds[0]; // Use first match (or handle duplicates separately)
+                if (count($targetCreds) > 0) {
+                    $targetCred = $targetCreds[0]; // Use first match (or handle duplicates separately)
 
-                // Update ID but keep name
-                $credentialRef['id'] = $targetCred['id'];
+                    // Update ID but keep name
+                    $credentialRef['id'] = $targetCred['id'];
+                }
             }
         }
 
@@ -299,8 +302,9 @@ final class N8nNormaliseCommand extends AbstractN8nCommand
         foreach ($this->requiredCredentials as $key => $credential) {
             $targetKey = $this->credentialMap[$key] ?? $key;
 
-            if (isset($this->targetCredentials[$targetKey]) && count($this->targetCredentials[$targetKey]) === 1) {
-                $targetCred = $this->targetCredentials[$targetKey][0];
+            $targetCreds = $this->targetCredentials[$targetKey] ?? null;
+            if ($targetCreds !== null && count($targetCreds) === 1) {
+                $targetCred = $targetCreds[0];
                 $nodeList = implode(', ', $credential['nodes']);
                 $formatter->success(sprintf(
                     'OK   %s:%s (id %s) used by: %s',
@@ -383,7 +387,10 @@ final class N8nNormaliseCommand extends AbstractN8nCommand
             ];
 
             if ($status === 'ok' && isset($this->targetCredentials[$targetKey])) {
-                $entry['target_id'] = $this->targetCredentials[$targetKey][0]['id'];
+                $targetCreds = $this->targetCredentials[$targetKey];
+                if (count($targetCreds) > 0) {
+                    $entry['target_id'] = $targetCreds[0]['id'];
+                }
             }
 
             if ($status === 'duplicate' && isset($validation['duplicates'][$key])) {
