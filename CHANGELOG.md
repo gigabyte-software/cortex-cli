@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.1.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.0.0...v2.1.0) (2026-03-03)
+
+
+### Features
+
+* **commands:** add new 'n8n normalise' command ([5f3ba39](https://github.com/gigabyte-software/cortex-cli/commit/5f3ba399a0922f0042efd795d67c2a508510e800))
+* **commands:** add new 'n8n normalise' command ([c28dd61](https://github.com/gigabyte-software/cortex-cli/commit/c28dd61b3c55fde81e056db70b951f3679b176d4))
+
 # [2.0.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.13.0...v2.0.0) (2026-01-28)
 
 
