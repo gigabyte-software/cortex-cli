@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Cortex\Tests\Unit;
 
 use Cortex\Application;
-use Cortex\Command\N8nImportCommand;
+use Cortex\Command\N8n\ImportCommand;
 use PHPUnit\Framework\TestCase;
 
 class ApplicationTest extends TestCase
@@ -16,6 +16,6 @@ class ApplicationTest extends TestCase
 
         $this->assertTrue($app->has('n8n:import'));
         $command = $app->find('n8n:import');
-        $this->assertInstanceOf(N8nImportCommand::class, $command);
+        $this->assertInstanceOf(ImportCommand::class, $command);
     }
 }

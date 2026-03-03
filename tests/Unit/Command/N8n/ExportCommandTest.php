@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Cortex\Tests\Unit\Command;
+namespace Cortex\Tests\Unit\Command\N8n;
 
-use Cortex\Command\N8nExportCommand;
+use Cortex\Command\N8n\ExportCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\Schema\CortexConfig;
@@ -19,9 +19,9 @@ use Psr\Http\Message\RequestInterface;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Tester\CommandTester;
 
-class N8nExportCommandTest extends TestCase
+class ExportCommandTest extends TestCase
 {
-    use N8nCommandTestTrait;
+    use CommandTestTrait;
 
     protected ConfigLoader $configLoader;
     protected Client $httpClient;
@@ -54,7 +54,7 @@ class N8nExportCommandTest extends TestCase
 
     public function test_command_is_configured_correctly(): void
     {
-        $command = new N8nExportCommand($this->configLoader, $this->httpClient);
+        $command = new ExportCommand($this->configLoader, $this->httpClient);
 
         $this->assertSame('n8n:export', $command->getName());
         $this->assertSame('Export n8n workflows', $command->getDescription());
@@ -67,9 +67,9 @@ class N8nExportCommandTest extends TestCase
 
     // ==================== Helper Methods ====================
 
-    private function createCommand(): N8nExportCommand
+    private function createCommand(): ExportCommand
     {
-        return new N8nExportCommand($this->configLoader, $this->httpClient);
+        return new ExportCommand($this->configLoader, $this->httpClient);
     }
 
     // ==================== fetchWorkflowDetails() Tests ====================
@@ -461,7 +461,7 @@ class N8nExportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nExportCommand($this->configLoader, $this->httpClient);
+            $command = new ExportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -502,7 +502,7 @@ class N8nExportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nExportCommand($this->configLoader, $this->httpClient);
+            $command = new ExportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -529,7 +529,7 @@ class N8nExportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nExportCommand($this->configLoader, $this->httpClient);
+            $command = new ExportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -568,7 +568,7 @@ class N8nExportCommandTest extends TestCase
         chdir($this->testDir);
 
         try {
-            $command = new N8nExportCommand($this->configLoader, $this->httpClient);
+            $command = new ExportCommand($this->configLoader, $this->httpClient);
             $tester = $this->createCommandTester($command);
 
             $exitCode = $tester->execute([], ['interactive' => false]);
@@ -582,7 +582,7 @@ class N8nExportCommandTest extends TestCase
 
     // ==================== Helper Methods ====================
 
-    private function createCommandTester(N8nExportCommand $command): CommandTester
+    private function createCommandTester(ExportCommand $command): CommandTester
     {
         $application = new Application();
         $application->add($command);

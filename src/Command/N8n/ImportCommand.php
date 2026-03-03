@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Cortex\Command;
+namespace Cortex\Command\N8n;
 
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
@@ -11,7 +11,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use GuzzleHttp\Exception\GuzzleException;
 
-final class N8nImportCommand extends AbstractN8nCommand
+final class ImportCommand extends AbstractCommand
 {
     protected function configure(): void
     {

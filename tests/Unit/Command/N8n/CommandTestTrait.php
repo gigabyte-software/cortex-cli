@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Cortex\Tests\Unit\Command;
+namespace Cortex\Tests\Unit\Command\N8n;
 
-use Cortex\Command\AbstractN8nCommand;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 
-trait N8nCommandTestTrait
+trait CommandTestTrait
 {
     /**
      * @param array<int, mixed> $args
