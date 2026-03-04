@@ -24,6 +24,10 @@ class ConfigValidator
         if (isset($config['commands'])) {
             $this->validateCommandsSection($config['commands']);
         }
+
+        if (isset($config['secrets'])) {
+            $this->validateSecretsSection($config['secrets']);
+        }
     }
 
     /**
@@ -143,6 +147,37 @@ class ConfigValidator
 
         if (isset($command['ignore_failure']) && !is_bool($command['ignore_failure'])) {
             throw new ConfigException("$path.ignore_failure must be a boolean");
+        }
+    }
+
+    /**
+     * @param mixed $secrets
+     * @throws ConfigException
+     */
+    private function validateSecretsSection(mixed $secrets): void
+    {
+        if (!is_array($secrets)) {
+            throw new ConfigException('secrets must be an array');
+        }
+
+        if (isset($secrets['provider']) && !is_string($secrets['provider'])) {
+            throw new ConfigException('secrets.provider must be a string');
+        }
+
+        if (isset($secrets['provider']) && $secrets['provider'] !== 'env') {
+            throw new ConfigException("Unsupported secrets provider: {$secrets['provider']}. Supported providers: env");
+        }
+
+        if (isset($secrets['required'])) {
+            if (!is_array($secrets['required'])) {
+                throw new ConfigException('secrets.required must be an array');
+            }
+
+            foreach ($secrets['required'] as $index => $name) {
+                if (!is_string($name) || $name === '') {
+                    throw new ConfigException("secrets.required[$index] must be a non-empty string");
+                }
+            }
         }
     }
 }

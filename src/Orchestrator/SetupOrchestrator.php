@@ -6,6 +6,7 @@ namespace Cortex\Orchestrator;
 
 use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Config\Schema\CortexConfig;
+use Cortex\Config\Validator\SecretsValidator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\HealthChecker;
@@ -21,6 +22,7 @@ class SetupOrchestrator
         private readonly HostCommandExecutor $hostExecutor,
         private readonly HealthChecker $healthChecker,
         private readonly OutputFormatter $formatter,
+        private readonly SecretsValidator $secretsValidator = new SecretsValidator(),
     ) {
     }
 
@@ -44,6 +46,11 @@ class SetupOrchestrator
         ?int $portOffset = null
     ): array {
         $startTime = microtime(true);
+
+        // Validate required secrets are available
+        if (!empty($config->secrets->required)) {
+            $this->validateSecrets($config);
+        }
 
         // Phase 1: Pre-start commands
         if (!empty($config->setup->preStart)) {
@@ -73,6 +80,27 @@ class SetupOrchestrator
             'namespace' => $namespace ?? '',
             'port_offset' => $portOffset ?? 0,
         ];
+    }
+
+    /**
+     * Validate that all required secrets are available before setup proceeds
+     */
+    private function validateSecrets(CortexConfig $config): void
+    {
+        $this->formatter->section('Validating secrets');
+
+        $missing = $this->secretsValidator->validate($config->secrets);
+
+        if (!empty($missing)) {
+            $names = implode(', ', $missing);
+            $this->formatter->error("Missing required secrets: $names");
+            throw new \RuntimeException(
+                "Missing required secrets: $names. These must be set as environment variables."
+            );
+        }
+
+        $count = count($config->secrets->required);
+        $this->formatter->info("All $count required secret(s) available");
     }
 
     /**

@@ -197,4 +197,140 @@ class ConfigValidatorTest extends TestCase
 
         $this->validator->validate($config);
     }
+
+    public function test_it_validates_valid_secrets_section(): void
+    {
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'secrets' => [
+                'provider' => 'env',
+                'required' => ['SECRET_ONE', 'SECRET_TWO'],
+            ],
+        ];
+
+        $this->validator->validate($config);
+        $this->assertTrue(true);
+    }
+
+    public function test_it_validates_secrets_section_with_defaults(): void
+    {
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'secrets' => [
+                'required' => ['SECRET_ONE'],
+            ],
+        ];
+
+        $this->validator->validate($config);
+        $this->assertTrue(true);
+    }
+
+    public function test_it_throws_exception_for_non_array_secrets(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('secrets must be an array');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'secrets' => 'invalid',
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_throws_exception_for_unsupported_secrets_provider(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('Unsupported secrets provider: vault');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'secrets' => [
+                'provider' => 'vault',
+                'required' => ['SECRET_ONE'],
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_throws_exception_for_non_array_secrets_required(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('secrets.required must be an array');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'secrets' => [
+                'required' => 'not-an-array',
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_throws_exception_for_empty_string_in_secrets_required(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('secrets.required[0] must be a non-empty string');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'secrets' => [
+                'required' => [''],
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_throws_exception_for_non_string_provider(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('secrets.provider must be a string');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'secrets' => [
+                'provider' => 123,
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
 }

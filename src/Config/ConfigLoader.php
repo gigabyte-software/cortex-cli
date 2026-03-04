@@ -9,6 +9,7 @@ use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Config\Schema\CortexConfig;
 use Cortex\Config\Schema\DockerConfig;
 use Cortex\Config\Schema\ServiceWaitConfig;
+use Cortex\Config\Schema\SecretsConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Config\Schema\N8nConfig;
 use Cortex\Config\Validator\ConfigValidator;
@@ -109,6 +110,7 @@ class ConfigLoader
         $docker = $this->buildDockerConfig($config['docker'], $configDir);
         $setup = $this->buildSetupConfig($config['setup'] ?? []);
         $n8n = $this->buildN8nConfig($config['n8n'] ?? [], $configDir);
+        $secrets = $this->buildSecretsConfig($config['secrets'] ?? []);
         $commands = $this->buildCommandsMap($config['commands'] ?? []);
 
         return new CortexConfig(
@@ -116,6 +118,7 @@ class ConfigLoader
             docker: $docker,
             setup: $setup,
             n8n: $n8n,
+            secrets: $secrets,
             commands: $commands,
         );
     }
@@ -211,6 +214,20 @@ class ConfigLoader
         );
     }
 
+
+    /**
+     * @param array<string, mixed> $secretsConfig
+     */
+    private function buildSecretsConfig(array $secretsConfig): SecretsConfig
+    {
+        $provider = $secretsConfig['provider'] ?? 'env';
+        $required = $secretsConfig['required'] ?? [];
+
+        return new SecretsConfig(
+            provider: $provider,
+            required: $required,
+        );
+    }
 
     /**
      * @param array<int, array<string, mixed>> $commands
