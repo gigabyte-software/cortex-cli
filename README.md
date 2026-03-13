@@ -98,6 +98,12 @@ Then run:
 cortex up
 ```
 
+*Note:* this relies on an existing docker container called `mcp-network`.
+
+```
+docker network create mcp-network
+```
+
 ## Commands
 
 ### `cortex init`
