@@ -98,10 +98,21 @@ Then run:
 cortex up
 ```
 
-*Note:* this relies on an existing docker container called `mcp-network`.
+*Note:* this process relies on an existing Docker container called `mcp-network`.
 
 ```
 docker network create mcp-network
+```
+
+*Also note:* if changes are made to the underlying Docker image, this must be rebuilt:
+
+```
+# First, stop the environment
+cortex down
+# Rebuild the image (outside of cortex-cli)
+docker compose build --no-cache app
+# Then start again via cortex
+cortex up
 ```
 
 ## Commands
