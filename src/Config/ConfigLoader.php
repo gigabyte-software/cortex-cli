@@ -149,6 +149,7 @@ class ConfigLoader
             primaryService: $dockerConfig['primary_service'],
             appUrl: $dockerConfig['app_url'],
             waitFor: $waitFor,
+            sslPath: $dockerConfig['ssl_path'] ?? 'docker/nginx/ssl',
         );
     }
 
