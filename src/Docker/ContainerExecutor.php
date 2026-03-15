@@ -65,28 +65,28 @@ class ContainerExecutor
      */
     public function execInteractive(string $composeFile, string $service, string $command, ?string $projectName = null): int
     {
-        // For interactive commands, use passthru to maintain TTY
-        $escapedFile = escapeshellarg($composeFile);
-        $escapedService = escapeshellarg($service);
+        $cmd = ['docker-compose', '-f', $composeFile];
 
-        // Add override file if it exists
         $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
-        $overrideFlag = '';
         if (file_exists($overrideFile)) {
-            $escapedOverride = escapeshellarg($overrideFile);
-            $overrideFlag = " -f $escapedOverride";
+            $cmd[] = '-f';
+            $cmd[] = $overrideFile;
         }
 
-        $projectFlag = '';
         if ($projectName !== null) {
-            $escapedProject = escapeshellarg($projectName);
-            $projectFlag = " -p $escapedProject";
+            $cmd[] = '-p';
+            $cmd[] = $projectName;
         }
 
-        $resultCode = 0;
-        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec $escapedService $command", $resultCode);
+        $cmd = array_merge($cmd, ['exec', $service, ...explode(' ', $command)]);
 
-        return $resultCode;
+        // Use proc_open with direct FD inheritance to preserve TTY for readline
+        $process = proc_open($cmd, [STDIN, STDOUT, STDERR], $pipes);
+        if (!is_resource($process)) {
+            return 1;
+        }
+
+        return proc_close($process);
     }
 
     /**
@@ -102,30 +102,35 @@ class ContainerExecutor
         array $envVars = [],
         ?string $projectName = null
     ): int {
-        $escapedFile = escapeshellarg($composeFile);
-        $escapedService = escapeshellarg($service);
+        $cmd = ['docker-compose', '-f', $composeFile];
 
         $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
-        $overrideFlag = '';
         if (file_exists($overrideFile)) {
-            $escapedOverride = escapeshellarg($overrideFile);
-            $overrideFlag = " -f $escapedOverride";
+            $cmd[] = '-f';
+            $cmd[] = $overrideFile;
         }
 
-        $projectFlag = '';
         if ($projectName !== null) {
-            $escapedProject = escapeshellarg($projectName);
-            $projectFlag = " -p $escapedProject";
+            $cmd[] = '-p';
+            $cmd[] = $projectName;
         }
 
-        $envFlags = '';
+        $cmd[] = 'exec';
+
         foreach ($envVars as $key => $value) {
-            $envFlags .= ' -e ' . escapeshellarg($key . '=' . $value);
+            $cmd[] = '-e';
+            $cmd[] = $key . '=' . $value;
         }
 
-        $resultCode = 0;
-        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec -it$envFlags $escapedService $command", $resultCode);
+        $cmd[] = $service;
+        $cmd[] = $command;
 
-        return $resultCode;
+        // Use proc_open with direct FD inheritance to preserve TTY for readline
+        $process = proc_open($cmd, [STDIN, STDOUT, STDERR], $pipes);
+        if (!is_resource($process)) {
+            return 1;
+        }
+
+        return proc_close($process);
     }
 }
