@@ -9,6 +9,7 @@ use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
 use Cortex\Command\LogsCommand;
 use Cortex\Command\ReviewCommand;
+use Cortex\Command\SecureCommand;
 use Cortex\Command\SelfUpdateCommand;
 use Cortex\Command\ShellCommand;
 use Cortex\Command\ShowUrlCommand;
@@ -145,6 +146,7 @@ class Application extends BaseApplication
             $lockFile,
             $portOffsetManager
         ));
+        $this->add(new SecureCommand($configLoader));
         $this->add(new StyleDemoCommand());
 
         // Create HTTP client for n8n export command

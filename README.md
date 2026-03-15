@@ -237,6 +237,45 @@ Perfect for:
 - Exploring the container's filesystem
 - Interactive development
 
+### `cortex secure`
+
+Generate browser-trusted SSL certificates for your local development environment using [mkcert](https://github.com/FiloSottile/mkcert):
+
+```bash
+cortex secure
+```
+
+This command:
+1. Checks that `mkcert` is installed (prints platform-specific install instructions if not)
+2. Installs the local CA into your system trust store (one-time setup)
+3. Reads `docker.app_url` from your `cortex.yml` to determine the hostname
+4. Generates a trusted certificate and key in the SSL directory
+
+The generated certificates replace any existing self-signed certs, so browsers will no longer show security warnings for your local HTTPS URLs.
+
+**Installing mkcert:**
+
+| Platform | Command |
+|---|---|
+| macOS | `brew install mkcert && mkcert -install` |
+| Windows (Chocolatey) | `choco install mkcert && mkcert -install` |
+| Windows (Scoop) | `scoop install mkcert && mkcert -install` |
+| Linux | `sudo apt install libnss3-tools && brew install mkcert && mkcert -install` |
+
+**Configuration:**
+
+By default, certificates are written to `docker/nginx/ssl/`. You can override this with the optional `docker.ssl_path` key in `cortex.yml`:
+
+```yaml
+docker:
+  compose_file: "docker-compose.yml"
+  primary_service: "app"
+  app_url: "https://myapp.localhost"
+  ssl_path: "docker/nginx/ssl"  # optional, this is the default
+```
+
+**When to run:** Once per project clone. The generated certificates are typically gitignored and don't need to be regenerated unless you change the hostname.
+
 ### Custom Commands
 
 Run custom commands directly by name:
