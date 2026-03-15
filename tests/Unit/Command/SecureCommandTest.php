@@ -47,13 +47,6 @@ class SecureCommandTest extends TestCase
 
     public function test_it_extracts_hostname_from_https_url(): void
     {
-        $config = $this->createMockConfig('https://myapp.localhost');
-
-        $this->configLoader->method('findConfigFile')
-            ->willReturn('/path/to/cortex.yml');
-        $this->configLoader->method('load')
-            ->willReturn($config);
-
         $command = new TestableSecureCommand($this->configLoader);
 
         $this->assertSame('myapp.localhost', $command->testExtractHostname('https://myapp.localhost'));
