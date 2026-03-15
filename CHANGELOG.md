@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.3.0-alpha.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.2.0...v2.3.0-alpha.1) (2026-03-15)
+
+
+### Features
+
+* add Herd service management, cortex logs command, and shell TTY fix ([afa0779](https://github.com/gigabyte-software/cortex-cli/commit/afa0779c16a023d47d18aa2cbb6f91e71b9af548))
+
 # [2.2.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.1.0...v2.2.0) (2026-03-04)
 
 
