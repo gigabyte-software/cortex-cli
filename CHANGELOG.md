@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.3.0-alpha.2](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.1...v2.3.0-alpha.2) (2026-03-15)
+
+
+### Bug Fixes
+
+* correct PS1 escape sequences for Docker env var passthrough ([ec16ecb](https://github.com/gigabyte-software/cortex-cli/commit/ec16ecb04b9811a086318a5d4d33eef1cb415880))
+
 # [2.3.0-alpha.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.2.0...v2.3.0-alpha.1) (2026-03-15)
 
 
