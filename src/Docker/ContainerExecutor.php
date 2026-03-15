@@ -106,6 +106,14 @@ class ContainerExecutor
         $escapedFile = escapeshellarg($composeFile);
         $escapedService = escapeshellarg($service);
 
+        // Add override file if it exists
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        $overrideFlag = '';
+        if (file_exists($overrideFile)) {
+            $escapedOverride = escapeshellarg($overrideFile);
+            $overrideFlag = " -f $escapedOverride";
+        }
+
         $projectFlag = '';
         if ($projectName !== null) {
             $escapedProject = escapeshellarg($projectName);
@@ -119,7 +127,7 @@ class ContainerExecutor
         }
 
         $resultCode = 0;
-        passthru("docker-compose -f $escapedFile$projectFlag exec$envFlags $escapedService $command", $resultCode);
+        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec -it$envFlags $escapedService $command", $resultCode);
 
         return $resultCode;
     }
