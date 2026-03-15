@@ -80,13 +80,7 @@ class ContainerExecutor
 
         $cmd = array_merge($cmd, ['exec', $service, ...explode(' ', $command)]);
 
-        // Use proc_open with direct FD inheritance to preserve TTY for readline
-        $process = proc_open($cmd, [STDIN, STDOUT, STDERR], $pipes);
-        if (!is_resource($process)) {
-            return 1;
-        }
-
-        return proc_close($process);
+        return $this->runWithTty($cmd);
     }
 
     /**
@@ -125,8 +119,28 @@ class ContainerExecutor
         $cmd[] = $service;
         $cmd[] = $command;
 
-        // Use proc_open with direct FD inheritance to preserve TTY for readline
-        $process = proc_open($cmd, [STDIN, STDOUT, STDERR], $pipes);
+        return $this->runWithTty($cmd);
+    }
+
+    /**
+     * Run a command with direct /dev/tty access for full interactive terminal support.
+     *
+     * @param list<string> $cmd
+     */
+    private function runWithTty(array $cmd): int
+    {
+        $ttyAvailable = file_exists('/dev/tty') && posix_isatty(STDIN);
+
+        if ($ttyAvailable) {
+            $process = proc_open($cmd, [
+                ['file', '/dev/tty', 'r'],
+                ['file', '/dev/tty', 'w'],
+                ['file', '/dev/tty', 'w'],
+            ], $pipes);
+        } else {
+            $process = proc_open($cmd, [STDIN, STDOUT, STDERR], $pipes);
+        }
+
         if (!is_resource($process)) {
             return 1;
         }
