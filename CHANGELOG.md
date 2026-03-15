@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.3.0-alpha.4](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.3...v2.3.0-alpha.4) (2026-03-15)
+
+
+### Bug Fixes
+
+* remove unused mock setup that caused PHPStan error ([1d60c14](https://github.com/gigabyte-software/cortex-cli/commit/1d60c149f54ab70649409bcd77697e14fe8bb3ce))
+* use direct bash invocation with Docker env var for TTY support ([06ef303](https://github.com/gigabyte-software/cortex-cli/commit/06ef303528235617ac5ed88da8fe40056c15a09d))
+* use proc_open with direct FD inheritance for interactive shell ([38d2c4f](https://github.com/gigabyte-software/cortex-cli/commit/38d2c4f533980af80a85ace8f6e6b404050dd024))
+
 # [2.3.0-alpha.3](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.2...v2.3.0-alpha.3) (2026-03-15)
 
 
