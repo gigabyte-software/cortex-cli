@@ -72,10 +72,10 @@ class ShellCommandTest extends TestCase
             ->method('exists')
             ->willReturn(false);
 
-        $purple = '\\[\\033[38;2;125;85;199m\\]';
-        $teal = '\\[\\033[38;2;46;217;195m\\]';
-        $reset = '\\[\\033[0m\\]';
-        $expectedPrompt = $purple . 'app' . $reset . ':' . $teal . '\\w' . $reset . '\\$ ';
+        $purple = '\[\033[38;2;125;85;199m\]';
+        $teal = '\[\033[38;2;46;217;195m\]';
+        $reset = '\[\033[0m\]';
+        $expectedPrompt = $purple . 'app' . $reset . ':' . $teal . '\w' . $reset . '\$ ';
 
         $containerExecutor->expects($this->once())
             ->method('execInteractiveWithEnv')

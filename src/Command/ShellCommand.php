@@ -55,11 +55,11 @@ class ShellCommand extends Command
             // Purple (#7D55C7 - Pantone 2665C) for container name
             // Teal (#2ED9C3 - Pantone 3255C) for directory path
             // Using RGB ANSI escape codes for exact color matching
-            $purple = '\\[\\033[38;2;125;85;199m\\]';   // #7D55C7
-            $teal = '\\[\\033[38;2;46;217;195m\\]';     // #2ED9C3
-            $reset = '\\[\\033[0m\\]';                  // Reset color
+            $purple = '\[\033[38;2;125;85;199m\]';   // #7D55C7
+            $teal = '\[\033[38;2;46;217;195m\]';     // #2ED9C3
+            $reset = '\[\033[0m\]';                  // Reset color
 
-            $prompt = $purple . $primaryService . $reset . ':' . $teal . '\\w' . $reset . '\\$ ';
+            $prompt = $purple . $primaryService . $reset . ':' . $teal . '\w' . $reset . '\$ ';
 
             // Pass PS1 as a Docker env var and run bash directly (not through /bin/sh -c)
             // to preserve proper TTY allocation and readline support
