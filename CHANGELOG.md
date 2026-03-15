@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.3.0-alpha.5](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.4...v2.3.0-alpha.5) (2026-03-15)
+
+
+### Bug Fixes
+
+* use /dev/tty for interactive shell to preserve terminal for readline ([4dcf221](https://github.com/gigabyte-software/cortex-cli/commit/4dcf22130a8210df4c3a23665690cccdbbf2f1fb))
+
 # [2.3.0-alpha.4](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.3...v2.3.0-alpha.4) (2026-03-15)
 
 
