@@ -84,7 +84,7 @@ class ContainerExecutor
         }
 
         $resultCode = 0;
-        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec $escapedService $command", $resultCode);
+        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec -it $escapedService $command", $resultCode);
 
         return $resultCode;
     }
