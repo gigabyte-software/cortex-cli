@@ -61,11 +61,15 @@ class ShellCommand extends Command
 
             $prompt = $purple . $primaryService . $reset . ':' . $teal . '\\w' . $reset . '\\$ ';
 
-            // Execute interactive bash shell with custom prompt
-            // Use /bin/sh to run a command that exports PS1 and execs bash in interactive mode
-            // The -i flag is crucial for bash to recognize PS1
-            $shellCommand = sprintf('/bin/sh -c "export PS1=\'%s\'; exec /bin/bash -i"', $prompt);
-            $exitCode = $this->containerExecutor->execInteractive($composeFile, $primaryService, $shellCommand, $namespace);
+            // Pass PS1 as a Docker env var and run bash directly (not through /bin/sh -c)
+            // to preserve proper TTY allocation and readline support
+            $exitCode = $this->containerExecutor->execInteractiveWithEnv(
+                $composeFile,
+                $primaryService,
+                '/bin/bash',
+                ['PS1' => $prompt],
+                $namespace
+            );
 
             return $exitCode;
         } catch (ConfigException $e) {
