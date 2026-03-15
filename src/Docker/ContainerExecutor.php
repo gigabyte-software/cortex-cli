@@ -84,7 +84,7 @@ class ContainerExecutor
         }
 
         $resultCode = 0;
-        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec -it $escapedService $command", $resultCode);
+        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec $escapedService $command", $resultCode);
 
         return $resultCode;
     }
@@ -102,11 +102,9 @@ class ContainerExecutor
         array $envVars = [],
         ?string $projectName = null
     ): int {
-        // For interactive commands, use passthru to maintain TTY
         $escapedFile = escapeshellarg($composeFile);
         $escapedService = escapeshellarg($service);
 
-        // Add override file if it exists
         $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
         $overrideFlag = '';
         if (file_exists($overrideFile)) {
@@ -120,7 +118,6 @@ class ContainerExecutor
             $projectFlag = " -p $escapedProject";
         }
 
-        // Build environment variable flags
         $envFlags = '';
         foreach ($envVars as $key => $value) {
             $envFlags .= ' -e ' . escapeshellarg($key . '=' . $value);

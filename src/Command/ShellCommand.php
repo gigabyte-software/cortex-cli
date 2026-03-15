@@ -52,23 +52,20 @@ class ShellCommand extends Command
             // If no lock file, use null (default mode - no namespace isolation)
 
             // Build a custom PS1 prompt with Gigabyte brand colors
-            // Purple (#7D55C7 - Pantone 2665C) for container name
-            // Teal (#2ED9C3 - Pantone 3255C) for directory path
-            // Using RGB ANSI escape codes for exact color matching
-            $purple = '\[\033[38;2;125;85;199m\]';   // #7D55C7
-            $teal = '\[\033[38;2;46;217;195m\]';     // #2ED9C3
-            $reset = '\[\033[0m\]';                  // Reset color
+            // Purple (#7D55C7) for container name, Teal (#2ED9C3) for directory path
+            // Single-escaped: passed as Docker -e var, interpreted directly by bash
+            $purple = '\[\033[38;2;125;85;199m\]';
+            $teal = '\[\033[38;2;46;217;195m\]';
+            $reset = '\[\033[0m\]';
 
             $prompt = $purple . $primaryService . $reset . ':' . $teal . '\w' . $reset . '\$ ';
 
-            // Pass PS1 as a Docker env var and run bash directly (not through /bin/sh -c)
-            // to preserve proper TTY allocation and readline support
             $exitCode = $this->containerExecutor->execInteractiveWithEnv(
                 $composeFile,
                 $primaryService,
                 '/bin/bash',
                 ['PS1' => $prompt],
-                $namespace
+                $namespace,
             );
 
             return $exitCode;
