@@ -7,6 +7,7 @@ namespace Cortex;
 use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
+use Cortex\Command\LogsCommand;
 use Cortex\Command\ReviewCommand;
 use Cortex\Command\SelfUpdateCommand;
 use Cortex\Command\ShellCommand;
@@ -29,6 +30,7 @@ use Cortex\Docker\PortOffsetManager;
 use Cortex\Herd\HerdService;
 use Cortex\Executor\HostCommandExecutor;
 use Cortex\Git\GitRepositoryService;
+use Cortex\Laravel\LaravelLogParser;
 use Cortex\Laravel\LaravelService;
 use Cortex\Orchestrator\CommandOrchestrator;
 use Cortex\Orchestrator\SetupOrchestrator;
@@ -91,6 +93,7 @@ class Application extends BaseApplication
         // Create Git and Laravel services
         $gitRepositoryService = new GitRepositoryService();
         $laravelService = new LaravelService($containerExecutor);
+        $logParser = new LaravelLogParser();
 
         // Register built-in commands (these take precedence over custom commands)
         $this->add(new InitCommand());
@@ -128,6 +131,13 @@ class Application extends BaseApplication
             $configLoader,
             $containerExecutor,
             $lockFile
+        ));
+        $this->add(new LogsCommand(
+            $configLoader,
+            $containerExecutor,
+            $lockFile,
+            $laravelService,
+            $logParser
         ));
         $this->add(new SelfUpdateCommand());
         $this->add(new ShowUrlCommand(

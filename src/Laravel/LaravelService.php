@@ -7,7 +7,7 @@ namespace Cortex\Laravel;
 use Cortex\Docker\ContainerExecutor;
 use Symfony\Component\Process\Process;
 
-final class LaravelService
+class LaravelService
 {
     public function __construct(
         private readonly ContainerExecutor $containerExecutor
@@ -63,6 +63,50 @@ final class LaravelService
         );
 
         return $migrateProcess->isSuccessful();
+    }
+
+    /**
+     * Resolve the path to the most recent Laravel log file inside the container.
+     * Handles both single-file (laravel.log) and daily log configurations.
+     *
+     * @return string|null The container path to the log file, or null if not found.
+     */
+    public function resolveLogPath(string $composeFile, string $service, ?string $namespace): ?string
+    {
+        // Try the single-file log first, then fall back to the latest daily log.
+        // Check common Laravel root paths: workdir, /var/www/html, /app.
+        $script = <<<'SH'
+for base in . /var/www/html /app; do
+    single="$base/storage/logs/laravel.log"
+    if [ -f "$single" ]; then
+        echo "$single"
+        exit 0
+    fi
+    daily=$(ls -t "$base"/storage/logs/laravel-*.log 2>/dev/null | head -n1)
+    if [ -n "$daily" ]; then
+        echo "$daily"
+        exit 0
+    fi
+done
+exit 1
+SH;
+
+        $process = $this->containerExecutor->exec(
+            $composeFile,
+            $service,
+            $script,
+            10,
+            null,
+            $namespace
+        );
+
+        if (!$process->isSuccessful()) {
+            return null;
+        }
+
+        $path = trim($process->getOutput());
+
+        return $path !== '' ? $path : null;
     }
 }
 
