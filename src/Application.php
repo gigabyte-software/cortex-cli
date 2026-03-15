@@ -26,6 +26,7 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
+use Cortex\Herd\HerdService;
 use Cortex\Executor\HostCommandExecutor;
 use Cortex\Git\GitRepositoryService;
 use Cortex\Laravel\LaravelService;
@@ -71,6 +72,7 @@ class Application extends BaseApplication
         $namespaceResolver = new NamespaceResolver();
         $portOffsetManager = new PortOffsetManager();
         $overrideGenerator = new ComposeOverrideGenerator();
+        $herdService = new HerdService();
 
         // Create output formatter for orchestrators
         $consoleOutput = new ConsoleOutput();
@@ -99,13 +101,15 @@ class Application extends BaseApplication
             $namespaceResolver,
             $portOffsetManager,
             $overrideGenerator,
-            $dockerCompose
+            $dockerCompose,
+            $herdService
         ));
         $this->add(new DownCommand(
             $configLoader,
             $dockerCompose,
             $lockFile,
-            $overrideGenerator
+            $overrideGenerator,
+            $herdService
         ));
         $this->add(new ReviewCommand(
             $configLoader,

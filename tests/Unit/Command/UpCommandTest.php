@@ -16,6 +16,7 @@ use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
+use Cortex\Herd\HerdService;
 use Cortex\Orchestrator\SetupOrchestrator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -29,6 +30,7 @@ class UpCommandTest extends TestCase
     private PortOffsetManager $portOffsetManager;
     private ComposeOverrideGenerator $overrideGenerator;
     private DockerCompose $dockerCompose;
+    private HerdService $herdService;
 
     protected function setUp(): void
     {
@@ -39,6 +41,7 @@ class UpCommandTest extends TestCase
         $this->portOffsetManager = $this->createMock(PortOffsetManager::class);
         $this->overrideGenerator = $this->createMock(ComposeOverrideGenerator::class);
         $this->dockerCompose = $this->createMock(DockerCompose::class);
+        $this->herdService = $this->createMock(HerdService::class);
     }
 
     public function test_command_is_configured_correctly(): void
@@ -55,6 +58,7 @@ class UpCommandTest extends TestCase
         $this->assertTrue($definition->hasOption('no-host-mapping'));
         $this->assertTrue($definition->hasOption('no-wait'));
         $this->assertTrue($definition->hasOption('skip-init'));
+        $this->assertTrue($definition->hasOption('stop-herd'));
     }
 
     public function test_it_prevents_duplicate_instances(): void
@@ -430,6 +434,116 @@ class UpCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
     }
 
+    public function test_it_stops_herd_when_stop_herd_flag_is_set(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->herdService->expects($this->once())
+            ->method('isInstalled')
+            ->willReturn(true);
+
+        $this->herdService->expects($this->once())
+            ->method('stop');
+
+        $this->setupOrchestrator->expects($this->once())
+            ->method('setup')
+            ->willReturn(['time' => 1.5, 'namespace' => '', 'port_offset' => 0]);
+
+        $this->lockFile->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (LockFileData $data) {
+                return $data->herdStopped === true;
+            }));
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute(['--stop-herd' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('Stopping Herd services', $tester->getDisplay());
+        $this->assertStringContainsString('Herd services stopped', $tester->getDisplay());
+    }
+
+    public function test_it_warns_when_herd_not_installed_with_stop_herd_flag(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->herdService->expects($this->once())
+            ->method('isInstalled')
+            ->willReturn(false);
+
+        $this->herdService->expects($this->never())
+            ->method('stop');
+
+        $this->setupOrchestrator->expects($this->once())
+            ->method('setup')
+            ->willReturn(['time' => 1.5, 'namespace' => '', 'port_offset' => 0]);
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute(['--stop-herd' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('Herd is not installed', $tester->getDisplay());
+    }
+
+    public function test_it_does_not_stop_herd_without_flag(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->herdService->expects($this->never())
+            ->method('isInstalled');
+
+        $this->herdService->expects($this->never())
+            ->method('stop');
+
+        $this->setupOrchestrator->expects($this->once())
+            ->method('setup')
+            ->willReturn(['time' => 1.5, 'namespace' => '', 'port_offset' => 0]);
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+    }
+
     private function createCommand(): UpCommand
     {
         return new UpCommand(
@@ -439,7 +553,8 @@ class UpCommandTest extends TestCase
             $this->namespaceResolver,
             $this->portOffsetManager,
             $this->overrideGenerator,
-            $this->dockerCompose
+            $this->dockerCompose,
+            $this->herdService
         );
     }
 

@@ -9,6 +9,7 @@ use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
 use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
+use Cortex\Herd\HerdService;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -22,6 +23,7 @@ class DownCommand extends Command
         private readonly DockerCompose $dockerCompose,
         private readonly LockFile $lockFile,
         private readonly ComposeOverrideGenerator $overrideGenerator,
+        private readonly HerdService $herdService,
     ) {
         parent::__construct();
     }
@@ -45,14 +47,14 @@ class DownCommand extends Command
 
             $formatter->section('Stopping environment');
 
-            // Read lock file to get namespace
+            // Read lock file to get namespace and Herd state
             $namespace = null;
+            $herdStopped = false;
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
                 $namespace = $lockData?->namespace;
+                $herdStopped = $lockData->herdStopped ?? false;
             }
-
-            // If no lock file, use null (default mode - no namespace isolation)
 
             $removeVolumes = $input->getOption('volumes');
 
@@ -69,6 +71,18 @@ class DownCommand extends Command
                 $formatter->info('Docker services stopped and volumes removed');
             } else {
                 $formatter->info('Docker services stopped');
+            }
+
+            // Restart Herd if it was stopped during "cortex up"
+            if ($herdStopped) {
+                $formatter->info('Restarting Herd services...');
+                try {
+                    $this->herdService->start();
+                    $formatter->info('Herd services restarted');
+                } catch (\RuntimeException $e) {
+                    $formatter->warning('Could not restart Herd: ' . $e->getMessage());
+                    $formatter->info('You can restart manually with: herd start');
+                }
             }
 
             $output->writeln('');

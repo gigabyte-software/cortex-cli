@@ -14,6 +14,7 @@ readonly class LockFileData
         public ?int $portOffset,
         public string $startedAt,
         public bool $noHostMapping = false,
+        public bool $herdStopped = false,
     ) {
     }
 }

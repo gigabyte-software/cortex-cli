@@ -13,6 +13,7 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
+use Cortex\Herd\HerdService;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
@@ -31,6 +32,7 @@ class UpCommand extends Command
         private readonly PortOffsetManager $portOffsetManager,
         private readonly ComposeOverrideGenerator $overrideGenerator,
         private readonly DockerCompose $dockerCompose,
+        private readonly HerdService $herdService,
     ) {
         parent::__construct();
     }
@@ -45,7 +47,8 @@ class UpCommand extends Command
             ->addOption('avoid-conflicts', null, InputOption::VALUE_NONE, 'Automatically avoid container and port conflicts')
             ->addOption('no-host-mapping', null, InputOption::VALUE_NONE, 'Do not expose container ports to the host')
             ->addOption('no-wait', null, InputOption::VALUE_NONE, 'Skip health checks')
-            ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands');
+            ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
+            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -92,6 +95,19 @@ class UpCommand extends Command
                 $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace, $noHostMapping);
             }
 
+            // Stop Herd services if requested (frees ports 80/443 for Docker)
+            $herdStopped = false;
+            if ($input->getOption('stop-herd')) {
+                if (!$this->herdService->isInstalled()) {
+                    $formatter->warning('Herd is not installed — skipping --stop-herd');
+                } else {
+                    $formatter->info('Stopping Herd services...');
+                    $this->herdService->stop();
+                    $herdStopped = true;
+                    $formatter->info('Herd services stopped');
+                }
+            }
+
             // Run setup through orchestrator
             $result = $this->setupOrchestrator->setup(
                 $config,
@@ -101,13 +117,14 @@ class UpCommand extends Command
                 $portOffset
             );
 
-            // Write lock file if we generated an override file
-            if ($needsOverride) {
+            // Write lock file if we generated an override file or stopped Herd
+            if ($needsOverride || $herdStopped) {
                 $lockData = new LockFileData(
                     namespace: $namespace,
                     portOffset: $portOffset > 0 ? $portOffset : null,
                     startedAt: date('c'),
                     noHostMapping: $noHostMapping,
+                    herdStopped: $herdStopped,
                 );
                 $this->lockFile->write($lockData);
                 $output->writeln('');
