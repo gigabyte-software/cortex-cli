@@ -14,6 +14,7 @@ readonly class DockerConfig
         public string $primaryService,
         public string $appUrl,
         public array $waitFor = [],
+        public string $sslPath = 'docker/nginx/ssl',
     ) {
     }
 }
