@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.3.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.2.0...v2.3.0) (2026-03-25)
+
+
+### Bug Fixes
+
+* correct PS1 escape sequences for Docker env var passthrough ([ec16ecb](https://github.com/gigabyte-software/cortex-cli/commit/ec16ecb04b9811a086318a5d4d33eef1cb415880))
+* remove unused mock setup that caused PHPStan error ([1d60c14](https://github.com/gigabyte-software/cortex-cli/commit/1d60c149f54ab70649409bcd77697e14fe8bb3ce))
+* remove unused mock setup that caused PHPStan error ([472b188](https://github.com/gigabyte-software/cortex-cli/commit/472b1885fbbf0aecfc9ec829b9237a08adf05af7))
+* use /dev/tty for interactive shell to preserve terminal for readline ([4dcf221](https://github.com/gigabyte-software/cortex-cli/commit/4dcf22130a8210df4c3a23665690cccdbbf2f1fb))
+* use direct bash invocation with Docker env var for TTY support ([2df8b2f](https://github.com/gigabyte-software/cortex-cli/commit/2df8b2fae82b7610ae76c0e5954f3e3e56be0a79))
+* use direct bash invocation with Docker env var for TTY support ([06ef303](https://github.com/gigabyte-software/cortex-cli/commit/06ef303528235617ac5ed88da8fe40056c15a09d))
+* use proc_open with direct FD inheritance for interactive shell ([38d2c4f](https://github.com/gigabyte-software/cortex-cli/commit/38d2c4f533980af80a85ace8f6e6b404050dd024))
+
+
+### Features
+
+* add Herd service management, cortex logs command, and shell TTY fix ([afa0779](https://github.com/gigabyte-software/cortex-cli/commit/afa0779c16a023d47d18aa2cbb6f91e71b9af548))
+* alpha changes by Chris ([d40e5a5](https://github.com/gigabyte-software/cortex-cli/commit/d40e5a589df1ad208044437a04d2ebcf334bf547))
+
 # [2.3.0-alpha.5](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.4...v2.3.0-alpha.5) (2026-03-15)
 
 
