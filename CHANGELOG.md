@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.4.0...v2.4.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* increase timeout when rebuilding and allow user to provide timout length ([6f18c82](https://github.com/gigabyte-software/cortex-cli/commit/6f18c82df5d1c060c4f056f2668f4a1bba2e2e30))
+
 # [2.4.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0...v2.4.0) (2026-03-31)
 
 
