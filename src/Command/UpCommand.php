@@ -49,7 +49,8 @@ class UpCommand extends Command
             ->addOption('no-wait', null, InputOption::VALUE_NONE, 'Skip health checks')
             ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
             ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)')            
-            ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting');
+            ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting')
+            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -110,13 +111,17 @@ class UpCommand extends Command
             }
 
             // Run setup through orchestrator
+            $timeoutOption = $input->getOption('timeout');
+            $timeout = $timeoutOption !== null ? (int) $timeoutOption : null;
+
             $result = $this->setupOrchestrator->setup(
                 $config,
                 $input->getOption('no-wait'),
                 $input->getOption('skip-init'),
                 $namespace,
                 $portOffset,
-                $input->getOption('rebuild')
+                $input->getOption('rebuild'),
+                $timeout
             );
 
             // Write lock file if we generated an override file or stopped Herd

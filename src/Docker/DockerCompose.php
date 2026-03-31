@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cortex\Docker;
 
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
 class DockerCompose
@@ -15,7 +16,7 @@ class DockerCompose
      * @param string|null $projectName Optional project name for container isolation
      * @throws \RuntimeException
      */
-    public function up(string $composeFile, ?string $projectName = null, bool $rebuild = false): void
+    public function up(string $composeFile, ?string $projectName = null, bool $rebuild = false, ?int $timeout = null): void
     {
         $command = ['docker-compose', '-f', $composeFile];
 
@@ -63,9 +64,18 @@ class DockerCompose
         }
         // #endregion agent log
 
+        $effectiveTimeout = $timeout ?? ($rebuild ? 1500 : 300);
+
         $process = new Process($command);
-        $process->setTimeout(300);
-        $process->run();
+        $process->setTimeout($effectiveTimeout);
+
+        try {
+            $process->run();
+        } catch (ProcessTimedOutException) {
+            throw new \RuntimeException(
+                "Docker Compose timed out after {$effectiveTimeout}s. Use --timeout to increase the limit (e.g. --timeout 3600)."
+            );
+        }
 
         if (!$process->isSuccessful()) {
             // #region agent log
