@@ -48,7 +48,8 @@ class UpCommand extends Command
             ->addOption('no-host-mapping', null, InputOption::VALUE_NONE, 'Do not expose container ports to the host')
             ->addOption('no-wait', null, InputOption::VALUE_NONE, 'Skip health checks')
             ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
-            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)');
+            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)')            
+            ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -114,7 +115,8 @@ class UpCommand extends Command
                 $input->getOption('no-wait'),
                 $input->getOption('skip-init'),
                 $namespace,
-                $portOffset
+                $portOffset,
+                $input->getOption('rebuild')
             );
 
             // Write lock file if we generated an override file or stopped Herd

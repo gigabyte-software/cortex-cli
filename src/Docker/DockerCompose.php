@@ -15,7 +15,7 @@ class DockerCompose
      * @param string|null $projectName Optional project name for container isolation
      * @throws \RuntimeException
      */
-    public function up(string $composeFile, ?string $projectName = null): void
+    public function up(string $composeFile, ?string $projectName = null, bool $rebuild = false): void
     {
         $command = ['docker-compose', '-f', $composeFile];
 
@@ -34,11 +34,62 @@ class DockerCompose
         $command[] = 'up';
         $command[] = '-d';
 
+        if ($rebuild) {
+            $command[] = '--build';
+        }
+
+        // #region agent log
+        try {
+            $logPath = '/home/kryten/gigabyte/projects/.cursor/debug-ae03ef.log';
+            $logEntry = [
+                'sessionId' => 'ae03ef',
+                'runId' => 'pre-fix',
+                'hypothesisId' => 'A',
+                'location' => 'src/Docker/DockerCompose.php:up:before',
+                'message' => 'DockerCompose up starting',
+                'data' => [
+                    'composeFile' => $composeFile,
+                    'projectName' => $projectName,
+                    'cwd' => getcwd() ?: null,
+                    'home' => getenv('HOME') ?: null,
+                    'dockerConfig' => getenv('DOCKER_CONFIG') ?: null,
+                    'command' => $command,
+                ],
+                'timestamp' => (int) (microtime(true) * 1000),
+            ];
+            @file_put_contents($logPath, json_encode($logEntry) . "\n", FILE_APPEND);
+        } catch (\Throwable) {
+            // Best-effort debug logging; ignore all failures
+        }
+        // #endregion agent log
+
         $process = new Process($command);
         $process->setTimeout(300);
         $process->run();
 
         if (!$process->isSuccessful()) {
+            // #region agent log
+            try {
+                $logPath = '/home/kryten/gigabyte/projects/.cursor/debug-ae03ef.log';
+                $logEntry = [
+                    'sessionId' => 'ae03ef',
+                    'runId' => 'pre-fix',
+                    'hypothesisId' => 'A',
+                    'location' => 'src/Docker/DockerCompose.php:up:after',
+                    'message' => 'DockerCompose up failed',
+                    'data' => [
+                        'exitCode' => $process->getExitCode(),
+                        'errorOutput' => $process->getErrorOutput(),
+                        'standardOutput' => $process->getOutput(),
+                    ],
+                    'timestamp' => (int) (microtime(true) * 1000),
+                ];
+                @file_put_contents($logPath, json_encode($logEntry) . "\n", FILE_APPEND);
+            } catch (\Throwable) {
+                // Best-effort debug logging; ignore all failures
+            }
+            // #endregion agent log
+
             throw new \RuntimeException(
                 "Failed to start Docker Compose services: {$process->getErrorOutput()}"
             );

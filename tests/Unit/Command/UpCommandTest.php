@@ -59,6 +59,7 @@ class UpCommandTest extends TestCase
         $this->assertTrue($definition->hasOption('no-wait'));
         $this->assertTrue($definition->hasOption('skip-init'));
         $this->assertTrue($definition->hasOption('stop-herd'));
+        $this->assertTrue($definition->hasOption('rebuild'));
     }
 
     public function test_it_prevents_duplicate_instances(): void
@@ -157,7 +158,8 @@ class UpCommandTest extends TestCase
                 false,
                 false,
                 'custom-namespace',
-                0
+                0,
+                false
             )
             ->willReturn([
                 'time' => 1.5,
@@ -210,7 +212,8 @@ class UpCommandTest extends TestCase
                 false,
                 false,
                 null,
-                1000
+                1000,
+                false
             )
             ->willReturn([
                 'time' => 1.5,
@@ -309,7 +312,7 @@ class UpCommandTest extends TestCase
 
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
-            ->with($config, false, false, null, 0)
+            ->with($config, false, false, null, 0, false)
             ->willReturn([
                 'time' => 1.5,
                 'namespace' => '',
@@ -362,7 +365,8 @@ class UpCommandTest extends TestCase
                 false,
                 false,
                 null,
-                0
+                0,
+                false
             )
             ->willReturn([
                 'time' => 1.5,

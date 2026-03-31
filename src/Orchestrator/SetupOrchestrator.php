@@ -43,7 +43,8 @@ class SetupOrchestrator
         bool $skipWait = false,
         bool $skipInit = false,
         ?string $namespace = null,
-        ?int $portOffset = null
+        ?int $portOffset = null,
+        bool $rebuild = false
     ): array {
         $startTime = microtime(true);
 
@@ -58,7 +59,7 @@ class SetupOrchestrator
         }
 
         // Phase 2: Start Docker services
-        $this->startDockerServices($config->docker->composeFile, $namespace);
+        $this->startDockerServices($config->docker->composeFile, $namespace, $rebuild);
 
         // Phase 3: Wait for services
         if (!$skipWait && !empty($config->docker->waitFor)) {
@@ -120,7 +121,7 @@ class SetupOrchestrator
     /**
      * Start Docker Compose services
      */
-    private function startDockerServices(string $composeFile, ?string $namespace = null): void
+    private function startDockerServices(string $composeFile, ?string $namespace = null, bool $rebuild = false): void
     {
         $this->formatter->section('Starting Docker services');
 
@@ -128,7 +129,11 @@ class SetupOrchestrator
             $this->formatter->info("Using namespace: {$namespace}");
         }
 
-        $this->dockerCompose->up($composeFile, $namespace);
+        if ($rebuild) {
+            $this->formatter->info('Rebuilding Docker images...');
+        }
+
+        $this->dockerCompose->up($composeFile, $namespace, $rebuild);
         $this->formatter->info('Docker services started');
     }
 
