@@ -7,6 +7,7 @@ namespace Cortex;
 use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
+use Cortex\Command\RebuildCommand;
 use Cortex\Command\LogsCommand;
 use Cortex\Command\ReviewCommand;
 use Cortex\Command\SecureCommand;
@@ -20,6 +21,7 @@ use Cortex\Command\N8n\ExportCommand;
 use Cortex\Command\N8n\ImportCommand;
 use Cortex\Command\N8n\NormaliseCommand;
 use Cortex\Config\ConfigLoader;
+use Cortex\Config\ConfigWarningChecker;
 use Cortex\Config\LockFile;
 use Cortex\Config\Validator\ConfigValidator;
 use Cortex\Docker\ComposeOverrideGenerator;
@@ -38,10 +40,19 @@ use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
 use GuzzleHttp\Client;
 use Symfony\Component\Console\Application as BaseApplication;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class Application extends BaseApplication
 {
+    private const SKIP_WARNINGS_FOR = [
+        'init', 'self-update', 'list', 'help', '_complete', 'completion', 'style-demo',
+    ];
+
+    /** @var list<string> */
+    private array $configWarnings = [];
     protected function getDefaultCommands(): array
     {
         $defaultCommands = [
@@ -170,6 +181,15 @@ class Application extends BaseApplication
             $httpClient
         ));
 
+        $this->add(new RebuildCommand(
+            $configLoader,
+            $dockerCompose,
+            $healthChecker,
+            $commandOrchestrator,
+            $lockFile,
+            $overrideGenerator
+        ));
+
         // Try to load cortex.yml and register custom commands dynamically
         try {
             $configPath = $configLoader->findConfigFile();
@@ -189,9 +209,26 @@ class Application extends BaseApplication
                     $commandOrchestrator
                 ));
             }
+
+            // Check for missing recommended commands
+            $warningChecker = new ConfigWarningChecker();
+            $this->configWarnings = $warningChecker->check($config);
         } catch (\Exception $e) {
             // Silently ignore if no cortex.yml found
             // User might be running from wrong directory or checking version/help
         }
+    }
+
+    protected function doRunCommand(Command $command, InputInterface $input, OutputInterface $output): int
+    {
+        if ($this->configWarnings !== [] && !in_array($command->getName(), self::SKIP_WARNINGS_FOR, true)) {
+            $formatter = new OutputFormatter($output);
+            foreach ($this->configWarnings as $warning) {
+                $formatter->warning("  ⚠ $warning");
+            }
+            $output->writeln('');
+        }
+
+        return parent::doRunCommand($command, $input, $output);
     }
 }

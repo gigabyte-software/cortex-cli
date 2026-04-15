@@ -27,6 +27,25 @@ setup:
       ignore_failure: false
 
 commands:
+  # ── Recommended lifecycle commands ──────────────────────────────
+  #
+  # These commands standardize your team's development workflow.
+  # Cortex will warn on every command if they are not defined.
+  #
+  # `cortex rebuild` is a built-in command — it tears down containers,
+  # rebuilds Docker images, brings everything back up, and runs `fresh`.
+  # Just make sure `fresh` is defined below.
+
+  clear:
+    command: ""  # e.g. "composer install && php artisan migrate && php artisan optimize:clear"
+    description: "Sync environment after switching branches (install deps, run migrations, clear caches)"
+
+  fresh:
+    command: ""  # e.g. "composer install && php artisan migrate:fresh --seed && php artisan optimize:clear"
+    description: "Reset database from scratch (drop tables, re-migrate, re-seed, install deps, clear caches)"
+
+  # ── Project commands ────────────────────────────────────────────
+
   test:
     command: "php artisan test"
     description: "Run test suite"
@@ -34,10 +53,6 @@ commands:
   shell:
     command: "bash"
     description: "Open shell in container"
-    
-  fresh_db:
-    command: "php artisan migrate:fresh --seed"
-    description: "Reset database with fresh data"
 
 n8n:
   workflows_dir: "./.n8n"

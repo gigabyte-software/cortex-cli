@@ -107,6 +107,43 @@ class DockerCompose
     }
 
     /**
+     * Rebuild images and start Docker Compose services
+     *
+     * @param string $composeFile Path to docker-compose.yml
+     * @param string|null $projectName Optional project name for container isolation
+     * @throws \RuntimeException
+     */
+    public function upWithBuild(string $composeFile, ?string $projectName = null): void
+    {
+        $command = ['docker-compose', '-f', $composeFile];
+
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
+        if ($projectName !== null) {
+            $command[] = '-p';
+            $command[] = $projectName;
+        }
+
+        $command[] = 'up';
+        $command[] = '-d';
+        $command[] = '--build';
+
+        $process = new Process($command);
+        $process->setTimeout(600);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException(
+                "Failed to rebuild Docker Compose services: {$process->getErrorOutput()}"
+            );
+        }
+    }
+
+    /**
      * Stop Docker Compose services
      *
      * @param string $composeFile Path to docker-compose.yml
