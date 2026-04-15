@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Cortex\Output;
 
 use Cortex\Config\Schema\CommandDefinition;
+use Symfony\Component\Console\Output\ConsoleSectionOutput;
+use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class OutputFormatter
 {
     // Gigabyte Brand Colors
-    private const COLOR_TEAL = '#2ED9C3';    // Pantone 3255C
-    private const COLOR_PURPLE = '#7D55C7';  // Pantone 2665C
-    private const COLOR_SMOKE = '#D2DCE5';   // Pantone 5455C
+    public const COLOR_TEAL = '#2ED9C3';    // Pantone 3255C
+    public const COLOR_PURPLE = '#7D55C7';  // Pantone 2665C
+    public const COLOR_SMOKE = '#D2DCE5';   // Pantone 5455C
+
+    private const SERVICE_NAME_PAD = 2;
 
     public function __construct(
         private readonly OutputInterface $output,
@@ -22,6 +26,50 @@ class OutputFormatter
     public function getOutput(): OutputInterface
     {
         return $this->output;
+    }
+
+    /**
+     * Create a rewritable console section (for live-updating output).
+     * Falls back to null if the output doesn't support sections.
+     */
+    public function createSection(): ?ConsoleSectionOutput
+    {
+        if ($this->output instanceof ConsoleOutput) {
+            return $this->output->section();
+        }
+
+        return null;
+    }
+
+    /**
+     * Render the live container status block into a console section.
+     *
+     * @param ConsoleSectionOutput $section
+     * @param array<string, array{status: string, elapsed: float|null, log: string|null}> $services
+     */
+    public function renderServiceStatus(ConsoleSectionOutput $section, array $services): void
+    {
+        $maxNameLen = 0;
+        foreach ($services as $name => $_) {
+            $maxNameLen = max($maxNameLen, mb_strlen($name));
+        }
+        $nameWidth = $maxNameLen + self::SERVICE_NAME_PAD;
+
+        $lines = [];
+        foreach ($services as $name => $info) {
+            $paddedName = str_pad($name, $nameWidth);
+            $statusText = $this->formatStatus($info['status'], $info['elapsed']);
+            $lines[] = "  <fg=" . self::COLOR_SMOKE . ">{$paddedName}</>{$statusText}";
+
+            if ($info['log'] !== null && !$this->isHealthyStatus($info['status'])) {
+                $truncatedLog = mb_strlen($info['log']) > 80
+                    ? mb_substr($info['log'], 0, 77) . '...'
+                    : $info['log'];
+                $lines[] = "  " . str_repeat(' ', $nameWidth) . "<fg=" . self::COLOR_SMOKE . ">{$truncatedLog}</>";
+            }
+        }
+
+        $section->overwrite($lines);
     }
 
     public function section(string $title): void
@@ -80,5 +128,25 @@ class OutputFormatter
             $this->output->writeln(sprintf('<fg=' . self::COLOR_TEAL . '>➜ Application: %s</>', $appUrl));
         }
         $this->output->writeln('');
+    }
+
+    private function formatStatus(string $status, ?float $elapsed): string
+    {
+        $color = match ($status) {
+            'unhealthy', 'exited', 'restarting' => 'red',
+            default => self::COLOR_PURPLE,
+        };
+
+        $label = $status;
+        if ($this->isHealthyStatus($status) && $elapsed !== null) {
+            $label = sprintf('%s (%.1fs)', $status, $elapsed);
+        }
+
+        return "<fg={$color}>{$label}</>";
+    }
+
+    private function isHealthyStatus(string $status): bool
+    {
+        return $status === 'healthy' || $status === 'running';
     }
 }

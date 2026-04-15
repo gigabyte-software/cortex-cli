@@ -9,11 +9,11 @@ final class RecommendedCommands
     /** @var array<string, array{description: string, example: string}> */
     public const COMMANDS = [
         'clear' => [
-            'description' => 'Sync environment after switching branches (install deps, run migrations, clear caches)',
+            'description' => 'clear caches, install deps, run migrations',
             'example' => 'composer install && php artisan migrate && php artisan optimize:clear',
         ],
         'fresh' => [
-            'description' => 'Reset database from scratch (drop tables, re-migrate, re-seed, install deps, clear caches)',
+            'description' => 'drop tables, re-migrate, re-seed, install deps, clear caches',
             'example' => 'composer install && php artisan migrate:fresh --seed && php artisan optimize:clear',
         ],
     ];

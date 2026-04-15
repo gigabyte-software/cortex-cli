@@ -60,6 +60,12 @@ class UpCommand extends Command
         try {
             $formatter->welcome();
 
+            // Check Docker daemon is running
+            if (!$this->dockerCompose->isDockerRunning()) {
+                $formatter->error('You must start Docker before running cortex up');
+                return Command::FAILURE;
+            }
+
             // Check if already running
             if ($this->lockFile->exists()) {
                 $formatter->error('Environment already running in this directory.');
@@ -72,6 +78,18 @@ class UpCommand extends Command
             $config = $this->configLoader->load($configPath);
 
             $formatter->info("Loaded configuration from: $configPath");
+
+            // Show config warnings after loading
+            $app = $this->getApplication();
+            if ($app instanceof \Cortex\Application) {
+                $warnings = $app->getConfigWarnings();
+                if ($warnings !== []) {
+                    $formatter->getOutput()->writeln('');
+                    foreach ($warnings as $warning) {
+                        $formatter->warning("  ⚠ $warning");
+                    }
+                }
+            }
 
             // Determine namespace early (needed for stale container detection)
             $namespace = $this->resolveNamespace($input, $formatter);

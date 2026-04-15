@@ -10,6 +10,105 @@ use Symfony\Component\Process\Process;
 class DockerCompose
 {
     /**
+     * Check if the Docker daemon is running and accessible.
+     */
+    public function isDockerRunning(): bool
+    {
+        $process = new Process(['docker', 'info']);
+        $process->setTimeout(10);
+        $process->run();
+
+        return $process->isSuccessful();
+    }
+
+    /**
+     * Check if Docker images already exist for this compose project.
+     * Returns false on first run when everything needs to be built/pulled.
+     */
+    public function hasExistingImages(string $composeFile, ?string $projectName = null): bool
+    {
+        $command = ['docker-compose', '-f', $composeFile];
+
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
+        if ($projectName !== null) {
+            $command[] = '-p';
+            $command[] = $projectName;
+        }
+
+        $command[] = 'config';
+        $command[] = '--images';
+
+        $process = new Process($command);
+        $process->setTimeout(15);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            return true;
+        }
+
+        $imageNames = array_filter(explode("\n", trim($process->getOutput())));
+        if (empty($imageNames)) {
+            return true;
+        }
+
+        foreach ($imageNames as $image) {
+            $inspect = new Process(['docker', 'image', 'inspect', $image]);
+            $inspect->setTimeout(5);
+            $inspect->run();
+
+            if (!$inspect->isSuccessful()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Get the latest log line from a service container.
+     */
+    public function getLatestLogLine(string $composeFile, string $service, ?string $projectName = null): ?string
+    {
+        $command = ['docker-compose', '-f', $composeFile];
+
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
+        if ($projectName !== null) {
+            $command[] = '-p';
+            $command[] = $projectName;
+        }
+
+        $command[] = 'logs';
+        $command[] = '--tail=1';
+        $command[] = '--no-log-prefix';
+        $command[] = $service;
+
+        $process = new Process($command);
+        $process->setTimeout(5);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            return null;
+        }
+
+        $line = trim($process->getOutput());
+        if ($line === '') {
+            $line = trim($process->getErrorOutput());
+        }
+
+        return $line !== '' ? $line : null;
+    }
+
+    /**
      * Start Docker Compose services
      *
      * @param string $composeFile Path to docker-compose.yml
@@ -39,31 +138,6 @@ class DockerCompose
             $command[] = '--build';
         }
 
-        // #region agent log
-        try {
-            $logPath = '/home/kryten/gigabyte/projects/.cursor/debug-ae03ef.log';
-            $logEntry = [
-                'sessionId' => 'ae03ef',
-                'runId' => 'pre-fix',
-                'hypothesisId' => 'A',
-                'location' => 'src/Docker/DockerCompose.php:up:before',
-                'message' => 'DockerCompose up starting',
-                'data' => [
-                    'composeFile' => $composeFile,
-                    'projectName' => $projectName,
-                    'cwd' => getcwd() ?: null,
-                    'home' => getenv('HOME') ?: null,
-                    'dockerConfig' => getenv('DOCKER_CONFIG') ?: null,
-                    'command' => $command,
-                ],
-                'timestamp' => (int) (microtime(true) * 1000),
-            ];
-            @file_put_contents($logPath, json_encode($logEntry) . "\n", FILE_APPEND);
-        } catch (\Throwable) {
-            // Best-effort debug logging; ignore all failures
-        }
-        // #endregion agent log
-
         $effectiveTimeout = $timeout ?? ($rebuild ? 1500 : 300);
 
         $process = new Process($command);
@@ -78,28 +152,6 @@ class DockerCompose
         }
 
         if (!$process->isSuccessful()) {
-            // #region agent log
-            try {
-                $logPath = '/home/kryten/gigabyte/projects/.cursor/debug-ae03ef.log';
-                $logEntry = [
-                    'sessionId' => 'ae03ef',
-                    'runId' => 'pre-fix',
-                    'hypothesisId' => 'A',
-                    'location' => 'src/Docker/DockerCompose.php:up:after',
-                    'message' => 'DockerCompose up failed',
-                    'data' => [
-                        'exitCode' => $process->getExitCode(),
-                        'errorOutput' => $process->getErrorOutput(),
-                        'standardOutput' => $process->getOutput(),
-                    ],
-                    'timestamp' => (int) (microtime(true) * 1000),
-                ];
-                @file_put_contents($logPath, json_encode($logEntry) . "\n", FILE_APPEND);
-            } catch (\Throwable) {
-                // Best-effort debug logging; ignore all failures
-            }
-            // #endregion agent log
-
             throw new \RuntimeException(
                 "Failed to start Docker Compose services: {$process->getErrorOutput()}"
             );
