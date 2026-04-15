@@ -49,10 +49,17 @@ class Application extends BaseApplication
 {
     private const SKIP_WARNINGS_FOR = [
         'init', 'self-update', 'list', 'help', '_complete', 'completion', 'style-demo',
+        'up', 'rebuild',
     ];
 
     /** @var list<string> */
     private array $configWarnings = [];
+
+    /** @return list<string> */
+    public function getConfigWarnings(): array
+    {
+        return $this->configWarnings;
+    }
     protected function getDefaultCommands(): array
     {
         $defaultCommands = [

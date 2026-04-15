@@ -79,6 +79,14 @@ class UpCommand extends Command
 
             $formatter->info("Loaded configuration from: $configPath");
 
+            // Show config warnings after loading
+            $app = $this->getApplication();
+            if ($app instanceof \Cortex\Application) {
+                foreach ($app->getConfigWarnings() as $warning) {
+                    $formatter->warning("  ⚠ $warning");
+                }
+            }
+
             // Determine namespace early (needed for stale container detection)
             $namespace = $this->resolveNamespace($input, $formatter);
 

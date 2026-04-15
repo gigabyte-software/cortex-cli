@@ -52,6 +52,17 @@ class RebuildCommand extends Command
 
             $configPath = $this->configLoader->findConfigFile();
             $config = $this->configLoader->load($configPath);
+
+            $formatter->info("Loaded configuration from: $configPath");
+
+            // Show config warnings after loading
+            $app = $this->getApplication();
+            if ($app instanceof \Cortex\Application) {
+                foreach ($app->getConfigWarnings() as $warning) {
+                    $formatter->warning("  ⚠ $warning");
+                }
+            }
+
             $startTime = microtime(true);
 
             // Read namespace from lock file if present
