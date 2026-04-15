@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.6.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.5.0...v2.6.0) (2026-04-15)
+
+
+### Bug Fixes
+
+* add blank line before config warnings in up and rebuild ([ceb055f](https://github.com/gigabyte-software/cortex-cli/commit/ceb055f3ebad853387f6a5acefbaca4f02d60043))
+* move config warnings to appear after config loading in up/rebuild ([4a4230a](https://github.com/gigabyte-software/cortex-cli/commit/4a4230af34c4597e780483bfc73657eea34e8444))
+* satisfy PHPStan in DockerCompose and SetupOrchestrator tests ([84bc5f9](https://github.com/gigabyte-software/cortex-cli/commit/84bc5f99c5733a7d761268f3d5ce078ec4edec24))
+* tighten service status spacing and use purple for all non-error statuses ([07b1b15](https://github.com/gigabyte-software/cortex-cli/commit/07b1b157ee808ee9ffc9cea8b878b785c6e960e6))
+
+
+### Features
+
+* improve Docker startup UX with daemon detection, first-run messaging, and live container status ([69e2dbb](https://github.com/gigabyte-software/cortex-cli/commit/69e2dbb40018c1b47c550268efef18089d6ce4a3))
+* shorten recommended command descriptions in config warnings ([88df8d1](https://github.com/gigabyte-software/cortex-cli/commit/88df8d119b1fefa074b66688caf60186c482a1e6))
+
 # [2.5.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.4.1...v2.5.0) (2026-04-15)
 
 
