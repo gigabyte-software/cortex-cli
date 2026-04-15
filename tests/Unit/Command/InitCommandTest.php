@@ -12,23 +12,43 @@ use Symfony\Component\Console\Tester\CommandTester;
 class InitCommandTest extends TestCase
 {
     private string $testDir;
+    private string $testHomeDir;
+    private string|false $originalHome;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Create a temporary directory for testing
+        // Create a temporary directory for testing (project directory)
         $this->testDir = sys_get_temp_dir() . '/cortex_init_test_' . uniqid();
         mkdir($this->testDir, 0755, true);
+
+        // Create a temporary home directory for testing
+        $this->testHomeDir = sys_get_temp_dir() . '/cortex_home_test_' . uniqid();
+        mkdir($this->testHomeDir, 0755, true);
+
+        // Save original HOME and set test home directory
+        $this->originalHome = getenv('HOME');
+        putenv('HOME=' . $this->testHomeDir);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
 
-        // Clean up test directory
+        // Restore original HOME
+        if ($this->originalHome !== false) {
+            putenv('HOME=' . $this->originalHome);
+        } else {
+            putenv('HOME');
+        }
+
+        // Clean up test directories
         if (is_dir($this->testDir)) {
             $this->recursiveRemoveDirectory($this->testDir);
+        }
+        if (is_dir($this->testHomeDir)) {
+            $this->recursiveRemoveDirectory($this->testHomeDir);
         }
     }
 
@@ -102,20 +122,46 @@ class InitCommandTest extends TestCase
         $this->assertFileDoesNotExist($this->testDir . '/cortex.yml');
     }
 
-    public function testInitFailsWhenAlreadyInitialized(): void
+    public function testInitWithSkipClaudeOption(): void
     {
-        // Create .cortex directory and .claude/rules/cortex.md (fully initialized)
-        mkdir($this->testDir . '/.cortex', 0755, true);
-        mkdir($this->testDir . '/.claude/rules', 0755, true);
-        file_put_contents($this->testDir . '/.claude/rules/cortex.md', 'existing');
-
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
 
+        $tester->execute(['--skip-claude' => true], ['interactive' => false]);
+
+        $this->assertEquals(0, $tester->getStatusCode());
+
+        // Project files should be created
+        $this->assertDirectoryExists($this->testDir . '/.cortex');
+        $this->assertFileExists($this->testDir . '/cortex.yml');
+
+        // User-level claude files should NOT be created
+        $this->assertFileDoesNotExist($this->testHomeDir . '/.claude/CLAUDE.md');
+        $this->assertFileDoesNotExist($this->testHomeDir . '/.claude/rules/cortex.md');
+
+        // Output should mention skipping
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('Skipped ~/.claude files', $output);
+    }
+
+    public function testInitIsIdempotent(): void
+    {
+        // Run init first time
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
         $tester->execute([], ['interactive' => false]);
 
-        $this->assertEquals(1, $tester->getStatusCode());
-        $this->assertStringContainsString('already initialized', $tester->getDisplay());
+        $this->assertEquals(0, $tester->getStatusCode());
+
+        // Run init second time - should succeed with "up to date" messages
+        $command2 = new InitCommand();
+        $tester2 = $this->createCommandTester($command2);
+        $tester2->execute([], ['interactive' => false]);
+
+        $this->assertEquals(0, $tester2->getStatusCode());
+        $output = $tester2->getDisplay();
+        $this->assertStringContainsString('already exists', $output);
+        $this->assertStringContainsString('up to date', $output);
     }
 
     public function testInitWithForceOverwrites(): void
@@ -139,25 +185,34 @@ class InitCommandTest extends TestCase
         $this->assertStringNotContainsString('old content', $content);
     }
 
-    public function testInitFailsWhenCortexYmlExistsWithoutForce(): void
+    public function testInitUpdatesClaudeFilesWhenCortexYmlExists(): void
     {
-        // Create cortex.yml and .claude/rules/cortex.md (fully initialized)
+        // Create cortex.yml with custom content and outdated claude files
         file_put_contents($this->testDir . '/cortex.yml', 'existing content');
-        mkdir($this->testDir . '/.claude/rules', 0755, true);
-        file_put_contents($this->testDir . '/.claude/rules/cortex.md', 'existing');
+        mkdir($this->testHomeDir . '/.claude/rules', 0755, true);
+        file_put_contents($this->testHomeDir . '/.claude/rules/cortex.md', 'outdated content');
 
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
 
         $tester->execute([], ['interactive' => false]);
 
-        $this->assertEquals(1, $tester->getStatusCode());
-        $this->assertStringContainsString('already initialized', $tester->getDisplay());
+        // Should succeed and update claude files
+        $this->assertEquals(0, $tester->getStatusCode());
+
+        // cortex.yml should not be overwritten (no --force)
+        $cortexYmlContent = file_get_contents($this->testDir . '/cortex.yml');
+        $this->assertIsString($cortexYmlContent);
+        $this->assertStringContainsString('existing content', $cortexYmlContent);
+
+        // claude files should be updated
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('Updated ~/.claude/rules/cortex.md', $output);
     }
 
     public function testInitSucceedsWhenClaudeRulesMissing(): void
     {
-        // Create cortex.yml but not .claude/rules/cortex.md
+        // Create cortex.yml but not ~/.claude/rules/cortex.md
         file_put_contents($this->testDir . '/cortex.yml', 'existing content');
 
         $command = new InitCommand();
@@ -167,7 +222,7 @@ class InitCommandTest extends TestCase
         $tester->execute([], ['interactive' => false]);
 
         $this->assertEquals(0, $tester->getStatusCode());
-        $this->assertFileExists($this->testDir . '/.claude/rules/cortex.md');
+        $this->assertFileExists($this->testHomeDir . '/.claude/rules/cortex.md');
     }
 
     public function testInitDisplaysSuccessMessage(): void
@@ -191,8 +246,8 @@ class InitCommandTest extends TestCase
         $tester->execute([], ['interactive' => false]);
 
         $this->assertEquals(0, $tester->getStatusCode());
-        $this->assertDirectoryExists($this->testDir . '/.claude');
-        $this->assertDirectoryExists($this->testDir . '/.claude/rules');
+        $this->assertDirectoryExists($this->testHomeDir . '/.claude');
+        $this->assertDirectoryExists($this->testHomeDir . '/.claude/rules');
     }
 
     public function testInitCreatesClaudeRulesCortexMd(): void
@@ -202,9 +257,9 @@ class InitCommandTest extends TestCase
 
         $tester->execute([], ['interactive' => false]);
 
-        $this->assertFileExists($this->testDir . '/.claude/rules/cortex.md');
+        $this->assertFileExists($this->testHomeDir . '/.claude/rules/cortex.md');
 
-        $content = file_get_contents($this->testDir . '/.claude/rules/cortex.md');
+        $content = file_get_contents($this->testHomeDir . '/.claude/rules/cortex.md');
         $this->assertIsString($content, 'Failed to read cortex.md');
         assert(is_string($content)); // Type narrowing for PHPStan
 
@@ -231,7 +286,7 @@ class InitCommandTest extends TestCase
 
         $tester->execute([], ['interactive' => false]);
 
-        $content = file_get_contents($this->testDir . '/.claude/rules/cortex.md');
+        $content = file_get_contents($this->testHomeDir . '/.claude/rules/cortex.md');
         $this->assertIsString($content, 'Failed to read cortex.md');
         assert(is_string($content)); // Type narrowing for PHPStan
 
@@ -263,7 +318,7 @@ class InitCommandTest extends TestCase
 
     public function testInitAllowsRerunWhenClaudeRulesMissing(): void
     {
-        // Create .cortex directory but not .claude/rules/cortex.md
+        // Create .cortex directory but not ~/.claude/rules/cortex.md
         mkdir($this->testDir . '/.cortex', 0755, true);
         file_put_contents($this->testDir . '/cortex.yml', 'version: "1.0"');
 
@@ -274,37 +329,57 @@ class InitCommandTest extends TestCase
         $tester->execute([], ['interactive' => false]);
 
         $this->assertEquals(0, $tester->getStatusCode());
-        $this->assertFileExists($this->testDir . '/.claude/rules/cortex.md');
+        $this->assertFileExists($this->testHomeDir . '/.claude/rules/cortex.md');
     }
 
-    public function testInitSkipsClaudeRulesWhenAlreadyExists(): void
+    public function testInitSkipsClaudeRulesWhenUpToDate(): void
     {
         // Run init first
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
         $tester->execute([], ['interactive' => false]);
 
-        // Create a marker in the file
-        $cortexMdPath = $this->testDir . '/.claude/rules/cortex.md';
-        file_put_contents($cortexMdPath, 'CUSTOM_MARKER_CONTENT');
-
-        // Run init again (without --force)
+        // Run init again (without --force) - should show "up to date"
         $command2 = new InitCommand();
         $tester2 = $this->createCommandTester($command2);
         $tester2->execute([], ['interactive' => false]);
 
-        // File should still contain the marker (not overwritten)
+        $output = $tester2->getDisplay();
+        $this->assertStringContainsString('is up to date', $output);
+    }
+
+    public function testInitUpdatesClaudeRulesWhenContentChanged(): void
+    {
+        // Run init first
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+        $tester->execute([], ['interactive' => false]);
+
+        // Modify the file to simulate outdated content
+        $cortexMdPath = $this->testHomeDir . '/.claude/rules/cortex.md';
+        file_put_contents($cortexMdPath, 'OLD_CONTENT_THAT_DIFFERS');
+
+        // Run init again - should update the file
+        $command2 = new InitCommand();
+        $tester2 = $this->createCommandTester($command2);
+        $tester2->execute([], ['interactive' => false]);
+
+        $output = $tester2->getDisplay();
+        $this->assertStringContainsString('Updated ~/.claude/rules/cortex.md', $output);
+
+        // Verify content was updated
         $content = file_get_contents($cortexMdPath);
         $this->assertIsString($content);
         assert(is_string($content));
-        $this->assertStringContainsString('CUSTOM_MARKER_CONTENT', $content);
+        $this->assertStringNotContainsString('OLD_CONTENT_THAT_DIFFERS', $content);
+        $this->assertStringContainsString('## Shared Step:', $content);
     }
 
     public function testInitForceOverwritesClaudeRules(): void
     {
-        // Create existing .claude/rules/cortex.md
-        mkdir($this->testDir . '/.claude/rules', 0755, true);
-        file_put_contents($this->testDir . '/.claude/rules/cortex.md', 'old content');
+        // Create existing ~/.claude/rules/cortex.md
+        mkdir($this->testHomeDir . '/.claude/rules', 0755, true);
+        file_put_contents($this->testHomeDir . '/.claude/rules/cortex.md', 'old content');
 
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
@@ -313,7 +388,7 @@ class InitCommandTest extends TestCase
 
         $this->assertEquals(0, $tester->getStatusCode());
 
-        $content = file_get_contents($this->testDir . '/.claude/rules/cortex.md');
+        $content = file_get_contents($this->testHomeDir . '/.claude/rules/cortex.md');
         $this->assertIsString($content, 'Failed to read cortex.md');
         assert(is_string($content));
         $this->assertStringNotContainsString('old content', $content);
@@ -328,7 +403,7 @@ class InitCommandTest extends TestCase
         $tester->execute([], ['interactive' => false]);
 
         $output = $tester->getDisplay();
-        $this->assertStringContainsString('.claude/rules/cortex.md', $output);
+        $this->assertStringContainsString('~/.claude/rules/cortex.md', $output);
     }
 
     public function testInitCreatesClaudeMd(): void
@@ -338,9 +413,9 @@ class InitCommandTest extends TestCase
 
         $tester->execute([], ['interactive' => false]);
 
-        $this->assertFileExists($this->testDir . '/.claude/CLAUDE.md');
+        $this->assertFileExists($this->testHomeDir . '/.claude/CLAUDE.md');
 
-        $content = file_get_contents($this->testDir . '/.claude/CLAUDE.md');
+        $content = file_get_contents($this->testHomeDir . '/.claude/CLAUDE.md');
         $this->assertIsString($content, 'Failed to read CLAUDE.md');
         assert(is_string($content));
 
@@ -355,15 +430,15 @@ class InitCommandTest extends TestCase
     public function testInitAppendsToExistingClaudeMd(): void
     {
         // Create existing CLAUDE.md without cortex section
-        mkdir($this->testDir . '/.claude', 0755, true);
-        file_put_contents($this->testDir . '/.claude/CLAUDE.md', "# My Project\n\nExisting content here.");
+        mkdir($this->testHomeDir . '/.claude', 0755, true);
+        file_put_contents($this->testHomeDir . '/.claude/CLAUDE.md', "# My Project\n\nExisting content here.");
 
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
 
         $tester->execute([], ['interactive' => false]);
 
-        $content = file_get_contents($this->testDir . '/.claude/CLAUDE.md');
+        $content = file_get_contents($this->testHomeDir . '/.claude/CLAUDE.md');
         $this->assertIsString($content, 'Failed to read CLAUDE.md');
         assert(is_string($content));
 
@@ -384,28 +459,48 @@ class InitCommandTest extends TestCase
         $this->assertLessThan($cortexPos, $existingPos, 'Existing content should come before Cortex section');
     }
 
-    public function testInitSkipsClaudeMdWhenCortexSectionExists(): void
+    public function testInitSkipsClaudeMdWhenCortexSectionUpToDate(): void
     {
-        // Create existing CLAUDE.md with cortex section
-        mkdir($this->testDir . '/.claude', 0755, true);
+        // Run init first to create the file with correct content
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+        $tester->execute([], ['interactive' => false]);
+
+        // Run init again - should show "up to date"
+        $command2 = new InitCommand();
+        $tester2 = $this->createCommandTester($command2);
+        $tester2->execute([], ['interactive' => false]);
+
+        $output = $tester2->getDisplay();
+        $this->assertStringContainsString('Cortex section is up to date', $output);
+    }
+
+    public function testInitUpdatesClaudeMdWhenCortexSectionChanged(): void
+    {
+        // Create existing CLAUDE.md with outdated cortex section
+        mkdir($this->testHomeDir . '/.claude', 0755, true);
         $existingContent = "# My Project\n\n<!-- CORTEX START -->\nOld cortex content\n<!-- CORTEX END -->";
-        file_put_contents($this->testDir . '/.claude/CLAUDE.md', $existingContent);
+        file_put_contents($this->testHomeDir . '/.claude/CLAUDE.md', $existingContent);
 
         $command = new InitCommand();
         $tester = $this->createCommandTester($command);
 
         $tester->execute([], ['interactive' => false]);
 
-        $content = file_get_contents($this->testDir . '/.claude/CLAUDE.md');
+        $content = file_get_contents($this->testHomeDir . '/.claude/CLAUDE.md');
         $this->assertIsString($content, 'Failed to read CLAUDE.md');
         assert(is_string($content));
 
-        // Check it preserved the old cortex content (not updated)
-        $this->assertStringContainsString('Old cortex content', $content);
+        // Check the cortex section was updated
+        $this->assertStringNotContainsString('Old cortex content', $content);
+        $this->assertStringContainsString('cortex up', $content);
 
-        // Check output mentions it was skipped
+        // Check it preserved user content outside the markers
+        $this->assertStringContainsString('# My Project', $content);
+
+        // Check output mentions it was updated
         $output = $tester->getDisplay();
-        $this->assertStringContainsString('already has Cortex section', $output);
+        $this->assertStringContainsString('Updated Cortex section', $output);
     }
 
     public function testInitSuccessMessageIncludesClaudeMd(): void
@@ -416,7 +511,7 @@ class InitCommandTest extends TestCase
         $tester->execute([], ['interactive' => false]);
 
         $output = $tester->getDisplay();
-        $this->assertStringContainsString('.claude/CLAUDE.md', $output);
+        $this->assertStringContainsString('~/.claude/CLAUDE.md', $output);
     }
 
     private function createCommandTester(InitCommand $command): CommandTester

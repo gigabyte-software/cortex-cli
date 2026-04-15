@@ -65,28 +65,22 @@ class ContainerExecutor
      */
     public function execInteractive(string $composeFile, string $service, string $command, ?string $projectName = null): int
     {
-        // For interactive commands, use passthru to maintain TTY
-        $escapedFile = escapeshellarg($composeFile);
-        $escapedService = escapeshellarg($service);
+        $cmd = ['docker-compose', '-f', $composeFile];
 
-        // Add override file if it exists
         $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
-        $overrideFlag = '';
         if (file_exists($overrideFile)) {
-            $escapedOverride = escapeshellarg($overrideFile);
-            $overrideFlag = " -f $escapedOverride";
+            $cmd[] = '-f';
+            $cmd[] = $overrideFile;
         }
 
-        $projectFlag = '';
         if ($projectName !== null) {
-            $escapedProject = escapeshellarg($projectName);
-            $projectFlag = " -p $escapedProject";
+            $cmd[] = '-p';
+            $cmd[] = $projectName;
         }
 
-        $resultCode = 0;
-        passthru("docker-compose -f $escapedFile$overrideFlag$projectFlag exec $escapedService $command", $resultCode);
+        $cmd = array_merge($cmd, ['exec', $service, ...explode(' ', $command)]);
 
-        return $resultCode;
+        return $this->runWithTty($cmd);
     }
 
     /**
@@ -102,25 +96,55 @@ class ContainerExecutor
         array $envVars = [],
         ?string $projectName = null
     ): int {
-        // For interactive commands, use passthru to maintain TTY
-        $escapedFile = escapeshellarg($composeFile);
-        $escapedService = escapeshellarg($service);
+        $cmd = ['docker-compose', '-f', $composeFile];
 
-        $projectFlag = '';
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $cmd[] = '-f';
+            $cmd[] = $overrideFile;
+        }
+
         if ($projectName !== null) {
-            $escapedProject = escapeshellarg($projectName);
-            $projectFlag = " -p $escapedProject";
+            $cmd[] = '-p';
+            $cmd[] = $projectName;
         }
 
-        // Build environment variable flags
-        $envFlags = '';
+        $cmd[] = 'exec';
+
         foreach ($envVars as $key => $value) {
-            $envFlags .= ' -e ' . escapeshellarg($key . '=' . $value);
+            $cmd[] = '-e';
+            $cmd[] = $key . '=' . $value;
         }
 
-        $resultCode = 0;
-        passthru("docker-compose -f $escapedFile$projectFlag exec$envFlags $escapedService $command", $resultCode);
+        $cmd[] = $service;
+        $cmd[] = $command;
 
-        return $resultCode;
+        return $this->runWithTty($cmd);
+    }
+
+    /**
+     * Run a command with direct /dev/tty access for full interactive terminal support.
+     *
+     * @param list<string> $cmd
+     */
+    private function runWithTty(array $cmd): int
+    {
+        $ttyAvailable = file_exists('/dev/tty') && posix_isatty(STDIN);
+
+        if ($ttyAvailable) {
+            $process = proc_open($cmd, [
+                ['file', '/dev/tty', 'r'],
+                ['file', '/dev/tty', 'w'],
+                ['file', '/dev/tty', 'w'],
+            ], $pipes);
+        } else {
+            $process = proc_open($cmd, [STDIN, STDOUT, STDERR], $pipes);
+        }
+
+        if (!is_resource($process)) {
+            return 1;
+        }
+
+        return proc_close($process);
     }
 }

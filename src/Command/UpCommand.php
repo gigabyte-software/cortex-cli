@@ -13,6 +13,7 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
+use Cortex\Herd\HerdService;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
@@ -31,6 +32,7 @@ class UpCommand extends Command
         private readonly PortOffsetManager $portOffsetManager,
         private readonly ComposeOverrideGenerator $overrideGenerator,
         private readonly DockerCompose $dockerCompose,
+        private readonly HerdService $herdService,
     ) {
         parent::__construct();
     }
@@ -43,8 +45,12 @@ class UpCommand extends Command
             ->addOption('namespace', null, InputOption::VALUE_REQUIRED, 'Custom container namespace prefix')
             ->addOption('port-offset', null, InputOption::VALUE_REQUIRED, 'Port offset to add to all exposed ports')
             ->addOption('avoid-conflicts', null, InputOption::VALUE_NONE, 'Automatically avoid container and port conflicts')
+            ->addOption('no-host-mapping', null, InputOption::VALUE_NONE, 'Do not expose container ports to the host')
             ->addOption('no-wait', null, InputOption::VALUE_NONE, 'Skip health checks')
-            ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands');
+            ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
+            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)')            
+            ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting')
+            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -76,31 +82,56 @@ class UpCommand extends Command
                 $this->cleanupStaleContainers($config, $formatter, $namespace);
             }
 
-            // Determine port offset
-            $portOffset = $this->resolvePortOffset($input, $config->docker->composeFile, $formatter);
+            // Determine port offset and host mapping
+            $noHostMapping = $input->getOption('no-host-mapping');
+            $portOffset = $noHostMapping ? 0 : $this->resolvePortOffset($input, $config->docker->composeFile, $formatter);
 
-            // Generate override file if port offset is needed or if using namespace
+            if ($noHostMapping) {
+                $formatter->info('Host port mapping disabled - containers will not expose ports');
+            }
+
+            // Generate override file if port offset is needed, using namespace, or no host mapping
             // (need to prefix explicit container_name fields to avoid conflicts)
-            $needsOverride = $portOffset > 0 || $namespace !== null;
+            $needsOverride = $portOffset > 0 || $namespace !== null || $noHostMapping;
             if ($needsOverride) {
-                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace);
+                $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace, $noHostMapping);
+            }
+
+            // Stop Herd services if requested (frees ports 80/443 for Docker)
+            $herdStopped = false;
+            if ($input->getOption('stop-herd')) {
+                if (!$this->herdService->isInstalled()) {
+                    $formatter->warning('Herd is not installed — skipping --stop-herd');
+                } else {
+                    $formatter->info('Stopping Herd services...');
+                    $this->herdService->stop();
+                    $herdStopped = true;
+                    $formatter->info('Herd services stopped');
+                }
             }
 
             // Run setup through orchestrator
+            $timeoutOption = $input->getOption('timeout');
+            $timeout = $timeoutOption !== null ? (int) $timeoutOption : null;
+
             $result = $this->setupOrchestrator->setup(
                 $config,
                 $input->getOption('no-wait'),
                 $input->getOption('skip-init'),
                 $namespace,
-                $portOffset
+                $portOffset,
+                $input->getOption('rebuild'),
+                $timeout
             );
 
-            // Write lock file if we generated an override file
-            if ($needsOverride) {
+            // Write lock file if we generated an override file or stopped Herd
+            if ($needsOverride || $herdStopped) {
                 $lockData = new LockFileData(
                     namespace: $namespace,
                     portOffset: $portOffset > 0 ? $portOffset : null,
-                    startedAt: date('c')
+                    startedAt: date('c'),
+                    noHostMapping: $noHostMapping,
+                    herdStopped: $herdStopped,
                 );
                 $this->lockFile->write($lockData);
                 $output->writeln('');

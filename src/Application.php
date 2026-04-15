@@ -8,14 +8,18 @@ use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
 use Cortex\Command\RebuildCommand;
+use Cortex\Command\LogsCommand;
 use Cortex\Command\ReviewCommand;
+use Cortex\Command\SecureCommand;
 use Cortex\Command\SelfUpdateCommand;
 use Cortex\Command\ShellCommand;
 use Cortex\Command\ShowUrlCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
-use Cortex\Command\N8nExportCommand;
+use Cortex\Command\N8n\ExportCommand;
+use Cortex\Command\N8n\ImportCommand;
+use Cortex\Command\N8n\NormaliseCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\ConfigWarningChecker;
 use Cortex\Config\LockFile;
@@ -26,8 +30,10 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
+use Cortex\Herd\HerdService;
 use Cortex\Executor\HostCommandExecutor;
 use Cortex\Git\GitRepositoryService;
+use Cortex\Laravel\LaravelLogParser;
 use Cortex\Laravel\LaravelService;
 use Cortex\Orchestrator\CommandOrchestrator;
 use Cortex\Orchestrator\SetupOrchestrator;
@@ -65,7 +71,7 @@ class Application extends BaseApplication
 
     public function __construct()
     {
-        parent::__construct('Cortex CLI', '1.9.0');
+        parent::__construct('Cortex CLI', '2.4.1');
 
         // Simple dependency injection
         $configValidator = new ConfigValidator();
@@ -80,6 +86,7 @@ class Application extends BaseApplication
         $namespaceResolver = new NamespaceResolver();
         $portOffsetManager = new PortOffsetManager();
         $overrideGenerator = new ComposeOverrideGenerator();
+        $herdService = new HerdService();
 
         // Create output formatter for orchestrators
         $consoleOutput = new ConsoleOutput();
@@ -98,6 +105,7 @@ class Application extends BaseApplication
         // Create Git and Laravel services
         $gitRepositoryService = new GitRepositoryService();
         $laravelService = new LaravelService($containerExecutor);
+        $logParser = new LaravelLogParser();
 
         // Register built-in commands (these take precedence over custom commands)
         $this->add(new InitCommand());
@@ -108,13 +116,15 @@ class Application extends BaseApplication
             $namespaceResolver,
             $portOffsetManager,
             $overrideGenerator,
-            $dockerCompose
+            $dockerCompose,
+            $herdService
         ));
         $this->add(new DownCommand(
             $configLoader,
             $dockerCompose,
             $lockFile,
-            $overrideGenerator
+            $overrideGenerator,
+            $herdService
         ));
         $this->add(new ReviewCommand(
             $configLoader,
@@ -134,12 +144,20 @@ class Application extends BaseApplication
             $containerExecutor,
             $lockFile
         ));
+        $this->add(new LogsCommand(
+            $configLoader,
+            $containerExecutor,
+            $lockFile,
+            $laravelService,
+            $logParser
+        ));
         $this->add(new SelfUpdateCommand());
         $this->add(new ShowUrlCommand(
             $configLoader,
             $lockFile,
             $portOffsetManager
         ));
+        $this->add(new SecureCommand($configLoader));
         $this->add(new StyleDemoCommand());
 
         // Create HTTP client for n8n export command
@@ -148,7 +166,17 @@ class Application extends BaseApplication
             'verify' => false,
         ]);
 
-        $this->add(new N8NExportCommand(
+        $this->add(new ExportCommand(
+            $configLoader,
+            $httpClient
+        ));
+
+        $this->add(new ImportCommand(
+            $configLoader,
+            $httpClient
+        ));
+
+        $this->add(new NormaliseCommand(
             $configLoader,
             $httpClient
         ));

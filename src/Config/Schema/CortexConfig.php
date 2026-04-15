@@ -14,6 +14,7 @@ readonly class CortexConfig
         public DockerConfig $docker,
         public SetupConfig $setup,
         public N8nConfig $n8n,
+        public SecretsConfig $secrets = new SecretsConfig(),
         public array $commands = [],
     ) {
     }

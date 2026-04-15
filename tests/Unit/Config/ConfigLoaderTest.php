@@ -73,4 +73,22 @@ class ConfigLoaderTest extends TestCase
         $this->assertEquals("echo 'Running tests'", $testCommand->command);
         $this->assertEquals('Run test suite', $testCommand->description);
     }
+
+    public function test_it_loads_default_secrets_config_when_not_specified(): void
+    {
+        $config = $this->loader->load(__DIR__ . '/../../fixtures/cortex.yml');
+
+        $this->assertEquals('env', $config->secrets->provider);
+        $this->assertEmpty($config->secrets->required);
+    }
+
+    public function test_it_loads_secrets_config(): void
+    {
+        $config = $this->loader->load(__DIR__ . '/../../fixtures/cortex-with-secrets.yml');
+
+        $this->assertEquals('env', $config->secrets->provider);
+        $this->assertCount(2, $config->secrets->required);
+        $this->assertEquals('NOVA_ACCOUNT_EMAIL', $config->secrets->required[0]);
+        $this->assertEquals('NOVA_LICENSE_KEY', $config->secrets->required[1]);
+    }
 }

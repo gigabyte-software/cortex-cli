@@ -6,6 +6,7 @@ namespace Cortex\Orchestrator;
 
 use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Config\Schema\CortexConfig;
+use Cortex\Config\Validator\SecretsValidator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\HealthChecker;
@@ -21,6 +22,7 @@ class SetupOrchestrator
         private readonly HostCommandExecutor $hostExecutor,
         private readonly HealthChecker $healthChecker,
         private readonly OutputFormatter $formatter,
+        private readonly SecretsValidator $secretsValidator = new SecretsValidator(),
     ) {
     }
 
@@ -41,9 +43,16 @@ class SetupOrchestrator
         bool $skipWait = false,
         bool $skipInit = false,
         ?string $namespace = null,
-        ?int $portOffset = null
+        ?int $portOffset = null,
+        bool $rebuild = false,
+        ?int $timeout = null
     ): array {
         $startTime = microtime(true);
+
+        // Validate required secrets are available
+        if (!empty($config->secrets->required)) {
+            $this->validateSecrets($config);
+        }
 
         // Phase 1: Pre-start commands
         if (!empty($config->setup->preStart)) {
@@ -51,7 +60,7 @@ class SetupOrchestrator
         }
 
         // Phase 2: Start Docker services
-        $this->startDockerServices($config->docker->composeFile, $namespace);
+        $this->startDockerServices($config->docker->composeFile, $namespace, $rebuild, $timeout);
 
         // Phase 3: Wait for services
         if (!$skipWait && !empty($config->docker->waitFor)) {
@@ -76,6 +85,27 @@ class SetupOrchestrator
     }
 
     /**
+     * Validate that all required secrets are available before setup proceeds
+     */
+    private function validateSecrets(CortexConfig $config): void
+    {
+        $this->formatter->section('Validating secrets');
+
+        $missing = $this->secretsValidator->validate($config->secrets);
+
+        if (!empty($missing)) {
+            $names = implode(', ', $missing);
+            $this->formatter->error("Missing required secrets: $names");
+            throw new \RuntimeException(
+                "Missing required secrets: $names. These must be set as environment variables."
+            );
+        }
+
+        $count = count($config->secrets->required);
+        $this->formatter->info("All $count required secret(s) available");
+    }
+
+    /**
      * Execute pre-start commands on host
      *
      * @param CommandDefinition[] $commands
@@ -92,7 +122,7 @@ class SetupOrchestrator
     /**
      * Start Docker Compose services
      */
-    private function startDockerServices(string $composeFile, ?string $namespace = null): void
+    private function startDockerServices(string $composeFile, ?string $namespace = null, bool $rebuild = false, ?int $timeout = null): void
     {
         $this->formatter->section('Starting Docker services');
 
@@ -100,7 +130,11 @@ class SetupOrchestrator
             $this->formatter->info("Using namespace: {$namespace}");
         }
 
-        $this->dockerCompose->up($composeFile, $namespace);
+        if ($rebuild) {
+            $this->formatter->info('Rebuilding Docker images...');
+        }
+
+        $this->dockerCompose->up($composeFile, $namespace, $rebuild, $timeout);
         $this->formatter->info('Docker services started');
     }
 

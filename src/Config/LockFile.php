@@ -48,7 +48,9 @@ class LockFile
         return new LockFileData(
             namespace: $data['namespace'] ?? null,
             portOffset: $data['port_offset'] ?? null,
-            startedAt: $data['started_at'] ?? date('c')
+            startedAt: $data['started_at'] ?? date('c'),
+            noHostMapping: $data['no_host_mapping'] ?? false,
+            herdStopped: $data['herd_stopped'] ?? false,
         );
     }
 
@@ -61,6 +63,8 @@ class LockFile
             'namespace' => $data->namespace,
             'port_offset' => $data->portOffset,
             'started_at' => $data->startedAt,
+            'no_host_mapping' => $data->noHostMapping,
+            'herd_stopped' => $data->herdStopped,
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
         file_put_contents($this->getLockFilePath(), $content);

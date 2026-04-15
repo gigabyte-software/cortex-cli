@@ -5,6 +5,153 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.4.0...v2.4.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* increase timeout when rebuilding and allow user to provide timout length ([6f18c82](https://github.com/gigabyte-software/cortex-cli/commit/6f18c82df5d1c060c4f056f2668f4a1bba2e2e30))
+
+# [2.4.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0...v2.4.0) (2026-03-31)
+
+
+### Features
+
+* **up:** add --rebuild option to force Docker image rebuilds ([0cb71b3](https://github.com/gigabyte-software/cortex-cli/commit/0cb71b35bbfb910b3ebab88afa90c50885b0a31e))
+
+# [2.3.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.2.0...v2.3.0) (2026-03-25)
+
+
+### Bug Fixes
+
+* correct PS1 escape sequences for Docker env var passthrough ([ec16ecb](https://github.com/gigabyte-software/cortex-cli/commit/ec16ecb04b9811a086318a5d4d33eef1cb415880))
+* remove unused mock setup that caused PHPStan error ([1d60c14](https://github.com/gigabyte-software/cortex-cli/commit/1d60c149f54ab70649409bcd77697e14fe8bb3ce))
+* remove unused mock setup that caused PHPStan error ([472b188](https://github.com/gigabyte-software/cortex-cli/commit/472b1885fbbf0aecfc9ec829b9237a08adf05af7))
+* use /dev/tty for interactive shell to preserve terminal for readline ([4dcf221](https://github.com/gigabyte-software/cortex-cli/commit/4dcf22130a8210df4c3a23665690cccdbbf2f1fb))
+* use direct bash invocation with Docker env var for TTY support ([2df8b2f](https://github.com/gigabyte-software/cortex-cli/commit/2df8b2fae82b7610ae76c0e5954f3e3e56be0a79))
+* use direct bash invocation with Docker env var for TTY support ([06ef303](https://github.com/gigabyte-software/cortex-cli/commit/06ef303528235617ac5ed88da8fe40056c15a09d))
+* use proc_open with direct FD inheritance for interactive shell ([38d2c4f](https://github.com/gigabyte-software/cortex-cli/commit/38d2c4f533980af80a85ace8f6e6b404050dd024))
+
+
+### Features
+
+* add Herd service management, cortex logs command, and shell TTY fix ([afa0779](https://github.com/gigabyte-software/cortex-cli/commit/afa0779c16a023d47d18aa2cbb6f91e71b9af548))
+* alpha changes by Chris ([d40e5a5](https://github.com/gigabyte-software/cortex-cli/commit/d40e5a589df1ad208044437a04d2ebcf334bf547))
+
+# [2.3.0-alpha.5](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.4...v2.3.0-alpha.5) (2026-03-15)
+
+
+### Bug Fixes
+
+* use /dev/tty for interactive shell to preserve terminal for readline ([4dcf221](https://github.com/gigabyte-software/cortex-cli/commit/4dcf22130a8210df4c3a23665690cccdbbf2f1fb))
+
+# [2.3.0-alpha.4](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.3...v2.3.0-alpha.4) (2026-03-15)
+
+
+### Bug Fixes
+
+* remove unused mock setup that caused PHPStan error ([1d60c14](https://github.com/gigabyte-software/cortex-cli/commit/1d60c149f54ab70649409bcd77697e14fe8bb3ce))
+* use direct bash invocation with Docker env var for TTY support ([06ef303](https://github.com/gigabyte-software/cortex-cli/commit/06ef303528235617ac5ed88da8fe40056c15a09d))
+* use proc_open with direct FD inheritance for interactive shell ([38d2c4f](https://github.com/gigabyte-software/cortex-cli/commit/38d2c4f533980af80a85ace8f6e6b404050dd024))
+
+# [2.3.0-alpha.3](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.2...v2.3.0-alpha.3) (2026-03-15)
+
+
+### Bug Fixes
+
+* remove unused mock setup that caused PHPStan error ([472b188](https://github.com/gigabyte-software/cortex-cli/commit/472b1885fbbf0aecfc9ec829b9237a08adf05af7))
+* use direct bash invocation with Docker env var for TTY support ([2df8b2f](https://github.com/gigabyte-software/cortex-cli/commit/2df8b2fae82b7610ae76c0e5954f3e3e56be0a79))
+
+# [2.3.0-alpha.2](https://github.com/gigabyte-software/cortex-cli/compare/v2.3.0-alpha.1...v2.3.0-alpha.2) (2026-03-15)
+
+
+### Bug Fixes
+
+* correct PS1 escape sequences for Docker env var passthrough ([ec16ecb](https://github.com/gigabyte-software/cortex-cli/commit/ec16ecb04b9811a086318a5d4d33eef1cb415880))
+
+# [2.3.0-alpha.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.2.0...v2.3.0-alpha.1) (2026-03-15)
+
+
+### Features
+
+* add Herd service management, cortex logs command, and shell TTY fix ([afa0779](https://github.com/gigabyte-software/cortex-cli/commit/afa0779c16a023d47d18aa2cbb6f91e71b9af548))
+
+# [2.2.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.1.0...v2.2.0) (2026-03-04)
+
+
+### Features
+
+* add secrets config ([209ea0d](https://github.com/gigabyte-software/cortex-cli/commit/209ea0d84101eaf270b23d057a000e5a02ff83da))
+
+# [2.1.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.0.0...v2.1.0) (2026-03-03)
+
+
+### Features
+
+* **commands:** add new 'n8n normalise' command ([5f3ba39](https://github.com/gigabyte-software/cortex-cli/commit/5f3ba399a0922f0042efd795d67c2a508510e800))
+* **commands:** add new 'n8n normalise' command ([c28dd61](https://github.com/gigabyte-software/cortex-cli/commit/c28dd61b3c55fde81e056db70b951f3679b176d4))
+
+# [2.0.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.13.0...v2.0.0) (2026-01-28)
+
+
+### Features
+
+* **init:** save Claude files to ~/.claude for user-wide configuration ([8263ea1](https://github.com/gigabyte-software/cortex-cli/commit/8263ea198db4589bb094f278122fa0d9f625a2c5))
+
+
+### BREAKING CHANGES
+
+* **init:** Claude files are now saved to ~/.claude/ instead of
+.claude/ in the project directory. Existing project-level files will
+not be migrated automatically.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+# [1.13.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.12.1...v1.13.0) (2026-01-28)
+
+
+### Features
+
+* show internal Docker URL when using --no-host-mapping with namespace ([adf4b11](https://github.com/gigabyte-software/cortex-cli/commit/adf4b11db81c9d6214a61cd629b5abd6608a40f5))
+
+## [1.12.1](https://github.com/gigabyte-software/cortex-cli/compare/v1.12.0...v1.12.1) (2026-01-27)
+
+
+### Bug Fixes
+
+* use !reset tag instead of !override for empty ports in compose override ([c1a3f6f](https://github.com/gigabyte-software/cortex-cli/commit/c1a3f6f5302069c91670316c4e51a520a9d792e2))
+
+# [1.12.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.11.0...v1.12.0) (2026-01-27)
+
+
+### Bug Fixes
+
+* handle potential null return from preg_replace in ComposeOverrideGenerator ([9c14bd6](https://github.com/gigabyte-software/cortex-cli/commit/9c14bd6bc1da75b832cb051d01eaa0757fea601a))
+
+
+### Features
+
+* add --no-host-mapping flag to cortex up command ([b7613e0](https://github.com/gigabyte-software/cortex-cli/commit/b7613e0e02342c58b517a75b64c1bbfb40bf6971))
+
+# [1.11.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.10.0...v1.11.0) (2026-01-13)
+
+
+### Features
+
+* n8n import command ([e7962ae](https://github.com/gigabyte-software/cortex-cli/commit/e7962aee7415d591159d5a9598c4f302ff9e06c4))
+
+# [1.10.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.9.0...v1.10.0) (2026-01-08)
+
+
+### Bug Fixes
+
+* tests on 8.3 ([715c117](https://github.com/gigabyte-software/cortex-cli/commit/715c11759b032924e1ad6aba6f310209f3346fbf))
+
+
+### Features
+
+* Added cortex show-url to show the url for the applicaton running in the development environment ([16235ac](https://github.com/gigabyte-software/cortex-cli/commit/16235acd9238da51376ccbaa3d5c26cb78165e1f))
+
 # [1.9.0](https://github.com/gigabyte-software/cortex-cli/compare/v1.8.0...v1.9.0) (2026-01-07)
 
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cortex\Docker;
 
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
 class DockerCompose
@@ -15,7 +16,7 @@ class DockerCompose
      * @param string|null $projectName Optional project name for container isolation
      * @throws \RuntimeException
      */
-    public function up(string $composeFile, ?string $projectName = null): void
+    public function up(string $composeFile, ?string $projectName = null, bool $rebuild = false, ?int $timeout = null): void
     {
         $command = ['docker-compose', '-f', $composeFile];
 
@@ -34,11 +35,71 @@ class DockerCompose
         $command[] = 'up';
         $command[] = '-d';
 
+        if ($rebuild) {
+            $command[] = '--build';
+        }
+
+        // #region agent log
+        try {
+            $logPath = '/home/kryten/gigabyte/projects/.cursor/debug-ae03ef.log';
+            $logEntry = [
+                'sessionId' => 'ae03ef',
+                'runId' => 'pre-fix',
+                'hypothesisId' => 'A',
+                'location' => 'src/Docker/DockerCompose.php:up:before',
+                'message' => 'DockerCompose up starting',
+                'data' => [
+                    'composeFile' => $composeFile,
+                    'projectName' => $projectName,
+                    'cwd' => getcwd() ?: null,
+                    'home' => getenv('HOME') ?: null,
+                    'dockerConfig' => getenv('DOCKER_CONFIG') ?: null,
+                    'command' => $command,
+                ],
+                'timestamp' => (int) (microtime(true) * 1000),
+            ];
+            @file_put_contents($logPath, json_encode($logEntry) . "\n", FILE_APPEND);
+        } catch (\Throwable) {
+            // Best-effort debug logging; ignore all failures
+        }
+        // #endregion agent log
+
+        $effectiveTimeout = $timeout ?? ($rebuild ? 1500 : 300);
+
         $process = new Process($command);
-        $process->setTimeout(300);
-        $process->run();
+        $process->setTimeout($effectiveTimeout);
+
+        try {
+            $process->run();
+        } catch (ProcessTimedOutException) {
+            throw new \RuntimeException(
+                "Docker Compose timed out after {$effectiveTimeout}s. Use --timeout to increase the limit (e.g. --timeout 3600)."
+            );
+        }
 
         if (!$process->isSuccessful()) {
+            // #region agent log
+            try {
+                $logPath = '/home/kryten/gigabyte/projects/.cursor/debug-ae03ef.log';
+                $logEntry = [
+                    'sessionId' => 'ae03ef',
+                    'runId' => 'pre-fix',
+                    'hypothesisId' => 'A',
+                    'location' => 'src/Docker/DockerCompose.php:up:after',
+                    'message' => 'DockerCompose up failed',
+                    'data' => [
+                        'exitCode' => $process->getExitCode(),
+                        'errorOutput' => $process->getErrorOutput(),
+                        'standardOutput' => $process->getOutput(),
+                    ],
+                    'timestamp' => (int) (microtime(true) * 1000),
+                ];
+                @file_put_contents($logPath, json_encode($logEntry) . "\n", FILE_APPEND);
+            } catch (\Throwable) {
+                // Best-effort debug logging; ignore all failures
+            }
+            // #endregion agent log
+
             throw new \RuntimeException(
                 "Failed to start Docker Compose services: {$process->getErrorOutput()}"
             );
