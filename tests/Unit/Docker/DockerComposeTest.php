@@ -21,19 +21,19 @@ class DockerComposeTest extends TestCase
         $this->assertInstanceOf(DockerCompose::class, $this->dockerCompose);
     }
 
-    public function test_is_docker_running_returns_bool(): void
+    public function test_is_docker_running_returns_true_or_false(): void
     {
         $result = $this->dockerCompose->isDockerRunning();
 
-        $this->assertIsBool($result);
+        $this->assertContains($result, [true, false], 'daemon check must return a boolean outcome');
     }
 
-    public function test_has_existing_images_returns_bool(): void
+    public function test_has_existing_images_returns_true_or_false(): void
     {
         $result = $this->dockerCompose->hasExistingImages('/nonexistent/docker-compose.yml');
 
-        // Should return true (assumes images exist if we can't check)
-        $this->assertIsBool($result);
+        // Should return true (assumes images exist if we can't check) or false
+        $this->assertContains($result, [true, false], 'image check must return a boolean outcome');
     }
 
     public function test_get_latest_log_line_returns_null_for_nonexistent_service(): void

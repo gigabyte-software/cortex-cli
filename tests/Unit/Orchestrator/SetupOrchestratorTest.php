@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Cortex\Tests\Unit\Orchestrator;
 
-use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Config\Schema\CortexConfig;
 use Cortex\Config\Schema\DockerConfig;
 use Cortex\Config\Schema\N8nConfig;
@@ -15,13 +14,19 @@ use Cortex\Docker\HealthChecker;
 use Cortex\Executor\HostCommandExecutor;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 class SetupOrchestratorTest extends TestCase
 {
+    /** @var DockerCompose&MockObject */
     private DockerCompose $dockerCompose;
+
+    /** @var HostCommandExecutor&MockObject */
     private HostCommandExecutor $hostExecutor;
+
+    /** @var HealthChecker&MockObject */
     private HealthChecker $healthChecker;
     private OutputFormatter $formatter;
     private BufferedOutput $output;
@@ -48,7 +53,7 @@ class SetupOrchestratorTest extends TestCase
         $display = $this->output->fetch();
         $this->assertStringContainsString('First run detected', $display);
         $this->assertStringContainsString('Building containers may take a few minutes', $display);
-        $this->assertIsFloat($result['time']);
+        $this->assertGreaterThanOrEqual(0.0, $result['time']);
     }
 
     public function test_setup_does_not_show_first_run_message_when_images_exist(): void
@@ -100,7 +105,7 @@ class SetupOrchestratorTest extends TestCase
 
         $display = $this->output->fetch();
         $this->assertStringContainsString('Waiting for services', $display);
-        $this->assertIsFloat($result['time']);
+        $this->assertGreaterThanOrEqual(0.0, $result['time']);
     }
 
     public function test_setup_returns_correct_result_structure(): void
@@ -188,7 +193,7 @@ class SetupOrchestratorTest extends TestCase
 
         // If timeout weren't extended, this would throw ServiceNotHealthyException
         // since the service takes >1s but timeout*10=10s allows it
-        $this->assertIsFloat($result['time']);
+        $this->assertGreaterThanOrEqual(0.0, $result['time']);
     }
 
     private function createOrchestrator(): SetupOrchestrator
