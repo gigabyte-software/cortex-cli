@@ -25,41 +25,16 @@ A PHP-based CLI tool that orchestrates Docker-based development environments usi
 
 ## Installation
 
-### Quick Install (Recommended)
+Download the latest [release](https://github.com/gigabyte-software/cortex-cli/releases/latest): grab `cortex.phar` and `install.sh`, then run the installer locally.
 
 ```bash
-# Download and install with one command
-curl -fsSL https://github.com/gigabyte-software/cortex-cli/releases/latest/download/install.sh | bash
-```
-
-### Manual Install
-
-```bash
-# Download the PHAR
 curl -L https://github.com/gigabyte-software/cortex-cli/releases/latest/download/cortex.phar -o cortex.phar
-
-# Download and run installer
 curl -L https://github.com/gigabyte-software/cortex-cli/releases/latest/download/install.sh -o install.sh
 chmod +x install.sh
 ./install.sh
 ```
 
-This will:
-- Install cortex to `/usr/local/bin/cortex`
-- Set up shell completion (bash/zsh)
-- Make it available system-wide
-
-### From Source
-
-```bash
-git clone https://github.com/gigabyte-software/cortex-cli.git
-cd cortex-cli
-composer install --no-dev
-chmod +x bin/cortex
-
-# Optionally, link to your PATH
-sudo ln -s $(pwd)/bin/cortex /usr/local/bin/cortex
-```
+This installs `cortex` to `/usr/local/bin/cortex`, enables shell completion (bash/zsh), and makes the CLI available system-wide.
 
 ## Quick Start
 
@@ -157,7 +132,7 @@ This command:
 3. Downloads and installs the update if available
 4. Creates a backup before updating
 
-**Note**: Only works when running as PHAR. When running from source, use `git pull` instead.
+**Note**: Only works when running as the installed PHAR.
 
 ### `cortex up`
 
