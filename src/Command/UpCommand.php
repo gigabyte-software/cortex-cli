@@ -60,6 +60,12 @@ class UpCommand extends Command
         try {
             $formatter->welcome();
 
+            // Check Docker daemon is running
+            if (!$this->dockerCompose->isDockerRunning()) {
+                $formatter->error('You must start Docker before running cortex up');
+                return Command::FAILURE;
+            }
+
             // Check if already running
             if ($this->lockFile->exists()) {
                 $formatter->error('Environment already running in this directory.');

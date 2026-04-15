@@ -43,6 +43,8 @@ class RebuildCommandTest extends TestCase
         $output = $this->createMock(OutputInterface::class);
         $formatter = new OutputFormatter($output);
         $this->commandOrchestrator = $this->createMock(CommandOrchestrator::class);
+
+        $this->dockerCompose->method('isDockerRunning')->willReturn(true);
     }
 
     public function test_command_is_configured_correctly(): void
@@ -51,6 +53,19 @@ class RebuildCommandTest extends TestCase
 
         $this->assertSame('rebuild', $command->getName());
         $this->assertSame('Rebuild Docker images, recreate containers, and run fresh', $command->getDescription());
+    }
+
+    public function test_it_fails_when_docker_is_not_running(): void
+    {
+        $this->dockerCompose = $this->createMock(DockerCompose::class);
+        $this->dockerCompose->method('isDockerRunning')->willReturn(false);
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('You must start Docker before running cortex rebuild', $tester->getDisplay());
     }
 
     public function test_it_tears_down_rebuilds_and_runs_fresh(): void

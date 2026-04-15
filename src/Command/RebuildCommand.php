@@ -44,6 +44,12 @@ class RebuildCommand extends Command
         try {
             $formatter->welcome('Rebuilding Development Environment');
 
+            // Check Docker daemon is running
+            if (!$this->dockerCompose->isDockerRunning()) {
+                $formatter->error('You must start Docker before running cortex rebuild');
+                return Command::FAILURE;
+            }
+
             $configPath = $this->configLoader->findConfigFile();
             $config = $this->configLoader->load($configPath);
             $startTime = microtime(true);

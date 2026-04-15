@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Cortex\Tests\Unit\Docker;
+
+use Cortex\Docker\DockerCompose;
+use PHPUnit\Framework\TestCase;
+
+class DockerComposeTest extends TestCase
+{
+    private DockerCompose $dockerCompose;
+
+    protected function setUp(): void
+    {
+        $this->dockerCompose = new DockerCompose();
+    }
+
+    public function test_it_can_be_instantiated(): void
+    {
+        $this->assertInstanceOf(DockerCompose::class, $this->dockerCompose);
+    }
+
+    public function test_is_docker_running_returns_bool(): void
+    {
+        $result = $this->dockerCompose->isDockerRunning();
+
+        $this->assertIsBool($result);
+    }
+
+    public function test_has_existing_images_returns_bool(): void
+    {
+        $result = $this->dockerCompose->hasExistingImages('/nonexistent/docker-compose.yml');
+
+        // Should return true (assumes images exist if we can't check)
+        $this->assertIsBool($result);
+    }
+
+    public function test_get_latest_log_line_returns_null_for_nonexistent_service(): void
+    {
+        $result = $this->dockerCompose->getLatestLogLine(
+            '/nonexistent/docker-compose.yml',
+            'nonexistent-service'
+        );
+
+        $this->assertNull($result);
+    }
+
+    public function test_ps_returns_empty_array_for_nonexistent_compose_file(): void
+    {
+        $result = $this->dockerCompose->ps('/nonexistent/docker-compose.yml');
+
+        $this->assertSame([], $result);
+    }
+
+    public function test_is_running_returns_false_for_nonexistent_compose_file(): void
+    {
+        $result = $this->dockerCompose->isRunning('/nonexistent/docker-compose.yml');
+
+        $this->assertFalse($result);
+    }
+}

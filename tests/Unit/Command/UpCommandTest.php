@@ -42,6 +42,8 @@ class UpCommandTest extends TestCase
         $this->overrideGenerator = $this->createMock(ComposeOverrideGenerator::class);
         $this->dockerCompose = $this->createMock(DockerCompose::class);
         $this->herdService = $this->createMock(HerdService::class);
+
+        $this->dockerCompose->method('isDockerRunning')->willReturn(true);
     }
 
     public function test_command_is_configured_correctly(): void
@@ -60,6 +62,19 @@ class UpCommandTest extends TestCase
         $this->assertTrue($definition->hasOption('skip-init'));
         $this->assertTrue($definition->hasOption('stop-herd'));
         $this->assertTrue($definition->hasOption('rebuild'));
+    }
+
+    public function test_it_fails_when_docker_is_not_running(): void
+    {
+        $this->dockerCompose = $this->createMock(DockerCompose::class);
+        $this->dockerCompose->method('isDockerRunning')->willReturn(false);
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('You must start Docker before running cortex up', $tester->getDisplay());
     }
 
     public function test_it_prevents_duplicate_instances(): void
