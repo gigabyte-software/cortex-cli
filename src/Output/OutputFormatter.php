@@ -16,7 +16,7 @@ class OutputFormatter
     public const COLOR_PURPLE = '#7D55C7';  // Pantone 2665C
     public const COLOR_SMOKE = '#D2DCE5';   // Pantone 5455C
 
-    private const SERVICE_NAME_WIDTH = 20;
+    private const SERVICE_NAME_PAD = 2;
 
     public function __construct(
         private readonly OutputInterface $output,
@@ -49,9 +49,15 @@ class OutputFormatter
      */
     public function renderServiceStatus(ConsoleSectionOutput $section, array $services): void
     {
+        $maxNameLen = 0;
+        foreach ($services as $name => $_) {
+            $maxNameLen = max($maxNameLen, mb_strlen($name));
+        }
+        $nameWidth = $maxNameLen + self::SERVICE_NAME_PAD;
+
         $lines = [];
         foreach ($services as $name => $info) {
-            $paddedName = str_pad($name, self::SERVICE_NAME_WIDTH);
+            $paddedName = str_pad($name, $nameWidth);
             $statusText = $this->formatStatus($info['status'], $info['elapsed']);
             $lines[] = "  <fg=" . self::COLOR_SMOKE . ">{$paddedName}</>{$statusText}";
 
@@ -59,7 +65,7 @@ class OutputFormatter
                 $truncatedLog = mb_strlen($info['log']) > 80
                     ? mb_substr($info['log'], 0, 77) . '...'
                     : $info['log'];
-                $lines[] = "  " . str_repeat(' ', self::SERVICE_NAME_WIDTH) . "<fg=gray>{$truncatedLog}</>";
+                $lines[] = "  " . str_repeat(' ', $nameWidth) . "<fg=" . self::COLOR_SMOKE . ">{$truncatedLog}</>";
             }
         }
 
@@ -127,10 +133,8 @@ class OutputFormatter
     private function formatStatus(string $status, ?float $elapsed): string
     {
         $color = match ($status) {
-            'healthy', 'running' => self::COLOR_TEAL,
-            'starting' => self::COLOR_PURPLE,
             'unhealthy', 'exited', 'restarting' => 'red',
-            default => self::COLOR_SMOKE,
+            default => self::COLOR_PURPLE,
         };
 
         $label = $status;
