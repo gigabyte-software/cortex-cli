@@ -58,8 +58,12 @@ class RebuildCommand extends Command
             // Show config warnings after loading
             $app = $this->getApplication();
             if ($app instanceof \Cortex\Application) {
-                foreach ($app->getConfigWarnings() as $warning) {
-                    $formatter->warning("  ⚠ $warning");
+                $warnings = $app->getConfigWarnings();
+                if ($warnings !== []) {
+                    $formatter->getOutput()->writeln('');
+                    foreach ($warnings as $warning) {
+                        $formatter->warning("  ⚠ $warning");
+                    }
                 }
             }
 
