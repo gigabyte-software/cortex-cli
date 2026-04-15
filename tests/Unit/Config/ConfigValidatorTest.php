@@ -174,6 +174,27 @@ class ConfigValidatorTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function test_it_accepts_empty_command_string(): void
+    {
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'commands' => [
+                'clear' => [
+                    'command' => '',
+                    'description' => 'Sync environment',
+                ],
+            ],
+        ];
+
+        $this->validator->validate($config);
+        $this->assertTrue(true);
+    }
+
     public function test_it_throws_exception_for_missing_command(): void
     {
         $this->expectException(ConfigException::class);

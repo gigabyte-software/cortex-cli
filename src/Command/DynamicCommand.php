@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cortex\Command;
 
+use Cortex\Config\RecommendedCommands;
 use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Config\Schema\CortexConfig;
 use Cortex\Orchestrator\CommandOrchestrator;
@@ -38,6 +39,11 @@ class DynamicCommand extends Command
                 throw new \RuntimeException('Command name is not set');
             }
 
+            if (trim($this->commandDef->command) === '') {
+                $this->showEmptyCommandError($formatter, $commandName);
+                return Command::FAILURE;
+            }
+
             $executionTime = $this->orchestrator->run($commandName, $this->config);
 
             $output->writeln('');
@@ -52,5 +58,21 @@ class DynamicCommand extends Command
             $formatter->error("Error: {$e->getMessage()}");
             return Command::FAILURE;
         }
+    }
+
+    private function showEmptyCommandError(OutputFormatter $formatter, string $commandName): void
+    {
+        $formatter->error("Command '$commandName' is not yet configured.");
+        $formatter->getOutput()->writeln('');
+
+        $recommended = RecommendedCommands::COMMANDS[$commandName] ?? null;
+        $example = $recommended['example'] ?? 'your-command-here';
+
+        $formatter->getOutput()->writeln('  Define it in cortex.yml:');
+        $formatter->getOutput()->writeln('');
+        $formatter->getOutput()->writeln("    <fg=cyan>$commandName:</>");
+        $formatter->getOutput()->writeln("      <fg=cyan>command: \"$example\"</>");
+        $formatter->getOutput()->writeln("      <fg=cyan>description: \"{$this->commandDef->description}\"</>");
+        $formatter->getOutput()->writeln('');
     }
 }
