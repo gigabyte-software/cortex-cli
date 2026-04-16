@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.8.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.7.0...v2.8.0) (2026-04-16)
+
+
+### Bug Fixes
+
+* satisfy PHPStan level 8 in ReviewCommandTest ([b6b89b8](https://github.com/gigabyte-software/cortex-cli/commit/b6b89b8ac63e248211cb53dd5b1b1012af66a9c0))
+
+
+### Features
+
+* review command uses cortex fresh and displays completion URLs ([1be72db](https://github.com/gigabyte-software/cortex-cli/commit/1be72db1d0349e3238d6bb22d57ca0e093c64e8f))
+
 # [2.7.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.6.0...v2.7.0) (2026-04-15)
 
 
