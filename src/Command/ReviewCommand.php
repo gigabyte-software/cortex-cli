@@ -139,7 +139,7 @@ class ReviewCommand extends Command
     }
 
     /**
-     * Look for a @COMPLETION.md (case-insensitive) in .cortex/tickets/<ticket>/ and display any URLs found.
+     * Look for a completion.md (case-insensitive) in .cortex/tickets/<ticket>/ and display any URLs found.
      */
     private function displayCompletionUrls(string $repositoryPath, string $ticketNumber, OutputFormatter $formatter): void
     {
@@ -173,7 +173,8 @@ class ReviewCommand extends Command
     }
 
     /**
-     * Case-insensitive search for the ticket folder inside .cortex/tickets/.
+     * Find a ticket folder that matches the ticket number (case-insensitive, contains-match).
+     * E.g. ticket number "1603" matches folder "gig-1603", "GIG-1603" matches "gig-1603", etc.
      */
     private function findTicketDirectory(string $repositoryPath, string $ticketNumber): ?string
     {
@@ -188,8 +189,14 @@ class ReviewCommand extends Command
             return null;
         }
 
+        $needle = mb_strtolower($ticketNumber);
+
         foreach ($entries as $entry) {
-            if (strcasecmp($entry, $ticketNumber) === 0) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            if (str_contains(mb_strtolower($entry), $needle)) {
                 $path = $ticketsDir . '/' . $entry;
                 if (is_dir($path)) {
                     return $path;
@@ -201,7 +208,7 @@ class ReviewCommand extends Command
     }
 
     /**
-     * Case-insensitive search for @COMPLETION.md or @completion.md (and any mix).
+     * Case-insensitive search for completion.md.
      */
     private function findCompletionFile(string $ticketDir): ?string
     {
@@ -211,7 +218,7 @@ class ReviewCommand extends Command
         }
 
         foreach ($files as $file) {
-            if (strcasecmp($file, '@COMPLETION.md') === 0) {
+            if (strcasecmp($file, 'completion.md') === 0) {
                 return $ticketDir . '/' . $file;
             }
         }

@@ -205,7 +205,7 @@ class ReviewCommandTest extends TestCase
     {
         $ticketDir = $this->tmpDir . '/.cortex/tickets/GIG-123';
         mkdir($ticketDir, 0755, true);
-        file_put_contents($ticketDir . '/@COMPLETION.md', implode("\n", [
+        file_put_contents($ticketDir . '/COMPLETION.md', implode("\n", [
             '# Completion',
             '',
             '- Linear: https://linear.app/team/GIG-123',
@@ -234,7 +234,7 @@ class ReviewCommandTest extends TestCase
     {
         $ticketDir = $this->tmpDir . '/.cortex/tickets/GIG-456';
         mkdir($ticketDir, 0755, true);
-        file_put_contents($ticketDir . '/@completion.md', implode("\n", [
+        file_put_contents($ticketDir . '/completion.md', implode("\n", [
             '- Linear: https://linear.app/team/GIG-456',
         ]));
 
@@ -262,7 +262,7 @@ class ReviewCommandTest extends TestCase
     {
         $ticketDir = $this->tmpDir . '/.cortex/tickets/gig-789';
         mkdir($ticketDir, 0755, true);
-        file_put_contents($ticketDir . '/@COMPLETION.md', implode("\n", [
+        file_put_contents($ticketDir . '/COMPLETION.md', implode("\n", [
             '- Linear: https://linear.app/team/GIG-789',
         ]));
 
@@ -284,6 +284,59 @@ class ReviewCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('https://linear.app/team/GIG-789', $tester->getDisplay());
+    }
+
+    public function test_it_finds_ticket_folder_by_partial_match(): void
+    {
+        $ticketDir = $this->tmpDir . '/.cortex/tickets/gig-1603';
+        mkdir($ticketDir, 0755, true);
+        file_put_contents($ticketDir . '/completion.md', implode("\n", [
+            '- GitHub PR: https://github.com/org/repo/pull/54',
+            '- Linear Ticket: https://linear.app/gigabyte/issue/GIG-1603',
+        ]));
+
+        $this->gitRepositoryService = $this->createMock(GitRepositoryService::class);
+        $this->gitRepositoryService->expects($this->any())->method('fetchFromOrigin')->willReturn(true);
+        $this->gitRepositoryService->expects($this->any())->method('findBranchesContaining')->willReturn(['gig-1603-feature']);
+        $this->gitRepositoryService->expects($this->any())->method('selectBranch')->willReturn('gig-1603-feature');
+        $this->gitRepositoryService->expects($this->any())->method('checkoutBranch')->willReturn(true);
+
+        $config = $this->createMockConfig([
+            'fresh' => new CommandDefinition(command: 'php artisan migrate:fresh --seed', description: 'Reset'),
+        ]);
+        $this->setupConfigLoader($config, $this->tmpDir . '/cortex.yml');
+
+        $this->commandOrchestrator->expects($this->once())->method('run')->willReturn(1.0);
+
+        $tester = new CommandTester($this->createCommand());
+        $exitCode = $tester->execute(['ticket' => '1603']);
+
+        $display = $tester->getDisplay();
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('https://github.com/org/repo/pull/54', $display);
+        $this->assertStringContainsString('https://linear.app/gigabyte/issue/GIG-1603', $display);
+    }
+
+    public function test_it_finds_completion_file_without_at_prefix(): void
+    {
+        $ticketDir = $this->tmpDir . '/.cortex/tickets/GIG-123';
+        mkdir($ticketDir, 0755, true);
+        file_put_contents($ticketDir . '/completion.md', implode("\n", [
+            '- PR: https://github.com/org/repo/pull/99',
+        ]));
+
+        $config = $this->createMockConfig([
+            'fresh' => new CommandDefinition(command: 'php artisan migrate:fresh --seed', description: 'Reset'),
+        ]);
+        $this->setupConfigLoader($config, $this->tmpDir . '/cortex.yml');
+
+        $this->commandOrchestrator->expects($this->once())->method('run')->willReturn(1.0);
+
+        $tester = new CommandTester($this->createCommand());
+        $exitCode = $tester->execute(['ticket' => 'GIG-123']);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('https://github.com/org/repo/pull/99', $tester->getDisplay());
     }
 
     public function test_it_gracefully_skips_when_no_ticket_folder(): void
