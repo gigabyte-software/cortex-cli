@@ -138,7 +138,8 @@ class Application extends BaseApplication
             $dockerCompose,
             $lockFile,
             $gitRepositoryService,
-            $laravelService
+            $laravelService,
+            $commandOrchestrator
         ));
         $this->add(new StatusCommand(
             $configLoader,

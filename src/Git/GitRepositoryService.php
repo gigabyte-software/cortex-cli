@@ -11,7 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Process\Process;
 
-final class GitRepositoryService
+class GitRepositoryService
 {
     /**
      * Fetch from origin

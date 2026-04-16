@@ -130,6 +130,11 @@ class OutputFormatter
         $this->output->writeln('');
     }
 
+    public function url(string $label, string $url): void
+    {
+        $this->output->writeln(sprintf('<fg=' . self::COLOR_TEAL . '>➜ %s:</> %s', $label, $url));
+    }
+
     private function formatStatus(string $status, ?float $elapsed): string
     {
         $color = match ($status) {

@@ -10,6 +10,7 @@ use Cortex\Config\LockFile;
 use Cortex\Docker\DockerCompose;
 use Cortex\Git\GitRepositoryService;
 use Cortex\Laravel\LaravelService;
+use Cortex\Orchestrator\CommandOrchestrator;
 use Cortex\Output\OutputFormatter;
 use Exception;
 use Symfony\Component\Console\Command\Command;
@@ -25,6 +26,7 @@ class ReviewCommand extends Command
         private readonly LockFile $lockFile,
         private readonly GitRepositoryService $gitRepositoryService,
         private readonly LaravelService $laravelService,
+        private readonly CommandOrchestrator $commandOrchestrator,
     ) {
         parent::__construct();
     }
@@ -43,21 +45,18 @@ class ReviewCommand extends Command
         $ticketNumber = $input->getArgument('ticket');
 
         try {
-            // Load configuration
             $configPath = $this->configLoader->findConfigFile();
             $config = $this->configLoader->load($configPath);
 
             $primaryService = $config->docker->primaryService;
             $composeFile = $config->docker->composeFile;
 
-            // Read lock file to get namespace
             $namespace = null;
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
                 $namespace = $lockData?->namespace;
             }
 
-            // Check if services are running
             if (!$this->dockerCompose->isRunning($composeFile, $namespace)) {
                 $formatter->error('Services are not running. Please run "cortex up" first.');
                 return Command::FAILURE;
@@ -67,14 +66,12 @@ class ReviewCommand extends Command
 
             $repositoryPath = dirname($configPath);
 
-            // Step 1: Fetch from origin
             $formatter->info('Fetching latest changes from origin...');
             if (!$this->gitRepositoryService->fetchFromOrigin($repositoryPath)) {
                 $formatter->error('Failed to fetch from origin. Make sure you have git configured on your host machine and have access to the repository.');
                 return Command::FAILURE;
             }
 
-            // Step 2: Find branches containing ticket number
             $formatter->info('Searching for branches containing ticket number...');
             $branchNames = $this->gitRepositoryService->findBranchesContaining($repositoryPath, $ticketNumber);
             if (empty($branchNames)) {
@@ -82,7 +79,6 @@ class ReviewCommand extends Command
                 return Command::FAILURE;
             }
 
-            // Step 3: Select branch (if multiple)
             $selectedBranch = $this->gitRepositoryService->selectBranch(
                 $repositoryPath,
                 $branchNames,
@@ -93,36 +89,40 @@ class ReviewCommand extends Command
                 fn(string $branch) => str_starts_with($branch, $ticketNumber)
             );
 
-            // Step 4: Checkout branch
             $formatter->info("Checking out branch: $selectedBranch");
             if (!$this->gitRepositoryService->checkoutBranch($repositoryPath, $selectedBranch)) {
                 $formatter->error('Failed to checkout branch');
                 return Command::FAILURE;
             }
 
-            // Step 5: Clear caches (if Laravel is present)
-            if (!$this->laravelService->hasArtisan($composeFile, $primaryService, $namespace)) {
-                $formatter->warning('Laravel artisan not found, skipping cache clear');
+            // Reset environment: prefer the `fresh` command from cortex.yml, fall back to Laravel
+            if (isset($config->commands['fresh']) && trim($config->commands['fresh']->command) !== '') {
+                $formatter->section('Running fresh');
+                $this->commandOrchestrator->run('fresh', $config);
             } else {
-                $formatter->info('Clearing application caches...');
-                if (!$this->laravelService->clearCaches($composeFile, $primaryService, $namespace)) {
-                    $formatter->error('Failed to clear caches');
-                    return Command::FAILURE;
-                }
-            }
+                $formatter->warning("Command 'fresh' is not defined in cortex.yml — falling back to default Laravel reset");
 
-            // Step 6: Reset database (if Laravel is present)
-            if (!$this->laravelService->hasArtisan($composeFile, $primaryService, $namespace)) {
-                $formatter->warning('Laravel artisan not found, skipping database reset');
-            } else {
-                $formatter->info('Resetting development database...');
-                if (!$this->laravelService->resetDatabase($composeFile, $primaryService, $namespace)) {
-                    $formatter->error('Failed to reset database');
-                    return Command::FAILURE;
+                if (!$this->laravelService->hasArtisan($composeFile, $primaryService, $namespace)) {
+                    $formatter->warning('Laravel artisan not found, skipping environment reset');
+                } else {
+                    $formatter->info('Clearing application caches...');
+                    if (!$this->laravelService->clearCaches($composeFile, $primaryService, $namespace)) {
+                        $formatter->error('Failed to clear caches');
+                        return Command::FAILURE;
+                    }
+
+                    $formatter->info('Resetting development database...');
+                    if (!$this->laravelService->resetDatabase($composeFile, $primaryService, $namespace)) {
+                        $formatter->error('Failed to reset database');
+                        return Command::FAILURE;
+                    }
                 }
             }
 
             $formatter->success("✓ Successfully prepared for ticket $ticketNumber review on branch $selectedBranch");
+
+            $this->displayCompletionUrls($repositoryPath, $ticketNumber, $formatter);
+
             $output->writeln('');
 
             return Command::SUCCESS;
@@ -133,6 +133,103 @@ class ReviewCommand extends Command
             $formatter->error("Error: {$e->getMessage()}");
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * Look for a @COMPLETION.md (case-insensitive) in .cortex/tickets/<ticket>/ and display any URLs found.
+     */
+    private function displayCompletionUrls(string $repositoryPath, string $ticketNumber, OutputFormatter $formatter): void
+    {
+        $ticketDir = $this->findTicketDirectory($repositoryPath, $ticketNumber);
+
+        if ($ticketDir === null) {
+            return;
+        }
+
+        $completionFile = $this->findCompletionFile($ticketDir);
+
+        if ($completionFile === null) {
+            return;
+        }
+
+        $contents = file_get_contents($completionFile);
+        if ($contents === false) {
+            return;
+        }
+
+        $urls = $this->parseCompletionUrls($contents);
+
+        if ($urls === []) {
+            return;
+        }
+
+        $formatter->getOutput()->writeln('');
+        foreach ($urls as $label => $url) {
+            $formatter->url($label, $url);
+        }
+    }
+
+    /**
+     * Case-insensitive search for the ticket folder inside .cortex/tickets/.
+     */
+    private function findTicketDirectory(string $repositoryPath, string $ticketNumber): ?string
+    {
+        $ticketsDir = $repositoryPath . '/.cortex/tickets';
+
+        if (!is_dir($ticketsDir)) {
+            return null;
+        }
+
+        $entries = scandir($ticketsDir);
+        if ($entries === false) {
+            return null;
+        }
+
+        foreach ($entries as $entry) {
+            if (strcasecmp($entry, $ticketNumber) === 0) {
+                $path = $ticketsDir . '/' . $entry;
+                if (is_dir($path)) {
+                    return $path;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Case-insensitive search for @COMPLETION.md or @completion.md (and any mix).
+     */
+    private function findCompletionFile(string $ticketDir): ?string
+    {
+        $files = scandir($ticketDir);
+        if ($files === false) {
+            return null;
+        }
+
+        foreach ($files as $file) {
+            if (strcasecmp($file, '@COMPLETION.md') === 0) {
+                return $ticketDir . '/' . $file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, string> label => URL
+     */
+    private function parseCompletionUrls(string $contents): array
+    {
+        $urls = [];
+
+        if (preg_match_all('/^-\s*(.+?):\s*(https?:\/\/\S+)/m', $contents, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $urls[trim($match[1])] = trim($match[2]);
+            }
+        }
+
+        return $urls;
     }
 }
 
