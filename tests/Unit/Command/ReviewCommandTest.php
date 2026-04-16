@@ -41,12 +41,12 @@ class ReviewCommandTest extends TestCase
         $this->tmpDir = sys_get_temp_dir() . '/cortex-review-test-' . uniqid();
         mkdir($this->tmpDir, 0755, true);
 
-        $this->dockerCompose->method('isRunning')->willReturn(true);
-        $this->lockFile->method('exists')->willReturn(false);
-        $this->gitRepositoryService->method('fetchFromOrigin')->willReturn(true);
-        $this->gitRepositoryService->method('findBranchesContaining')->willReturn(['GIG-123-feature']);
-        $this->gitRepositoryService->method('selectBranch')->willReturn('GIG-123-feature');
-        $this->gitRepositoryService->method('checkoutBranch')->willReturn(true);
+        $this->dockerCompose->expects($this->any())->method('isRunning')->willReturn(true);
+        $this->lockFile->expects($this->any())->method('exists')->willReturn(false);
+        $this->gitRepositoryService->expects($this->any())->method('fetchFromOrigin')->willReturn(true);
+        $this->gitRepositoryService->expects($this->any())->method('findBranchesContaining')->willReturn(['GIG-123-feature']);
+        $this->gitRepositoryService->expects($this->any())->method('selectBranch')->willReturn('GIG-123-feature');
+        $this->gitRepositoryService->expects($this->any())->method('checkoutBranch')->willReturn(true);
     }
 
     protected function tearDown(): void
@@ -66,7 +66,7 @@ class ReviewCommandTest extends TestCase
     public function test_it_fails_when_services_not_running(): void
     {
         $this->dockerCompose = $this->createMock(DockerCompose::class);
-        $this->dockerCompose->method('isRunning')->willReturn(false);
+        $this->dockerCompose->expects($this->once())->method('isRunning')->willReturn(false);
 
         $this->setupConfigLoader($this->createMockConfig([]));
 
@@ -110,7 +110,7 @@ class ReviewCommandTest extends TestCase
 
         $this->commandOrchestrator->expects($this->never())->method('run');
 
-        $this->laravelService->method('hasArtisan')->willReturn(true);
+        $this->laravelService->expects($this->atLeastOnce())->method('hasArtisan')->willReturn(true);
         $this->laravelService->expects($this->once())->method('clearCaches')->willReturn(true);
         $this->laravelService->expects($this->once())->method('resetDatabase')->willReturn(true);
 
@@ -133,7 +133,7 @@ class ReviewCommandTest extends TestCase
 
         $this->commandOrchestrator->expects($this->never())->method('run');
 
-        $this->laravelService->method('hasArtisan')->willReturn(true);
+        $this->laravelService->expects($this->atLeastOnce())->method('hasArtisan')->willReturn(true);
         $this->laravelService->expects($this->once())->method('clearCaches')->willReturn(true);
         $this->laravelService->expects($this->once())->method('resetDatabase')->willReturn(true);
 
@@ -148,7 +148,7 @@ class ReviewCommandTest extends TestCase
         $config = $this->createMockConfig([]);
         $this->setupConfigLoader($config);
 
-        $this->laravelService->method('hasArtisan')->willReturn(false);
+        $this->laravelService->expects($this->atLeastOnce())->method('hasArtisan')->willReturn(false);
         $this->laravelService->expects($this->never())->method('clearCaches');
         $this->laravelService->expects($this->never())->method('resetDatabase');
 
@@ -176,7 +176,7 @@ class ReviewCommandTest extends TestCase
         ]);
         $this->setupConfigLoader($config, $this->tmpDir . '/cortex.yml');
 
-        $this->commandOrchestrator->method('run')->willReturn(1.0);
+        $this->commandOrchestrator->expects($this->once())->method('run')->willReturn(1.0);
 
         $tester = new CommandTester($this->createCommand());
         $exitCode = $tester->execute(['ticket' => 'GIG-123']);
@@ -197,17 +197,17 @@ class ReviewCommandTest extends TestCase
         ]));
 
         $this->gitRepositoryService = $this->createMock(GitRepositoryService::class);
-        $this->gitRepositoryService->method('fetchFromOrigin')->willReturn(true);
-        $this->gitRepositoryService->method('findBranchesContaining')->willReturn(['GIG-456-feature']);
-        $this->gitRepositoryService->method('selectBranch')->willReturn('GIG-456-feature');
-        $this->gitRepositoryService->method('checkoutBranch')->willReturn(true);
+        $this->gitRepositoryService->expects($this->any())->method('fetchFromOrigin')->willReturn(true);
+        $this->gitRepositoryService->expects($this->any())->method('findBranchesContaining')->willReturn(['GIG-456-feature']);
+        $this->gitRepositoryService->expects($this->any())->method('selectBranch')->willReturn('GIG-456-feature');
+        $this->gitRepositoryService->expects($this->any())->method('checkoutBranch')->willReturn(true);
 
         $config = $this->createMockConfig([
             'fresh' => new CommandDefinition(command: 'php artisan migrate:fresh --seed', description: 'Reset'),
         ]);
         $this->setupConfigLoader($config, $this->tmpDir . '/cortex.yml');
 
-        $this->commandOrchestrator->method('run')->willReturn(1.0);
+        $this->commandOrchestrator->expects($this->once())->method('run')->willReturn(1.0);
 
         $tester = new CommandTester($this->createCommand());
         $exitCode = $tester->execute(['ticket' => 'GIG-456']);
@@ -225,17 +225,17 @@ class ReviewCommandTest extends TestCase
         ]));
 
         $this->gitRepositoryService = $this->createMock(GitRepositoryService::class);
-        $this->gitRepositoryService->method('fetchFromOrigin')->willReturn(true);
-        $this->gitRepositoryService->method('findBranchesContaining')->willReturn(['GIG-789-feature']);
-        $this->gitRepositoryService->method('selectBranch')->willReturn('GIG-789-feature');
-        $this->gitRepositoryService->method('checkoutBranch')->willReturn(true);
+        $this->gitRepositoryService->expects($this->any())->method('fetchFromOrigin')->willReturn(true);
+        $this->gitRepositoryService->expects($this->any())->method('findBranchesContaining')->willReturn(['GIG-789-feature']);
+        $this->gitRepositoryService->expects($this->any())->method('selectBranch')->willReturn('GIG-789-feature');
+        $this->gitRepositoryService->expects($this->any())->method('checkoutBranch')->willReturn(true);
 
         $config = $this->createMockConfig([
             'fresh' => new CommandDefinition(command: 'php artisan migrate:fresh --seed', description: 'Reset'),
         ]);
         $this->setupConfigLoader($config, $this->tmpDir . '/cortex.yml');
 
-        $this->commandOrchestrator->method('run')->willReturn(1.0);
+        $this->commandOrchestrator->expects($this->once())->method('run')->willReturn(1.0);
 
         $tester = new CommandTester($this->createCommand());
         $exitCode = $tester->execute(['ticket' => 'GIG-789']);
@@ -251,7 +251,7 @@ class ReviewCommandTest extends TestCase
         ]);
         $this->setupConfigLoader($config, $this->tmpDir . '/cortex.yml');
 
-        $this->commandOrchestrator->method('run')->willReturn(1.0);
+        $this->commandOrchestrator->expects($this->once())->method('run')->willReturn(1.0);
 
         $tester = new CommandTester($this->createCommand());
         $exitCode = $tester->execute(['ticket' => 'GIG-123']);
@@ -271,7 +271,7 @@ class ReviewCommandTest extends TestCase
         ]);
         $this->setupConfigLoader($config, $this->tmpDir . '/cortex.yml');
 
-        $this->commandOrchestrator->method('run')->willReturn(1.0);
+        $this->commandOrchestrator->expects($this->once())->method('run')->willReturn(1.0);
 
         $tester = new CommandTester($this->createCommand());
         $exitCode = $tester->execute(['ticket' => 'GIG-123']);
