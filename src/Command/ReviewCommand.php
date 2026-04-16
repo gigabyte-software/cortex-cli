@@ -16,6 +16,7 @@ use Exception;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ReviewCommand extends Command
@@ -36,7 +37,8 @@ class ReviewCommand extends Command
         $this
             ->setName('review')
             ->setDescription('Prepare the development environment for reviewing a ticket by checking out its branch and resetting the database')
-            ->addArgument('ticket', InputArgument::REQUIRED, 'The ticket number to prepare for review');
+            ->addArgument('ticket', InputArgument::REQUIRED, 'The ticket number to prepare for review')
+            ->addOption('quick', null, InputOption::VALUE_NONE, 'Use the "clear" command instead of "fresh" (runs migrations without dropping tables)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -95,12 +97,13 @@ class ReviewCommand extends Command
                 return Command::FAILURE;
             }
 
-            // Reset environment: prefer the `fresh` command from cortex.yml, fall back to Laravel
-            if (isset($config->commands['fresh']) && trim($config->commands['fresh']->command) !== '') {
-                $formatter->section('Running fresh');
-                $this->commandOrchestrator->run('fresh', $config);
+            $resetCommand = $input->getOption('quick') ? 'clear' : 'fresh';
+
+            if (isset($config->commands[$resetCommand]) && trim($config->commands[$resetCommand]->command) !== '') {
+                $formatter->section("Running $resetCommand");
+                $this->commandOrchestrator->run($resetCommand, $config);
             } else {
-                $formatter->warning("Command 'fresh' is not defined in cortex.yml — falling back to default Laravel reset");
+                $formatter->warning("Command '$resetCommand' is not defined in cortex.yml — falling back to default Laravel reset");
 
                 if (!$this->laravelService->hasArtisan($composeFile, $primaryService, $namespace)) {
                     $formatter->warning('Laravel artisan not found, skipping environment reset');

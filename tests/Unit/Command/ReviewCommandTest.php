@@ -159,6 +159,48 @@ class ReviewCommandTest extends TestCase
         $this->assertStringContainsString('skipping environment reset', $tester->getDisplay());
     }
 
+    public function test_quick_option_uses_clear_command(): void
+    {
+        $config = $this->createMockConfig([
+            'fresh' => new CommandDefinition(command: 'php artisan migrate:fresh --seed', description: 'Reset database'),
+            'clear' => new CommandDefinition(command: 'php artisan migrate && php artisan optimize:clear', description: 'Clear caches'),
+        ]);
+
+        $this->setupConfigLoader($config);
+
+        $this->commandOrchestrator->expects($this->once())
+            ->method('run')
+            ->with('clear', $config)
+            ->willReturn(1.0);
+
+        $tester = new CommandTester($this->createCommand());
+        $exitCode = $tester->execute(['ticket' => 'GIG-123', '--quick' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('Running clear', $tester->getDisplay());
+    }
+
+    public function test_quick_falls_back_to_laravel_when_clear_not_defined(): void
+    {
+        $config = $this->createMockConfig([
+            'fresh' => new CommandDefinition(command: 'php artisan migrate:fresh --seed', description: 'Reset database'),
+        ]);
+
+        $this->setupConfigLoader($config);
+
+        $this->commandOrchestrator->expects($this->never())->method('run');
+
+        $this->laravelService->expects($this->atLeastOnce())->method('hasArtisan')->willReturn(true);
+        $this->laravelService->expects($this->once())->method('clearCaches')->willReturn(true);
+        $this->laravelService->expects($this->once())->method('resetDatabase')->willReturn(true);
+
+        $tester = new CommandTester($this->createCommand());
+        $exitCode = $tester->execute(['ticket' => 'GIG-123', '--quick' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString("'clear' is not defined", $tester->getDisplay());
+    }
+
     public function test_it_displays_completion_urls_when_file_exists(): void
     {
         $ticketDir = $this->tmpDir . '/.cortex/tickets/GIG-123';
