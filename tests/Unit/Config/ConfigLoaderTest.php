@@ -82,6 +82,31 @@ class ConfigLoaderTest extends TestCase
         $this->assertEmpty($config->secrets->required);
     }
 
+    public function test_it_parses_single_command_into_commands_list(): void
+    {
+        $config = $this->loader->load(__DIR__ . '/../../fixtures/cortex-parallel.yml');
+
+        $single = $config->commands['single'];
+        $this->assertSame('echo single', $single->command);
+        $this->assertSame(['echo single'], $single->commands);
+        $this->assertFalse($single->isParallel());
+    }
+
+    public function test_it_parses_parallel_command_list(): void
+    {
+        $config = $this->loader->load(__DIR__ . '/../../fixtures/cortex-parallel.yml');
+
+        $validate = $config->commands['validate'];
+        $this->assertCount(3, $validate->commands);
+        $this->assertSame('composer validate --strict', $validate->commands[0]);
+        $this->assertSame('vendor/bin/phpstan analyse src', $validate->commands[1]);
+        $this->assertSame('vendor/bin/phpunit', $validate->commands[2]);
+        $this->assertTrue($validate->isParallel());
+        $this->assertStringContainsString('composer validate --strict', $validate->command);
+        $this->assertStringContainsString(' & ', $validate->command);
+        $this->assertSame(180, $validate->timeout);
+    }
+
     public function test_it_loads_secrets_config(): void
     {
         $config = $this->loader->load(__DIR__ . '/../../fixtures/cortex-with-secrets.yml');

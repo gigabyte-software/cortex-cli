@@ -22,10 +22,34 @@ class ContainerExecutor
         ?callable $outputCallback = null,
         ?string $projectName = null
     ): Process {
-        // Use docker-compose exec to run command in container
+        $process = new Process($this->buildExecCommand($composeFile, $service, $command, $projectName));
+        $process->setTimeout($timeout);
+
+        if ($outputCallback !== null) {
+            $process->run($outputCallback);
+        } else {
+            $process->run();
+        }
+
+        return $process;
+    }
+
+    /**
+     * Build the argv used to run a non-interactive `docker-compose exec` for the given command.
+     *
+     * Exposed so callers that need to manage the `Process` lifecycle themselves (e.g. parallel
+     * execution) can reuse the same override-file and project-name handling.
+     *
+     * @return list<string>
+     */
+    public function buildExecCommand(
+        string $composeFile,
+        string $service,
+        string $command,
+        ?string $projectName = null,
+    ): array {
         $cmd = ['docker-compose', '-f', $composeFile];
 
-        // Add override file if it exists
         $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
         if (file_exists($overrideFile)) {
             $cmd[] = '-f';
@@ -37,25 +61,14 @@ class ContainerExecutor
             $cmd[] = $projectName;
         }
 
-        $cmd = array_merge($cmd, [
+        return array_merge($cmd, [
             'exec',
-            '-T', // Disable pseudo-TTY allocation for non-interactive
+            '-T',
             $service,
             'sh',
             '-c',
             $command,
         ]);
-
-        $process = new Process($cmd);
-        $process->setTimeout($timeout);
-
-        if ($outputCallback !== null) {
-            $process->run($outputCallback);
-        } else {
-            $process->run();
-        }
-
-        return $process;
     }
 
     /**

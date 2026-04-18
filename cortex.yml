@@ -59,7 +59,10 @@ commands:
     description: "Run PHP commands"
   
   validate:
-    command: "composer validate --strict && vendor/bin/phpstan analyse src tests --level=8 && vendor/bin/phpunit"
+    command:
+    - "composer validate --strict"
+    - "vendor/bin/phpstan analyse src tests --level=8"
+    - "vendor/bin/phpunit"
     description: "Run all validation checks (composer, phpstan, tests)"
     timeout: 180
 

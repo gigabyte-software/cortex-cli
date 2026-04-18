@@ -104,7 +104,7 @@ class ConfigValidator
     private function validateCommandsSection(array $commands): void
     {
         foreach ($commands as $name => $command) {
-            $this->validateCommandDefinition($command, "commands.$name");
+            $this->validateCommandDefinition($command, "commands.$name", allowParallel: true);
         }
     }
 
@@ -115,7 +115,7 @@ class ConfigValidator
     private function validateCommandList(array $commands, string $path): void
     {
         foreach ($commands as $index => $command) {
-            $this->validateCommandDefinition($command, "$path[$index]");
+            $this->validateCommandDefinition($command, "$path[$index]", allowParallel: false);
         }
     }
 
@@ -123,7 +123,7 @@ class ConfigValidator
      * @param mixed $command
      * @throws ConfigException
      */
-    private function validateCommandDefinition(mixed $command, string $path): void
+    private function validateCommandDefinition(mixed $command, string $path, bool $allowParallel): void
     {
         if (!is_array($command)) {
             throw new ConfigException("$path must be an array");
@@ -131,6 +131,31 @@ class ConfigValidator
 
         if (!isset($command['command'])) {
             throw new ConfigException("$path missing required field: command");
+        }
+
+        if (is_array($command['command'])) {
+            if (!$allowParallel) {
+                throw new ConfigException("$path.command must be a string (parallel list form is only supported under the `commands:` section)");
+            }
+
+            if ($command['command'] === []) {
+                throw new ConfigException("$path.command list must contain at least one command");
+            }
+
+            if (array_keys($command['command']) !== range(0, count($command['command']) - 1)) {
+                throw new ConfigException("$path.command must be a list, not an associative map");
+            }
+
+            foreach ($command['command'] as $index => $item) {
+                if (!is_string($item)) {
+                    throw new ConfigException("$path.command[$index] must be a string");
+                }
+                if (trim($item) === '') {
+                    throw new ConfigException("$path.command[$index] must be a non-empty string");
+                }
+            }
+        } elseif (!is_string($command['command'])) {
+            throw new ConfigException("$path.command must be a string" . ($allowParallel ? ' or a list of strings' : ''));
         }
 
         if (!isset($command['description'])) {

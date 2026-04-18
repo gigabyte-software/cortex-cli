@@ -1,0 +1,19 @@
+version: "1.0"
+
+docker:
+  compose_file: "docker-compose.test.yml"
+  primary_service: "app"
+  app_url: "http://localhost:8080"
+
+commands:
+  single:
+    command: "echo single"
+    description: "Single command entry"
+
+  validate:
+    command:
+      - "composer validate --strict"
+      - "vendor/bin/phpstan analyse src"
+      - "vendor/bin/phpunit"
+    description: "Run all validation checks in parallel"
+    timeout: 180

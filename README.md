@@ -319,6 +319,27 @@ commands:
 
 Your custom commands will appear alongside built-in commands and support tab completion!
 
+### Parallel commands
+
+If you want a single user command to fan out into several sub-commands that run concurrently, provide a list under `command:` instead of a string. Each entry runs inside the container at the same time and every sub-command must succeed for the command itself to succeed.
+
+```yaml
+commands:
+  validate:
+    command:
+      - "composer validate --strict"
+      - "vendor/bin/phpstan analyse src tests --level=8"
+      - "vendor/bin/phpunit"
+    description: "Run composer, phpstan and phpunit in parallel"
+    timeout: 180
+```
+
+While the commands run, Cortex shows a live panel with one row per sub-command in the form `<label>: <last log line>`. Labels are auto-derived from the first token of each command (e.g. `vendor/bin/phpstan analyse …` → `phpstan`); duplicate labels get `#2`, `#3` suffixes. Rows disappear as each sub-command finishes, and once they're all done the panel is cleared and the command reports completion.
+
+If any sub-command fails or times out, every sub-command still runs to completion; Cortex then prints a per-command status summary, shows the tail of the failed command's output, and the overall command exits with a non-zero status.
+
+The list form is only supported for entries under `commands:`. Setup steps in `setup.pre_start` / `setup.initialize` continue to run sequentially, one `command:` string per entry.
+
 ### Recommended commands
 
 Cortex expects two lifecycle commands to be defined in every project so that `cortex rebuild` and `cortex review` can drive your environment consistently. If either is missing, Cortex prints a warning on every invocation.

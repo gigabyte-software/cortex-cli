@@ -261,12 +261,23 @@ class ConfigLoader
      */
     private function buildCommandDefinition(array $command): CommandDefinition
     {
+        $rawCommand = $command['command'];
+
+        if (is_array($rawCommand)) {
+            $commands = array_values(array_map(static fn ($c) => (string) $c, $rawCommand));
+            $displayCommand = implode(' & ', $commands);
+        } else {
+            $commands = [(string) $rawCommand];
+            $displayCommand = (string) $rawCommand;
+        }
+
         return new CommandDefinition(
-            command: $command['command'],
+            command: $displayCommand,
             description: $command['description'],
             timeout: $command['timeout'] ?? 600,
             retry: $command['retry'] ?? 0,
             ignoreFailure: $command['ignore_failure'] ?? false,
+            commands: $commands,
         );
     }
 }

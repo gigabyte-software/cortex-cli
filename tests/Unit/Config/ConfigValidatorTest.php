@@ -219,6 +219,125 @@ class ConfigValidatorTest extends TestCase
         $this->validator->validate($config);
     }
 
+    public function test_it_accepts_parallel_command_list_for_user_commands(): void
+    {
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'commands' => [
+                'validate' => [
+                    'command' => [
+                        'composer validate',
+                        'vendor/bin/phpstan',
+                        'vendor/bin/phpunit',
+                    ],
+                    'description' => 'Run checks in parallel',
+                ],
+            ],
+        ];
+
+        $this->validator->validate($config);
+        $this->assertTrue(true);
+    }
+
+    public function test_it_rejects_empty_parallel_command_list(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('commands.validate.command list must contain at least one command');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'commands' => [
+                'validate' => [
+                    'command' => [],
+                    'description' => 'bad',
+                ],
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_rejects_non_string_item_in_parallel_command_list(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('commands.validate.command[1] must be a string');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'commands' => [
+                'validate' => [
+                    'command' => ['ok', 123],
+                    'description' => 'bad',
+                ],
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_rejects_empty_string_item_in_parallel_command_list(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('commands.validate.command[0] must be a non-empty string');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'commands' => [
+                'validate' => [
+                    'command' => ['   '],
+                    'description' => 'bad',
+                ],
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
+
+    public function test_it_rejects_parallel_command_list_in_setup_entries(): void
+    {
+        $this->expectException(ConfigException::class);
+        $this->expectExceptionMessage('parallel list form is only supported under the `commands:` section');
+
+        $config = [
+            'version' => '1.0',
+            'docker' => [
+                'compose_file' => 'docker-compose.yml',
+                'primary_service' => 'app',
+                'app_url' => 'http://localhost:8080',
+            ],
+            'setup' => [
+                'initialize' => [
+                    [
+                        'command' => ['composer install', 'npm install'],
+                        'description' => 'bad',
+                    ],
+                ],
+            ],
+        ];
+
+        $this->validator->validate($config);
+    }
+
     public function test_it_validates_valid_secrets_section(): void
     {
         $config = [

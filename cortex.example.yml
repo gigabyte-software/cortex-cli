@@ -38,3 +38,15 @@ commands:
     command: "php artisan migrate:fresh --seed"
     description: "Reset database with fresh data"
 
+  # Providing a list under `command:` runs every entry concurrently inside
+  # the container. A live panel shows `<label>: <last log line>` for each
+  # running command; each row disappears when that command finishes. The
+  # overall command succeeds only if all sub-commands succeed.
+  validate:
+    command:
+      - "composer validate --strict"
+      - "vendor/bin/phpstan analyse src tests --level=8"
+      - "vendor/bin/phpunit"
+    description: "Run composer, phpstan and phpunit in parallel"
+    timeout: 180
+
