@@ -222,7 +222,7 @@ class ExportCommandTest extends TestCase
             'data' => [
                 ['id' => '1', 'name' => 'Workflow 1'],
                 ['id' => '2', 'name' => 'Workflow 2'],
-            ]
+            ],
         ]);
 
         $workflow1Response = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Workflow 1', 'nodes' => []], false);
@@ -266,7 +266,7 @@ class ExportCommandTest extends TestCase
         $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Test Workflow'],
-            ]
+            ],
         ]);
 
         $this->httpClient->expects($this->once())
@@ -301,7 +301,7 @@ class ExportCommandTest extends TestCase
         $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Test Workflow'],
-            ]
+            ],
         ]);
 
         $workflowResponse = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Test Workflow', 'nodes' => []], false);
@@ -345,7 +345,7 @@ class ExportCommandTest extends TestCase
                 ['name' => 'Missing ID'], // Invalid: missing id
                 ['id' => '2'], // Invalid: missing name
                 ['id' => '3', 'name' => 'Valid Workflow 2'],
-            ]
+            ],
         ]);
 
         $workflow1Response = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Valid Workflow', 'nodes' => []], false);
@@ -440,7 +440,7 @@ class ExportCommandTest extends TestCase
         $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Workflow 1'],
-            ]
+            ],
         ]);
 
         $workflowResponse = $this->createMockResponseFromJson(['id' => '1', 'name' => 'Workflow 1', 'nodes' => []], false);

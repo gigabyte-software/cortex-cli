@@ -74,6 +74,26 @@ class DockerCompose
      */
     public function getLatestLogLine(string $composeFile, string $service, ?string $projectName = null): ?string
     {
+        $lines = $this->getLatestLogLines($composeFile, $service, 1, $projectName);
+        return $lines[0] ?? null;
+    }
+
+    /**
+     * Get the most recent log lines from a service container.
+     *
+     * Returns lines in chronological order (oldest first). When the service
+     * has no logs yet or cannot be queried, returns an empty array.
+     *
+     * @return list<string>
+     */
+    public function getLatestLogLines(
+        string $composeFile,
+        string $service,
+        int $lines = 3,
+        ?string $projectName = null
+    ): array {
+        $lines = max(1, $lines);
+
         $command = ['docker-compose', '-f', $composeFile];
 
         $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
@@ -88,7 +108,7 @@ class DockerCompose
         }
 
         $command[] = 'logs';
-        $command[] = '--tail=1';
+        $command[] = '--tail=' . $lines;
         $command[] = '--no-log-prefix';
         $command[] = $service;
 
@@ -97,15 +117,23 @@ class DockerCompose
         $process->run();
 
         if (!$process->isSuccessful()) {
-            return null;
+            return [];
         }
 
-        $line = trim($process->getOutput());
-        if ($line === '') {
-            $line = trim($process->getErrorOutput());
+        $raw = $process->getOutput();
+        if (trim($raw) === '') {
+            $raw = $process->getErrorOutput();
         }
 
-        return $line !== '' ? $line : null;
+        $result = [];
+        foreach (explode("\n", $raw) as $line) {
+            $clean = trim($line);
+            if ($clean !== '') {
+                $result[] = $clean;
+            }
+        }
+
+        return array_slice($result, -$lines);
     }
 
     /**
@@ -113,10 +141,17 @@ class DockerCompose
      *
      * @param string $composeFile Path to docker-compose.yml
      * @param string|null $projectName Optional project name for container isolation
+     * @param callable(string, string): void|null $outputCallback Optional streaming callback that
+     *        receives (type, buffer) pairs from the underlying Process; use to drive a live log.
      * @throws \RuntimeException
      */
-    public function up(string $composeFile, ?string $projectName = null, bool $rebuild = false, ?int $timeout = null): void
-    {
+    public function up(
+        string $composeFile,
+        ?string $projectName = null,
+        bool $rebuild = false,
+        ?int $timeout = null,
+        ?callable $outputCallback = null
+    ): void {
         $command = ['docker-compose', '-f', $composeFile];
 
         // Add override file if it exists
@@ -138,13 +173,15 @@ class DockerCompose
             $command[] = '--build';
         }
 
-        $effectiveTimeout = $timeout ?? ($rebuild ? 1500 : 300);
+        $effectiveTimeout = $timeout ?? ($rebuild ? 1800 : 300);
 
         $process = new Process($command);
         $process->setTimeout($effectiveTimeout);
+        // Ensure docker-compose emits progress without buffering/TTY detection.
+        $process->setEnv(['DOCKER_BUILDKIT_PROGRESS' => 'plain', 'BUILDKIT_PROGRESS' => 'plain']);
 
         try {
-            $process->run();
+            $process->run($outputCallback);
         } catch (ProcessTimedOutException) {
             throw new \RuntimeException(
                 "Docker Compose timed out after {$effectiveTimeout}s. Use --timeout to increase the limit (e.g. --timeout 3600)."
@@ -163,10 +200,14 @@ class DockerCompose
      *
      * @param string $composeFile Path to docker-compose.yml
      * @param string|null $projectName Optional project name for container isolation
+     * @param callable(string, string): void|null $outputCallback Optional streaming callback.
      * @throws \RuntimeException
      */
-    public function upWithBuild(string $composeFile, ?string $projectName = null): void
-    {
+    public function upWithBuild(
+        string $composeFile,
+        ?string $projectName = null,
+        ?callable $outputCallback = null
+    ): void {
         $command = ['docker-compose', '-f', $composeFile];
 
         $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
@@ -185,8 +226,9 @@ class DockerCompose
         $command[] = '--build';
 
         $process = new Process($command);
-        $process->setTimeout(600);
-        $process->run();
+        $process->setTimeout(1800);
+        $process->setEnv(['DOCKER_BUILDKIT_PROGRESS' => 'plain', 'BUILDKIT_PROGRESS' => 'plain']);
+        $process->run($outputCallback);
 
         if (!$process->isSuccessful()) {
             throw new \RuntimeException(
@@ -201,10 +243,15 @@ class DockerCompose
      * @param string $composeFile Path to docker-compose.yml
      * @param bool $volumes Remove volumes as well
      * @param string|null $projectName Optional project name for container isolation
+     * @param callable(string, string): void|null $outputCallback Optional streaming callback.
      * @throws \RuntimeException
      */
-    public function down(string $composeFile, bool $volumes = false, ?string $projectName = null): void
-    {
+    public function down(
+        string $composeFile,
+        bool $volumes = false,
+        ?string $projectName = null,
+        ?callable $outputCallback = null
+    ): void {
         $command = ['docker-compose', '-f', $composeFile];
 
         // Add override file if it exists
@@ -227,7 +274,7 @@ class DockerCompose
 
         $process = new Process($command);
         $process->setTimeout(120);
-        $process->run();
+        $process->run($outputCallback);
 
         if (!$process->isSuccessful()) {
             throw new \RuntimeException(

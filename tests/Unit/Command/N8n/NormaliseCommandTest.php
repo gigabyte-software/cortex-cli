@@ -6,20 +6,13 @@ namespace Cortex\Tests\Unit\Command\N8n;
 
 use Cortex\Command\N8n\NormaliseCommand;
 use Cortex\Config\ConfigLoader;
-use Cortex\Config\Schema\CortexConfig;
-use Cortex\Config\Schema\DockerConfig;
-use Cortex\Config\Schema\N8nConfig;
-use Cortex\Config\Schema\SetupConfig;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Helper\HelperSet;
 use Symfony\Component\Console\Helper\QuestionHelper;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class NormaliseCommandTest extends TestCase

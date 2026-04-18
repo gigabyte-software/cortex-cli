@@ -180,6 +180,47 @@ cortex down           # Stop services, keep volumes
 cortex down --volumes # Stop services and remove volumes
 ```
 
+### `cortex rebuild`
+
+Rebuild Docker images, recreate containers, and reset the database:
+
+```bash
+cortex rebuild
+```
+
+This command:
+
+1. Tears down existing containers (keeping volumes)
+2. Rebuilds all Docker images from scratch
+3. Starts containers and waits for services to be healthy
+4. Runs your `fresh` command to reset the database
+
+Use this when `Dockerfile`, `docker-compose.yml`, or any image-layer dependency changes, or when you want a completely clean environment.
+
+**Requires:** a `fresh` command defined in `cortex.yml` (see [Recommended commands](#recommended-commands)). If it's not defined, rebuild will warn and skip the database reset.
+
+### `cortex review`
+
+Prepare the environment for reviewing a ticket by checking out its branch and resetting the database:
+
+```bash
+cortex review GIG-1234           # Checks out the branch and runs `fresh`
+cortex review GIG-1234 --quick   # Checks out the branch and runs `clear` instead
+```
+
+This command:
+
+1. Fetches from `origin`
+2. Finds branches containing the ticket number and checks one out (prompts if there are multiple)
+3. Runs either `fresh` (default) or `clear` (with `--quick`) to sync the environment
+4. Prints any URLs from `.cortex/tickets/<ticket>/completion.md`
+
+**Options:**
+
+- `--quick` — Run the `clear` command instead of `fresh`. This skips the database reset and only installs deps and clears caches, so it's much faster. **Only use `--quick` on branches that don't change your database schema or seed data** — otherwise you'll be reviewing against stale data. When in doubt, use the default (`fresh`).
+
+**Requires:** `fresh` and (for `--quick`) `clear` defined in `cortex.yml` — see [Recommended commands](#recommended-commands). If the relevant command isn't defined, review falls back to a generic Laravel reset (`optimize:clear` + `migrate:fresh --seed`).
+
 ### `cortex status`
 
 Check the health status of services:
@@ -277,6 +318,24 @@ commands:
 ```
 
 Your custom commands will appear alongside built-in commands and support tab completion!
+
+### Recommended commands
+
+Cortex expects two lifecycle commands to be defined in every project so that `cortex rebuild` and `cortex review` can drive your environment consistently. If either is missing, Cortex prints a warning on every invocation.
+
+```yaml
+commands:
+  clear:
+    command: "composer install && php artisan optimize:clear"
+    description: "Fast sync after switching branches (install deps, clear caches — no DB changes)"
+
+  fresh:
+    command: "composer install && php artisan migrate:fresh --seed && php artisan optimize:clear"
+    description: "Reset database from scratch (drop tables, re-migrate, re-seed, install deps, clear caches)"
+```
+
+- **`fresh`** is the default for `cortex review` and is what `cortex rebuild` runs after containers are back up. It does a full database reset so you always get a known-good state.
+- **`clear`** is used by `cortex review --quick`. It deliberately does **not** run migrations or seed data — it only installs deps and clears caches. Use it when you're reviewing branches that don't touch the database. If a branch has schema or seed changes, stick with the default `fresh`, since running migrations alone won't re-seed the new data.
 
 ## n8n Workflow Management
 

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Cortex\Command\N8n;
 
 use Cortex\Output\OutputFormatter;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use GuzzleHttp\Exception\GuzzleException;
 
 final class NormaliseCommand extends AbstractCommand
 {
@@ -51,7 +51,7 @@ final class NormaliseCommand extends AbstractCommand
     private function extractCredentials(array $workflowData): array
     {
         $credentials = [];
-        
+
         if (!isset($workflowData['nodes']) || !is_array($workflowData['nodes'])) {
             return $credentials;
         }
@@ -62,7 +62,7 @@ final class NormaliseCommand extends AbstractCommand
             }
 
             $nodeName = $node['name'] ?? 'unnamed';
-            
+
             if (!isset($node['credentials']) || !is_array($node['credentials'])) {
                 continue;
             }
@@ -119,7 +119,7 @@ final class NormaliseCommand extends AbstractCommand
         try {
             $response = $this->httpClient->request('GET', $credentialsUri, $options);
             $data = json_decode($response->getBody()->getContents(), true, flags: JSON_THROW_ON_ERROR);
-            
+
             if (!isset($data['data']) || !is_array($data['data'])) {
                 throw new \RuntimeException('Invalid credentials response: missing data array');
             }
@@ -139,11 +139,11 @@ final class NormaliseCommand extends AbstractCommand
                 }
 
                 $key = $type . ':' . $name;
-                
+
                 if (!isset($credentials[$key])) {
                     $credentials[$key] = [];
                 }
-                
+
                 $credentials[$key][] = [
                     'id' => (string) $id,
                     'type' => (string) $type,
@@ -178,13 +178,13 @@ final class NormaliseCommand extends AbstractCommand
 
         $map = json_decode($content, true, flags: JSON_THROW_ON_ERROR);
         if (!is_array($map)) {
-            throw new \RuntimeException("Invalid credential map: expected object, got " . gettype($map));
+            throw new \RuntimeException('Invalid credential map: expected object, got ' . gettype($map));
         }
-        
+
         // Reject JSON arrays (indexed arrays) - only accept objects (associative arrays)
         // Check if array keys are sequential integers starting from 0 (indexed array)
         if ($map !== [] && array_keys($map) === range(0, count($map) - 1)) {
-            throw new \RuntimeException("Invalid credential map: expected object, got array");
+            throw new \RuntimeException('Invalid credential map: expected object, got array');
         }
 
         $result = [];
@@ -295,7 +295,7 @@ final class NormaliseCommand extends AbstractCommand
     {
         $baseUri = $this->buildBaseUri($env);
         $formatter->info("normalise: target {$baseUri}");
-        $formatter->info(sprintf("found %d credential refs in workflow", count($this->requiredCredentials)));
+        $formatter->info(sprintf('found %d credential refs in workflow', count($this->requiredCredentials)));
 
         foreach ($this->requiredCredentials as $key => $credential) {
             $targetKey = $this->credentialMap[$key] ?? $key;
@@ -424,7 +424,7 @@ final class NormaliseCommand extends AbstractCommand
 
             $workflowData = json_decode($workflowContent, true, flags: JSON_THROW_ON_ERROR);
             if (!is_array($workflowData)) {
-                throw new \RuntimeException("Invalid workflow JSON: expected object");
+                throw new \RuntimeException('Invalid workflow JSON: expected object');
             }
 
             // Extract credentials
@@ -459,7 +459,7 @@ final class NormaliseCommand extends AbstractCommand
             // Generate report (only if not outputting workflow JSON to stdout)
             // If outputting to stdout, suppress report to avoid mixing with JSON
             $shouldOutputReport = $noPatch || $outputPath !== null || $dryRun;
-            
+
             if ($shouldOutputReport) {
                 if ($reportFormat === 'json') {
                     $report = $this->generateJsonReport($validation);

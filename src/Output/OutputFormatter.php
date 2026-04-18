@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Cortex\Output;
 
 use Cortex\Config\Schema\CommandDefinition;
-use Symfony\Component\Console\Output\ConsoleSectionOutput;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\ConsoleSectionOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class OutputFormatter
@@ -44,8 +44,16 @@ class OutputFormatter
     /**
      * Render the live container status block into a console section.
      *
+     * Each service is rendered as a header row "<name> <status>" followed by
+     * up to 3 recent log lines in dim grey whenever the service has not yet
+     * become healthy. Once healthy, the log block for that service disappears
+     * on the next render, leaving only the final status.
+     *
+     * The $services entry may optionally provide `logLines` (a list of strings)
+     * in addition to, or instead of, the legacy single `log` string.
+     *
      * @param ConsoleSectionOutput $section
-     * @param array<string, array{status: string, elapsed: float|null, log: string|null}> $services
+     * @param array<string, array{status: string, elapsed: float|null, log?: string|null, logLines?: list<string>}> $services
      */
     public function renderServiceStatus(ConsoleSectionOutput $section, array $services): void
     {
@@ -54,22 +62,36 @@ class OutputFormatter
             $maxNameLen = max($maxNameLen, mb_strlen($name));
         }
         $nameWidth = $maxNameLen + self::SERVICE_NAME_PAD;
+        $logIndent = '  ' . str_repeat(' ', $nameWidth) . '  ';
 
         $lines = [];
         foreach ($services as $name => $info) {
             $paddedName = str_pad($name, $nameWidth);
             $statusText = $this->formatStatus($info['status'], $info['elapsed']);
-            $lines[] = "  <fg=" . self::COLOR_SMOKE . ">{$paddedName}</>{$statusText}";
+            $lines[] = '  <fg=' . self::COLOR_SMOKE . ">{$paddedName}</>{$statusText}";
 
-            if ($info['log'] !== null && !$this->isHealthyStatus($info['status'])) {
-                $truncatedLog = mb_strlen($info['log']) > 80
-                    ? mb_substr($info['log'], 0, 77) . '...'
-                    : $info['log'];
-                $lines[] = "  " . str_repeat(' ', $nameWidth) . "<fg=" . self::COLOR_SMOKE . ">{$truncatedLog}</>";
+            if ($this->isHealthyStatus($info['status'])) {
+                continue;
+            }
+
+            $logLines = $this->extractLogLines($info);
+            foreach ($logLines as $logLine) {
+                $truncated = mb_strlen($logLine) > 80
+                    ? mb_substr($logLine, 0, 77) . '...'
+                    : $logLine;
+                $lines[] = $logIndent . '<fg=' . self::COLOR_SMOKE . ">{$truncated}</>";
             }
         }
 
         $section->overwrite($lines);
+    }
+
+    /**
+     * Remove the live service status panel entirely from the console.
+     */
+    public function clearServiceStatus(ConsoleSectionOutput $section): void
+    {
+        $section->clear();
     }
 
     public function section(string $title): void
@@ -133,6 +155,26 @@ class OutputFormatter
     public function url(string $label, string $url): void
     {
         $this->output->writeln(sprintf('<fg=' . self::COLOR_TEAL . '>➜ %s:</> %s', $label, $url));
+    }
+
+    /**
+     * Extract log lines from a service status entry, supporting both the
+     * legacy single-line `log` key and the newer multi-line `logLines` key.
+     *
+     * @param array{status: string, elapsed: float|null, log?: string|null, logLines?: list<string>} $info
+     * @return list<string>
+     */
+    private function extractLogLines(array $info): array
+    {
+        if (isset($info['logLines']) && $info['logLines'] !== []) {
+            return array_values(array_filter($info['logLines'], static fn (string $l) => trim($l) !== ''));
+        }
+
+        if (isset($info['log']) && trim($info['log']) !== '') {
+            return [$info['log']];
+        }
+
+        return [];
     }
 
     private function formatStatus(string $status, ?float $elapsed): string

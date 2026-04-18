@@ -33,7 +33,7 @@ class GitRepositoryService
     public function findBranchesContaining(string $repositoryPath, string $searchString): array
     {
         $escapedSearch = escapeshellarg($searchString);
-        
+
         $branchProcess = Process::fromShellCommandline("git branch -r | grep $escapedSearch", $repositoryPath);
         $branchProcess->setTimeout(30);
         $branchProcess->run();
@@ -50,7 +50,7 @@ class GitRepositoryService
         $branchLines = explode("\n", $branchOutput);
         $branches = array_filter(
             array_map('trim', $branchLines),
-            fn($branch): bool => is_string($branch) && $branch !== '' && !str_contains($branch, 'HEAD ->')
+            fn ($branch): bool => is_string($branch) && $branch !== '' && !str_contains($branch, 'HEAD ->')
         );
 
         /** @var array<string> $branchNames */
@@ -66,7 +66,7 @@ class GitRepositoryService
                 $branchNames[] = $branchName;
             }
         }
-        
+
         return array_values(array_unique($branchNames));
     }
 
@@ -76,7 +76,7 @@ class GitRepositoryService
     public function checkoutBranch(string $repositoryPath, string $branch): bool
     {
         $escapedBranch = escapeshellarg($branch);
-        
+
         $checkoutProcess = Process::fromShellCommandline(
             "git checkout $escapedBranch 2>/dev/null || git checkout -b $escapedBranch origin/$escapedBranch",
             $repositoryPath
@@ -171,7 +171,7 @@ class GitRepositoryService
             $branches,
             $defaultBranch
         );
-        $question->setNormalizer(fn($value) => $value);
+        $question->setNormalizer(fn ($value) => $value);
 
         $helper = new QuestionHelper();
         $selected = $helper->ask($input, $output, $question);
@@ -179,4 +179,3 @@ class GitRepositoryService
         return $selected ?? $defaultBranch;
     }
 }
-

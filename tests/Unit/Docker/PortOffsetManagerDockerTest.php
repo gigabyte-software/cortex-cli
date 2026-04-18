@@ -12,17 +12,17 @@ class PortOffsetManagerDockerTest extends TestCase
     public function test_it_gets_docker_used_ports_from_ps_output(): void
     {
         $manager = new PortOffsetManager();
-        
+
         // Use reflection to test the private method
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getDockerUsedPorts');
         $method->setAccessible(true);
-        
+
         $usedPorts = $method->invoke($manager);
-        
+
         // Should return an array of integers
         $this->assertIsArray($usedPorts);
-        
+
         // All values should be integers
         foreach ($usedPorts as $port) {
             $this->assertIsInt($port);
@@ -49,7 +49,7 @@ class PortOffsetManagerDockerTest extends TestCase
             $ports = array_unique(array_map('intval', $matches[1]));
             sort($ports);
             sort($expected);
-            
+
             $this->assertEquals(
                 $expected,
                 $ports,
@@ -58,4 +58,3 @@ class PortOffsetManagerDockerTest extends TestCase
         }
     }
 }
-

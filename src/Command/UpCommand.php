@@ -48,7 +48,7 @@ class UpCommand extends Command
             ->addOption('no-host-mapping', null, InputOption::VALUE_NONE, 'Do not expose container ports to the host')
             ->addOption('no-wait', null, InputOption::VALUE_NONE, 'Skip health checks')
             ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
-            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)')            
+            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)')
             ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting')
             ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations');
     }
@@ -278,10 +278,10 @@ class UpCommand extends Command
         $command = ['docker', 'ps', '-a', '--filter', "name={$namespace}", '--format', '{{.Names}}'];
         $process = new Process($command);
         $process->run();
-        
+
         if ($process->isSuccessful() && !empty(trim($process->getOutput()))) {
             $formatter->warning('Found containers from previous failed run. Cleaning up...');
-            
+
             // Use docker-compose down to clean up properly
             try {
                 $overrideFile = dirname($config->docker->composeFile) . '/docker-compose.override.yml';
@@ -293,10 +293,10 @@ class UpCommand extends Command
                     // Just remove containers without override file
                     $this->dockerCompose->down($config->docker->composeFile, false, $namespace);
                 }
-                
+
                 // Wait a moment for ports to be fully released
                 usleep(500000); // 500ms
-                
+
                 $formatter->info('Cleanup complete');
             } catch (\Exception $e) {
                 // If cleanup fails, just warn but continue

@@ -6,7 +6,6 @@ namespace Cortex\Tests\Unit\Laravel;
 
 use Cortex\Laravel\LaravelLogParser;
 use Cortex\Laravel\LogEntry;
-use Cortex\Laravel\LogSummaryEntry;
 use PHPUnit\Framework\TestCase;
 
 class LaravelLogParserTest extends TestCase

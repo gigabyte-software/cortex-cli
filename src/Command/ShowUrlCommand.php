@@ -192,4 +192,3 @@ class ShowUrlCommand extends Command
         return null;
     }
 }
-

@@ -6,9 +6,11 @@ namespace Cortex\Tests\Unit\Output;
 
 use Cortex\Output\OutputFormatter;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Formatter\OutputFormatter as ConsoleFormatter;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Output\ConsoleSectionOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class OutputFormatterTest extends TestCase
 {
@@ -100,6 +102,90 @@ class OutputFormatterTest extends TestCase
         ob_end_clean();
 
         $this->assertTrue(true);
+    }
+
+    public function test_render_service_status_shows_multiple_log_lines(): void
+    {
+        [$section, $read] = $this->makeSection();
+        $formatter = new OutputFormatter(new BufferedOutput());
+
+        $services = [
+            'n8n' => [
+                'status' => 'starting',
+                'elapsed' => null,
+                'logLines' => ['line-one', 'line-two', 'line-three'],
+            ],
+        ];
+
+        $formatter->renderServiceStatus($section, $services);
+        $output = $this->streamContents($read);
+
+        $this->assertStringContainsString('line-one', $output);
+        $this->assertStringContainsString('line-two', $output);
+        $this->assertStringContainsString('line-three', $output);
+    }
+
+    public function test_render_service_status_prefers_log_lines_over_legacy_log(): void
+    {
+        [$section, $read] = $this->makeSection();
+        $formatter = new OutputFormatter(new BufferedOutput());
+
+        $services = [
+            'n8n' => [
+                'status' => 'starting',
+                'elapsed' => null,
+                'log' => 'legacy-ignored',
+                'logLines' => ['new-one', 'new-two'],
+            ],
+        ];
+
+        $formatter->renderServiceStatus($section, $services);
+        $output = $this->streamContents($read);
+
+        $this->assertStringContainsString('new-one', $output);
+        $this->assertStringContainsString('new-two', $output);
+        $this->assertStringNotContainsString('legacy-ignored', $output);
+    }
+
+    public function test_clear_service_status_removes_content(): void
+    {
+        [$section, ] = $this->makeSection();
+        $formatter = new OutputFormatter(new BufferedOutput());
+
+        $services = [
+            'n8n' => ['status' => 'starting', 'elapsed' => null, 'logLines' => ['tmp']],
+        ];
+
+        $formatter->renderServiceStatus($section, $services);
+        $formatter->clearServiceStatus($section);
+
+        $this->assertTrue(true);
+    }
+
+    /**
+     * @return array{0: ConsoleSectionOutput, 1: resource}
+     */
+    private function makeSection(): array
+    {
+        $stream = fopen('php://memory', 'r+');
+        \assert(is_resource($stream));
+        $sections = [];
+        $section = new ConsoleSectionOutput(
+            $stream,
+            $sections,
+            OutputInterface::VERBOSITY_NORMAL,
+            false,
+            new ConsoleFormatter(),
+        );
+        return [$section, $stream];
+    }
+
+    /** @param resource $stream */
+    private function streamContents($stream): string
+    {
+        rewind($stream);
+        $contents = stream_get_contents($stream);
+        return $contents === false ? '' : $contents;
     }
 
     public function test_section_outputs_title(): void

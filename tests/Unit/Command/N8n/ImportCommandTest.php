@@ -230,7 +230,7 @@ class ImportCommandTest extends TestCase
         $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Existing Workflow'],
-            ]
+            ],
         ]);
 
         $this->httpClient->expects($this->once())
@@ -262,7 +262,7 @@ class ImportCommandTest extends TestCase
         $workflowsResponse = $this->createMockResponseFromJson([
             'data' => [
                 ['id' => '1', 'name' => 'Existing Workflow'],
-            ]
+            ],
         ]);
 
         $this->httpClient->expects($this->exactly(2))
@@ -500,7 +500,7 @@ class ImportCommandTest extends TestCase
         // Use a non-existent directory
         $nonExistentDir = $this->testDir . '/nonexistent';
         $config = $this->createMockConfigWithDir($nonExistentDir);
-        
+
         $this->configLoader->expects($this->once())
             ->method('findConfigFile')
             ->willReturn('/path/to/cortex.yml');

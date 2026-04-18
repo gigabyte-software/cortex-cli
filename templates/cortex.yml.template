@@ -35,10 +35,15 @@ commands:
   # `cortex rebuild` is a built-in command — it tears down containers,
   # rebuilds Docker images, brings everything back up, and runs `fresh`.
   # Just make sure `fresh` is defined below.
+  #
+  # `cortex review <ticket>` checks out the branch and runs `fresh` by
+  # default. Use `cortex review <ticket> --quick` to run `clear` instead,
+  # which skips the database reset — only safe when the branch has no
+  # schema or seed changes.
 
   clear:
-    command: ""  # e.g. "composer install && php artisan migrate && php artisan optimize:clear"
-    description: "Sync environment after switching branches (install deps, run migrations, clear caches)"
+    command: ""  # e.g. "composer install && php artisan optimize:clear"
+    description: "Fast sync after switching branches (install deps, clear caches — no DB changes)"
 
   fresh:
     command: ""  # e.g. "composer install && php artisan migrate:fresh --seed && php artisan optimize:clear"

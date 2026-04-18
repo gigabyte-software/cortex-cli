@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Cortex\Laravel;
 
 use Cortex\Docker\ContainerExecutor;
-use Symfony\Component\Process\Process;
 
 class LaravelService
 {
@@ -109,4 +108,3 @@ SH;
         return $path !== '' ? $path : null;
     }
 }
-

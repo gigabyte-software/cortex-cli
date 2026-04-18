@@ -11,7 +11,9 @@ use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\ServiceReadinessWaiter;
 use Cortex\Orchestrator\CommandOrchestrator;
+use Cortex\Output\LiveLogPanel;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -78,10 +80,20 @@ class RebuildCommand extends Command
 
             // Phase 1: Tear down existing containers
             $formatter->section('Tearing down containers');
+            $downPanel = new LiveLogPanel($formatter->createSection(), 3);
             try {
-                $this->dockerCompose->down($config->docker->composeFile, false, $namespace);
+                $this->dockerCompose->down(
+                    $config->docker->composeFile,
+                    false,
+                    $namespace,
+                    static function (string $type, string $buffer) use ($downPanel): void {
+                        $downPanel->appendBuffer($buffer);
+                    }
+                );
+                $downPanel->clear();
                 $formatter->info('Containers stopped');
             } catch (\RuntimeException $e) {
+                $downPanel->clear();
                 $formatter->warning('Could not stop containers (they may not be running): ' . $e->getMessage());
             }
 
@@ -90,23 +102,29 @@ class RebuildCommand extends Command
 
             // Phase 2: Rebuild images and start containers
             $formatter->section('Rebuilding images and starting containers');
-            $this->dockerCompose->upWithBuild($config->docker->composeFile, $namespace);
+            $buildPanel = new LiveLogPanel($formatter->createSection(), 3);
+            try {
+                $this->dockerCompose->upWithBuild(
+                    $config->docker->composeFile,
+                    $namespace,
+                    static function (string $type, string $buffer) use ($buildPanel): void {
+                        $buildPanel->appendBuffer($buffer);
+                    }
+                );
+            } finally {
+                $buildPanel->clear();
+            }
             $formatter->info('Containers rebuilt and started');
 
-            // Phase 3: Wait for services to be healthy
+            // Phase 3: Wait for services to be healthy (with live rolling logs)
             if (!empty($config->docker->waitFor)) {
                 $formatter->section('Waiting for services');
-                foreach ($config->docker->waitFor as $waitConfig) {
-                    $waitStart = microtime(true);
-                    $this->healthChecker->waitForHealth(
-                        $config->docker->composeFile,
-                        $waitConfig->service,
-                        $waitConfig->timeout,
-                        $namespace
-                    );
-                    $elapsed = microtime(true) - $waitStart;
-                    $formatter->info(sprintf('%s (healthy after %.1fs)', $waitConfig->service, $elapsed));
-                }
+                $waiter = new ServiceReadinessWaiter(
+                    $this->dockerCompose,
+                    $this->healthChecker,
+                    $formatter,
+                );
+                $waiter->waitForAll($config->docker->composeFile, $config->docker->waitFor, $namespace);
             }
 
             // Phase 4: Run `fresh` if defined

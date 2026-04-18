@@ -6,13 +6,13 @@ namespace Cortex\Command\N8n;
 
 use Cortex\Config\ConfigLoader;
 use Cortex\Output\OutputFormatter;
+use GuzzleHttp\Client;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Dotenv\Dotenv;
-use GuzzleHttp\Client;
 
 abstract class AbstractCommand extends Command
 {
@@ -160,11 +160,11 @@ abstract class AbstractCommand extends Command
     {
         $response = $this->httpClient->request('GET', $workflowsUri, $options);
         $data = json_decode($response->getBody()->getContents(), true, flags: JSON_THROW_ON_ERROR);
-        
+
         if (!isset($data['data']) || !is_array($data['data'])) {
             throw new \RuntimeException('Invalid workflows response: missing data array');
         }
-        
+
         return $data['data'];
     }
 

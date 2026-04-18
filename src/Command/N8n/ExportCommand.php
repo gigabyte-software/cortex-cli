@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Cortex\Command\N8n;
 
 use Cortex\Output\OutputFormatter;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use GuzzleHttp\Exception\GuzzleException;
 
 final class ExportCommand extends AbstractCommand
 {
@@ -94,7 +94,7 @@ final class ExportCommand extends AbstractCommand
                 $e
             );
         }
-        
+
         return $skipped;
     }
 

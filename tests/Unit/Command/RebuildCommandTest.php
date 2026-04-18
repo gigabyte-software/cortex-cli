@@ -224,9 +224,11 @@ class RebuildCommandTest extends TestCase
         $this->dockerCompose->expects($this->once())->method('down');
         $this->dockerCompose->expects($this->once())->method('upWithBuild');
 
-        $this->healthChecker->expects($this->once())
-            ->method('waitForHealth')
-            ->with('docker-compose.yml', 'db', 60, null);
+        // Readiness waiter polls health status (returns healthy immediately here).
+        $this->healthChecker->expects($this->atLeastOnce())
+            ->method('getHealthStatus')
+            ->with('docker-compose.yml', 'db', null)
+            ->willReturn('healthy');
 
         $this->commandOrchestrator->expects($this->once())
             ->method('run')

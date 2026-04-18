@@ -9,8 +9,8 @@ final class RecommendedCommands
     /** @var array<string, array{description: string, example: string}> */
     public const COMMANDS = [
         'clear' => [
-            'description' => 'clear caches, install deps, run migrations',
-            'example' => 'composer install && php artisan migrate && php artisan optimize:clear',
+            'description' => 'install deps and clear caches only (no DB changes — use fresh if the branch has schema or seed changes)',
+            'example' => 'composer install && php artisan optimize:clear',
         ],
         'fresh' => [
             'description' => 'drop tables, re-migrate, re-seed, install deps, clear caches',

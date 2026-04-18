@@ -140,7 +140,9 @@ class ShowUrlCommandTest extends TestCase
         $tempDir = sys_get_temp_dir() . '/cortex-test-' . uniqid();
         mkdir($tempDir, 0755, true);
         $composeFile = $tempDir . '/docker-compose.yml';
-        file_put_contents($composeFile, <<<YAML
+        file_put_contents(
+            $composeFile,
+            <<<YAML
 services:
   nginx:
     image: nginx:alpine
@@ -272,4 +274,3 @@ YAML
         );
     }
 }
-

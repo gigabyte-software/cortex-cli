@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Cortex\Command\N8n;
 
 use Cortex\Output\OutputFormatter;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use GuzzleHttp\Exception\GuzzleException;
 
 final class ImportCommand extends AbstractCommand
 {
@@ -301,7 +301,7 @@ final class ImportCommand extends AbstractCommand
 
                 // Check if workflow already exists
                 $existingWorkflowId = $this->findExistingWorkflowId($existingWorkflows, $workflowName);
-                
+
                 if ($existingWorkflowId !== null && !$force) {
                     $formatter->info(sprintf('Workflow "%s" already exists. Use -f (force) to update.', $workflowName));
                     $skipped = true;
@@ -331,7 +331,7 @@ final class ImportCommand extends AbstractCommand
                 $e
             );
         }
-        
+
         return $skipped;
     }
 

@@ -263,7 +263,7 @@ class InitCommand extends Command
             // File exists - check if it already has cortex section
             $existingContent = file_get_contents($claudeMdPath);
             if ($existingContent === false) {
-                throw new \RuntimeException("Failed to read existing CLAUDE.md");
+                throw new \RuntimeException('Failed to read existing CLAUDE.md');
             }
 
             if (str_contains($existingContent, self::CORTEX_MARKER_START)) {

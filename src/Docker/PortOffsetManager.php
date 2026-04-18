@@ -75,7 +75,7 @@ class PortOffsetManager
         // Scan for available offset with longer timeout to allow port release
         // Wait a bit longer after cleanup before scanning
         usleep(200000); // 200ms additional wait
-        
+
         for ($offset = self::DEFAULT_SCAN_START; $offset <= self::DEFAULT_SCAN_END; $offset += 100) {
             if ($this->arePortsAvailable($basePorts, $offset)) {
                 return $offset;
@@ -117,18 +117,18 @@ class PortOffsetManager
     {
         // Get all used ports from Docker containers on the host
         static $usedPorts = null;
-        
+
         if ($usedPorts === null) {
             $usedPorts = $this->getDockerUsedPorts();
         }
-        
+
         // Check if this port is in the used ports list
         return !in_array($port, $usedPorts, true);
     }
 
     /**
      * Get all ports currently in use by Docker containers on the host
-     * 
+     *
      * @return int[]
      */
     private function getDockerUsedPorts(): array
@@ -137,7 +137,7 @@ class PortOffsetManager
             'docker',
             'ps',
             '--format',
-            '{{.Ports}}'
+            '{{.Ports}}',
         ]);
         $process->run();
 

@@ -11,7 +11,7 @@ RUN apk add --no-cache \
     $PHPIZE_DEPS
 
 # Install Xdebug for code coverage
-RUN pecl install xdebug-3.3.1 \
+RUN pecl install xdebug-3.4.5 \
     && docker-php-ext-enable xdebug
 
 # Configure Xdebug for coverage (not debugging)

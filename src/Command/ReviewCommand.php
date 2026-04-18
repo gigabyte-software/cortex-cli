@@ -38,7 +38,7 @@ class ReviewCommand extends Command
             ->setName('review')
             ->setDescription('Prepare the development environment for reviewing a ticket by checking out its branch and resetting the database')
             ->addArgument('ticket', InputArgument::REQUIRED, 'The ticket number to prepare for review')
-            ->addOption('quick', null, InputOption::VALUE_NONE, 'Use the "clear" command instead of "fresh" (runs migrations without dropping tables)');
+            ->addOption('quick', null, InputOption::VALUE_NONE, 'Use the "clear" command instead of "fresh" — skips the database reset. Only safe on branches with no schema or seed changes.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -86,9 +86,9 @@ class ReviewCommand extends Command
                 $branchNames,
                 $input,
                 $output,
-                fn(string $message) => $formatter->info($message),
-                fn(string $message) => $formatter->warning($message),
-                fn(string $branch) => str_starts_with($branch, $ticketNumber)
+                fn (string $message) => $formatter->info($message),
+                fn (string $message) => $formatter->warning($message),
+                fn (string $branch) => str_starts_with($branch, $ticketNumber)
             );
 
             $formatter->info("Checking out branch: $selectedBranch");
@@ -242,4 +242,3 @@ class ReviewCommand extends Command
         return $urls;
     }
 }
-

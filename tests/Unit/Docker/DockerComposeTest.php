@@ -46,6 +46,30 @@ class DockerComposeTest extends TestCase
         $this->assertNull($result);
     }
 
+    public function test_get_latest_log_lines_returns_empty_array_for_nonexistent_service(): void
+    {
+        $result = $this->dockerCompose->getLatestLogLines(
+            '/nonexistent/docker-compose.yml',
+            'nonexistent-service',
+            3
+        );
+
+        $this->assertSame([], $result);
+    }
+
+    public function test_get_latest_log_lines_coerces_zero_lines_to_one(): void
+    {
+        $result = $this->dockerCompose->getLatestLogLines(
+            '/nonexistent/docker-compose.yml',
+            'nonexistent-service',
+            0
+        );
+
+        // Even with 0 requested, it should not error out; compose file does
+        // not exist so the result is an empty list.
+        $this->assertSame([], $result);
+    }
+
     public function test_ps_returns_empty_array_for_nonexistent_compose_file(): void
     {
         $result = $this->dockerCompose->ps('/nonexistent/docker-compose.yml');

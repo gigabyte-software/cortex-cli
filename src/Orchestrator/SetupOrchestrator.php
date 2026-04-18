@@ -10,20 +10,30 @@ use Cortex\Config\Validator\SecretsValidator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\ServiceReadinessWaiter;
 use Cortex\Executor\ContainerCommandExecutor;
 use Cortex\Executor\HostCommandExecutor;
+use Cortex\Output\LiveLogPanel;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Process\Process;
 
 class SetupOrchestrator
 {
+    private readonly ServiceReadinessWaiter $readinessWaiter;
+
     public function __construct(
         private readonly DockerCompose $dockerCompose,
         private readonly HostCommandExecutor $hostExecutor,
         private readonly HealthChecker $healthChecker,
         private readonly OutputFormatter $formatter,
         private readonly SecretsValidator $secretsValidator = new SecretsValidator(),
+        ?ServiceReadinessWaiter $readinessWaiter = null,
     ) {
+        $this->readinessWaiter = $readinessWaiter ?? new ServiceReadinessWaiter(
+            $this->dockerCompose,
+            $this->healthChecker,
+            $this->formatter,
+        );
     }
 
     /**
@@ -67,7 +77,7 @@ class SetupOrchestrator
         }
 
         // Phase 2: Start Docker services
-        $this->startDockerServices($config->docker->composeFile, $namespace, $rebuild, $timeout);
+        $this->startDockerServices($config->docker->composeFile, $namespace, $rebuild, $timeout, $firstRun);
 
         // Phase 3: Wait for services with live status display
         if (!$skipWait && !empty($config->docker->waitFor)) {
@@ -127,10 +137,18 @@ class SetupOrchestrator
     }
 
     /**
-     * Start Docker Compose services
+     * Start Docker Compose services with a live, rolling 3-line log panel
+     * showing the latest docker-compose output (build progress, container
+     * creation, etc.). The panel is cleared when the command completes so
+     * it leaves no trace on the console.
      */
-    private function startDockerServices(string $composeFile, ?string $namespace = null, bool $rebuild = false, ?int $timeout = null): void
-    {
+    private function startDockerServices(
+        string $composeFile,
+        ?string $namespace = null,
+        bool $rebuild = false,
+        ?int $timeout = null,
+        bool $firstRun = false
+    ): void {
         $this->formatter->section('Starting Docker services');
 
         if ($namespace !== null) {
@@ -141,12 +159,35 @@ class SetupOrchestrator
             $this->formatter->info('Rebuilding Docker images...');
         }
 
-        $this->dockerCompose->up($composeFile, $namespace, $rebuild, $timeout);
+        // On first run the images have to be built (or pulled), which can take
+        // well over the default 5-minute non-rebuild timeout. Extend it to 30
+        // minutes unless the caller passed an explicit --timeout.
+        $effectiveTimeout = $timeout;
+        if ($effectiveTimeout === null && $firstRun && !$rebuild) {
+            $effectiveTimeout = 1800;
+        }
+
+        $panel = new LiveLogPanel($this->formatter->createSection(), 3);
+        try {
+            $this->dockerCompose->up(
+                $composeFile,
+                $namespace,
+                $rebuild,
+                $effectiveTimeout,
+                static function (string $type, string $buffer) use ($panel): void {
+                    $panel->appendBuffer($buffer);
+                }
+            );
+        } finally {
+            $panel->clear();
+        }
+
         $this->formatter->info('Docker services started');
     }
 
     /**
-     * Wait for services to become healthy with live-updating status display.
+     * Wait for services to become healthy with live-updating status display,
+     * delegating to the shared {@see ServiceReadinessWaiter}.
      *
      * @param \Cortex\Config\Schema\ServiceWaitConfig[] $waitFor
      */
@@ -154,93 +195,12 @@ class SetupOrchestrator
     {
         $this->formatter->section('Waiting for services');
 
-        $section = $this->formatter->createSection();
-
-        // Track per-service state
-        $serviceState = [];
-        $startTimes = [];
-        $resolvedTimes = [];
-        $timeoutMultiplier = $firstRun ? 10 : 1;
-
-        foreach ($waitFor as $waitConfig) {
-            $serviceState[$waitConfig->service] = [
-                'status' => 'waiting',
-                'elapsed' => null,
-                'log' => null,
-            ];
-            $startTimes[$waitConfig->service] = microtime(true);
-        }
-
-        $pollInterval = 2;
-        $overallStart = microtime(true);
-
-        while (true) {
-            $allHealthy = true;
-
-            foreach ($waitFor as $waitConfig) {
-                $service = $waitConfig->service;
-
-                if (isset($resolvedTimes[$service])) {
-                    continue;
-                }
-
-                $status = $this->healthChecker->getHealthStatus($composeFile, $service, $namespace);
-                $isHealthy = ($status === 'healthy' || $status === 'running');
-
-                if ($isHealthy) {
-                    $elapsed = microtime(true) - $startTimes[$service];
-                    $resolvedTimes[$service] = $elapsed;
-                    $serviceState[$service] = [
-                        'status' => $status,
-                        'elapsed' => $elapsed,
-                        'log' => null,
-                    ];
-                } else {
-                    $allHealthy = false;
-                    $logLine = $this->dockerCompose->getLatestLogLine($composeFile, $service, $namespace);
-                    $serviceState[$service] = [
-                        'status' => $status ?: 'waiting',
-                        'elapsed' => null,
-                        'log' => $logLine,
-                    ];
-
-                    // Check per-service timeout
-                    $effectiveTimeout = $waitConfig->timeout * $timeoutMultiplier;
-                    $elapsed = microtime(true) - $startTimes[$service];
-                    if ($elapsed >= $effectiveTimeout) {
-                        // Render final state before throwing
-                        if ($section !== null) {
-                            $this->formatter->renderServiceStatus($section, $serviceState);
-                        }
-
-                        $projectFlag = $namespace ? " -p $namespace" : '';
-                        throw new ServiceNotHealthyException(
-                            "Service '$service' did not become healthy within {$effectiveTimeout}s. " .
-                            "Check logs with: docker-compose -f $composeFile$projectFlag logs $service"
-                        );
-                    }
-                }
-            }
-
-            // Render current state
-            if ($section !== null) {
-                $this->formatter->renderServiceStatus($section, $serviceState);
-            } else {
-                // Fallback for non-interactive output (e.g. tests): print once at end
-                if ($allHealthy) {
-                    foreach ($serviceState as $name => $info) {
-                        $elapsed = $info['elapsed'] ?? 0.0;
-                        $this->formatter->info(sprintf('%s (%s after %.1fs)', $name, $info['status'], $elapsed));
-                    }
-                }
-            }
-
-            if ($allHealthy) {
-                break;
-            }
-
-            sleep($pollInterval);
-        }
+        $this->readinessWaiter->waitForAll(
+            $composeFile,
+            $waitFor,
+            $namespace,
+            $firstRun ? 10 : 1,
+        );
     }
 
     /**

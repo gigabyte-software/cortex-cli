@@ -8,10 +8,10 @@ use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\Schema\CommandDefinition;
 use Cortex\Config\Schema\CortexConfig;
 use Cortex\Config\Schema\DockerConfig;
-use Cortex\Config\Schema\ServiceWaitConfig;
-use Cortex\Config\Schema\SecretsConfig;
-use Cortex\Config\Schema\SetupConfig;
 use Cortex\Config\Schema\N8nConfig;
+use Cortex\Config\Schema\SecretsConfig;
+use Cortex\Config\Schema\ServiceWaitConfig;
+use Cortex\Config\Schema\SetupConfig;
 use Cortex\Config\Validator\ConfigValidator;
 use Symfony\Component\Yaml\Yaml;
 
@@ -186,9 +186,9 @@ class ConfigLoader
 
         // Remove leading './' from relative paths
         $normalizedPath = preg_replace('#^\./#', '', $path);
-        
+
         $fullPath = rtrim($projectRoot . '/' . $normalizedPath, '/');
-        
+
         // Use realpath if the path exists to resolve any remaining . or .. components
         if (file_exists($fullPath)) {
             $resolved = realpath($fullPath);
@@ -196,7 +196,7 @@ class ConfigLoader
                 return $resolved;
             }
         }
-        
+
         return $fullPath;
     }
 

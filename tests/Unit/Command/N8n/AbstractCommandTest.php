@@ -167,7 +167,7 @@ class AbstractCommandTest extends TestCase
         if (file_exists($this->envPath)) {
             $content = file_get_contents($this->envPath);
             $this->assertIsString($content);
-            $lines = array_filter(explode(PHP_EOL, trim($content)), fn($line) => $line !== '');
+            $lines = array_filter(explode(PHP_EOL, trim($content)), fn ($line) => $line !== '');
             $this->assertStringStartsWith('CORTEX_N8N_API_KEY', $lines[0] ?? '');
             $this->assertStringStartsWith('CORTEX_N8N_HOST', $lines[1] ?? '');
             $this->assertStringStartsWith('CORTEX_N8N_PORT', $lines[2] ?? '');
@@ -379,7 +379,7 @@ class AbstractCommandTest extends TestCase
             'data' => [
                 ['id' => '1', 'name' => 'Workflow 1'],
                 ['id' => '2', 'name' => 'Workflow 2'],
-            ]
+            ],
         ];
 
         $response = $this->createMockResponseFromJson($workflowsData);
