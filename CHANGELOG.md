@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.11.0...v2.11.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* prune stale remotes and fast-forward existing local branches on review checkout ([2a9ad12](https://github.com/gigabyte-software/cortex-cli/commit/2a9ad120b8d4ad372db5a75bd528cddabe2a37d5))
+
 # [2.11.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.10.0...v2.11.0) (2026-04-18)
 
 
