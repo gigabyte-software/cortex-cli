@@ -266,6 +266,82 @@ class GitRepositoryServiceTest extends TestCase
         $this->assertEquals('branch1', $selected);
     }
 
+    public function test_fetchFromOrigin_picks_up_newly_pushed_branches(): void
+    {
+        // Create a brand new branch on origin via a separate clone after setUp's fetch
+        $this->createBranchOnOrigin('feature/NEW-TICKET-999', 'new-ticket.txt', 'Commit for NEW-TICKET-999');
+
+        // Before fetch, origin/feature/NEW-TICKET-999 shouldn't be known locally
+        $branchesBefore = $this->service->findBranchesContaining($this->gitRepoPath, 'NEW-TICKET-999');
+        $this->assertNotContains('feature/NEW-TICKET-999', $branchesBefore);
+
+        $result = $this->service->fetchFromOrigin($this->gitRepoPath);
+
+        $this->assertTrue($result);
+        $branchesAfter = $this->service->findBranchesContaining($this->gitRepoPath, 'NEW-TICKET-999');
+        $this->assertContains('feature/NEW-TICKET-999', $branchesAfter);
+    }
+
+    public function test_fetchFromOrigin_prunes_branches_deleted_on_origin(): void
+    {
+        // Delete a branch from origin via a separate clone
+        $this->deleteBranchOnOrigin('feature/other-branch');
+
+        $result = $this->service->fetchFromOrigin($this->gitRepoPath);
+
+        $this->assertTrue($result);
+        $branches = $this->service->findBranchesContaining($this->gitRepoPath, 'other-branch');
+        $this->assertNotContains('feature/other-branch', $branches, 'Pruned branch should no longer appear in remote-tracking refs');
+    }
+
+    public function test_checkoutBranch_creates_local_branch_from_origin_when_missing(): void
+    {
+        // Remove the local branch so only origin/<branch> exists
+        $this->runGitCommand('git branch -D feature/TICKET-456');
+
+        $result = $this->service->checkoutBranch($this->gitRepoPath, 'feature/TICKET-456');
+
+        $this->assertTrue($result);
+        $this->assertEquals('feature/TICKET-456', $this->currentBranch());
+    }
+
+    public function test_checkoutBranch_fast_forwards_existing_local_branch_to_origin(): void
+    {
+        // Advance origin with a new commit pushed from a separate clone
+        $this->pushAdditionalCommitToOrigin('feature/TICKET-456', 'update-from-origin.txt', 'Second commit on TICKET-456');
+
+        // Fetch so origin/<branch> in our repo knows about the new commit
+        $this->runGitCommand('git fetch origin');
+
+        $localTipBefore = $this->revParse('feature/TICKET-456');
+        $originTip = $this->revParse('origin/feature/TICKET-456');
+        $this->assertNotEquals($localTipBefore, $originTip, 'Precondition: local should be behind origin');
+
+        $result = $this->service->checkoutBranch($this->gitRepoPath, 'feature/TICKET-456');
+
+        $this->assertTrue($result);
+        $this->assertEquals('feature/TICKET-456', $this->currentBranch());
+        $this->assertEquals($originTip, $this->revParse('HEAD'), 'Local branch should be fast-forwarded to origin');
+    }
+
+    public function test_checkoutBranch_returns_false_when_local_branch_diverges_from_origin(): void
+    {
+        // Add a local-only commit on the existing local branch so it diverges from origin
+        $this->runGitCommand('git checkout feature/TICKET-456');
+        file_put_contents($this->gitRepoPath . '/local-only.txt', 'local changes');
+        $this->runGitCommand('git add local-only.txt');
+        $this->runGitCommand('git commit -m "Local-only commit"');
+        $this->runGitCommand('git checkout main');
+
+        // Push a different commit to origin so a fast-forward is impossible
+        $this->pushAdditionalCommitToOrigin('feature/TICKET-456', 'origin-only.txt', 'Origin-only commit');
+        $this->runGitCommand('git fetch origin');
+
+        $result = $this->service->checkoutBranch($this->gitRepoPath, 'feature/TICKET-456');
+
+        $this->assertFalse($result, 'Diverged local branch should fail fast-forward and return false');
+    }
+
     public function test_selectBranch_outputs_branch_list(): void
     {
         $branches = ['feature/TICKET-123', 'feature/TICKET-456'];
@@ -378,6 +454,96 @@ class GitRepositoryServiceTest extends TestCase
 
         // Return to original branch
         $this->runGitCommand("git checkout {$currentBranch}");
+    }
+
+    /**
+     * Return the currently checked-out branch name in the test repo
+     */
+    private function currentBranch(): string
+    {
+        $process = \Symfony\Component\Process\Process::fromShellCommandline(
+            'git branch --show-current',
+            $this->gitRepoPath
+        );
+        $process->setTimeout(10);
+        $process->run();
+
+        return trim($process->getOutput());
+    }
+
+    /**
+     * Return the commit SHA that a given ref points at in the test repo
+     */
+    private function revParse(string $ref): string
+    {
+        $process = \Symfony\Component\Process\Process::fromShellCommandline(
+            'git rev-parse ' . escapeshellarg($ref),
+            $this->gitRepoPath
+        );
+        $process->setTimeout(10);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException("Failed to rev-parse {$ref}: " . $process->getErrorOutput());
+        }
+
+        return trim($process->getOutput());
+    }
+
+    /**
+     * Create a brand-new branch on origin via a separate clone, so the test repo
+     * only learns about it after an explicit fetch.
+     */
+    private function createBranchOnOrigin(string $branch, string $filename, string $message): void
+    {
+        $clonePath = $this->tempDir . '/clone-' . uniqid();
+        $this->runCommand(
+            'git clone ' . escapeshellarg($this->tempDir . '/bare-repo') . ' ' . escapeshellarg($clonePath),
+            $this->tempDir
+        );
+        $this->runCommand('git config user.name "Test User"', $clonePath);
+        $this->runCommand('git config user.email "test@example.com"', $clonePath);
+        $this->runCommand('git checkout -b ' . escapeshellarg($branch), $clonePath);
+
+        file_put_contents($clonePath . '/' . $filename, "Content for {$branch}");
+        $this->runCommand('git add ' . escapeshellarg($filename), $clonePath);
+        $this->runCommand('git commit -m ' . escapeshellarg($message), $clonePath);
+        $this->runCommand('git push -u origin ' . escapeshellarg($branch), $clonePath);
+    }
+
+    /**
+     * Delete a branch from origin via a separate clone, simulating a teammate
+     * removing a branch after merge.
+     */
+    private function deleteBranchOnOrigin(string $branch): void
+    {
+        $clonePath = $this->tempDir . '/clone-' . uniqid();
+        $this->runCommand(
+            'git clone ' . escapeshellarg($this->tempDir . '/bare-repo') . ' ' . escapeshellarg($clonePath),
+            $this->tempDir
+        );
+        $this->runCommand('git push origin --delete ' . escapeshellarg($branch), $clonePath);
+    }
+
+    /**
+     * Push an additional commit onto an existing origin branch via a separate clone,
+     * simulating a teammate updating the branch while the test repo stays untouched.
+     */
+    private function pushAdditionalCommitToOrigin(string $branch, string $filename, string $message): void
+    {
+        $clonePath = $this->tempDir . '/clone-' . uniqid();
+        $this->runCommand(
+            'git clone ' . escapeshellarg($this->tempDir . '/bare-repo') . ' ' . escapeshellarg($clonePath),
+            $this->tempDir
+        );
+        $this->runCommand('git config user.name "Test User"', $clonePath);
+        $this->runCommand('git config user.email "test@example.com"', $clonePath);
+        $this->runCommand('git checkout ' . escapeshellarg($branch), $clonePath);
+
+        file_put_contents($clonePath . '/' . $filename, "Additional content for {$branch}");
+        $this->runCommand('git add ' . escapeshellarg($filename), $clonePath);
+        $this->runCommand('git commit -m ' . escapeshellarg($message), $clonePath);
+        $this->runCommand('git push origin ' . escapeshellarg($branch), $clonePath);
     }
 
     /**

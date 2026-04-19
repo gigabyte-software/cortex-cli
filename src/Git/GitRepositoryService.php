@@ -14,11 +14,12 @@ use Symfony\Component\Process\Process;
 class GitRepositoryService
 {
     /**
-     * Fetch from origin
+     * Fetch from origin, pruning remote-tracking refs for branches that no longer exist
+     * on the remote so the candidate branch list stays in sync with origin.
      */
     public function fetchFromOrigin(string $repositoryPath): bool
     {
-        $fetchProcess = new Process(['git', 'fetch', 'origin'], $repositoryPath);
+        $fetchProcess = new Process(['git', 'fetch', '--prune', 'origin'], $repositoryPath);
         $fetchProcess->setTimeout(60);
         $fetchProcess->run();
 
@@ -71,16 +72,31 @@ class GitRepositoryService
     }
 
     /**
-     * Checkout the specified branch
+     * Checkout the specified branch, fast-forwarding from origin if it already exists locally.
+     *
+     * If the local branch exists, it is checked out and fast-forward merged from origin/<branch>
+     * so a re-run of `cortex review` picks up new commits pushed since the last checkout. If the
+     * local branch has diverged (local-only commits), the fast-forward fails and this returns
+     * false so the caller can surface an error rather than silently serve stale code.
      */
     public function checkoutBranch(string $repositoryPath, string $branch): bool
     {
         $escapedBranch = escapeshellarg($branch);
 
-        $checkoutProcess = Process::fromShellCommandline(
-            "git checkout $escapedBranch 2>/dev/null || git checkout -b $escapedBranch origin/$escapedBranch",
+        $existsProcess = Process::fromShellCommandline(
+            "git show-ref --verify --quiet refs/heads/$escapedBranch",
             $repositoryPath
         );
+        $existsProcess->setTimeout(10);
+        $existsProcess->run();
+
+        if ($existsProcess->isSuccessful()) {
+            $command = "git checkout $escapedBranch && git merge --ff-only origin/$escapedBranch";
+        } else {
+            $command = "git checkout -b $escapedBranch origin/$escapedBranch";
+        }
+
+        $checkoutProcess = Process::fromShellCommandline($command, $repositoryPath);
         $checkoutProcess->setTimeout(60);
         $checkoutProcess->run();
 
