@@ -18,4 +18,11 @@ class ApplicationTest extends TestCase
         $command = $app->find('n8n:import');
         $this->assertInstanceOf(ImportCommand::class, $command);
     }
+
+    public function test_sync_agents_command_is_registered(): void
+    {
+        $app = new Application();
+
+        $this->assertTrue($app->has('sync-agents'));
+    }
 }
