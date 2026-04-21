@@ -41,9 +41,21 @@ class SyncAgentsCommand extends Command
 
         if ($changed) {
             $formatter->success('✓ AGENTS.md updated.');
-        } else {
-            $formatter->info('AGENTS.md is already up to date (or CORTEX_SKIP_AGENTS_SYNC is set).');
+
+            return Command::SUCCESS;
         }
+
+        if ($sync->hasMalformedManagedMarkers($projectRoot)) {
+            $formatter->warning(
+                'AGENTS.md contains malformed CORTEX_AGENTS_MANAGED markers (e.g. END before BEGIN, '
+                . 'or a BEGIN with no matching END). Cortex will not modify the file until the '
+                . 'markers are fixed or the managed block is removed.'
+            );
+
+            return Command::FAILURE;
+        }
+
+        $formatter->info('AGENTS.md is already up to date (or CORTEX_SKIP_AGENTS_SYNC is set).');
 
         return Command::SUCCESS;
     }

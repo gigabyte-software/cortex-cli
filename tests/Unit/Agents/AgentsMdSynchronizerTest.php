@@ -109,20 +109,53 @@ class AgentsMdSynchronizerTest extends TestCase
         $this->assertStringNotContainsString('OLD_UNIQUE_PLACEHOLDER', $content);
     }
 
-    public function testMalformedBeginWithoutEndAppendsManaged(): void
+    public function testMalformedBeginWithoutEndIsNoOp(): void
     {
-        file_put_contents($this->projectDir . '/AGENTS.md', "Intro\n" . AgentsMdSynchronizer::MARKER_BEGIN . "\norphan");
+        $original = "Intro\n" . AgentsMdSynchronizer::MARKER_BEGIN . "\norphan";
+        $path = $this->projectDir . '/AGENTS.md';
+        file_put_contents($path, $original);
 
         $sync = new AgentsMdSynchronizer();
         $changed = $sync->sync($this->projectDir, 'FIXED');
 
-        $this->assertTrue($changed);
-        $content = file_get_contents($this->projectDir . '/AGENTS.md');
-        $this->assertIsString($content);
-        $this->assertStringContainsString('Intro', $content);
-        $this->assertStringContainsString('orphan', $content);
-        $this->assertStringContainsString('FIXED', $content);
-        $this->assertStringContainsString(AgentsMdSynchronizer::MARKER_END, $content);
+        $this->assertFalse($changed);
+        $this->assertSame($original, file_get_contents($path));
+        $this->assertTrue($sync->hasMalformedManagedMarkers($this->projectDir));
+    }
+
+    public function testInvertedMarkersDoNotGrowFile(): void
+    {
+        $original = "Intro\n\n"
+            . AgentsMdSynchronizer::MARKER_END . "\n"
+            . "stray\n"
+            . AgentsMdSynchronizer::MARKER_BEGIN . "\n"
+            . "also stray";
+        $path = $this->projectDir . '/AGENTS.md';
+        file_put_contents($path, $original);
+
+        $sync = new AgentsMdSynchronizer();
+        for ($i = 0; $i < 3; $i++) {
+            $changed = $sync->sync($this->projectDir, 'BODY_' . $i);
+            $this->assertFalse($changed, "sync() should be a no-op on run $i");
+        }
+
+        $this->assertSame($original, file_get_contents($path));
+        $this->assertTrue($sync->hasMalformedManagedMarkers($this->projectDir));
+    }
+
+    public function testHasMalformedManagedMarkersIsFalseForWellFormedFile(): void
+    {
+        $sync = new AgentsMdSynchronizer();
+        $sync->sync($this->projectDir, 'BODY');
+
+        $this->assertFalse($sync->hasMalformedManagedMarkers($this->projectDir));
+    }
+
+    public function testHasMalformedManagedMarkersIsFalseWhenFileMissing(): void
+    {
+        $sync = new AgentsMdSynchronizer();
+
+        $this->assertFalse($sync->hasMalformedManagedMarkers($this->projectDir));
     }
 
     public function testRespectsCortexSkipAgentsSync(): void
