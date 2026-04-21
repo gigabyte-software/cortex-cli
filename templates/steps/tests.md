@@ -130,7 +130,7 @@ Before proceeding, verify tests are:
 
 ### Update specs.md
 
-Add test implementation details to `tickets/[ticket-id]/specs.md`:
+Add test implementation details to `.cortex/tickets/[ticket-id]/specs.md`:
 
 ```markdown
 # Specs for CORE-123

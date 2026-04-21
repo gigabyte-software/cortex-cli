@@ -21,7 +21,7 @@ Before this step:
 ### What To Do
 
 1. **Review the Plan**
-   * Re-read `tickets/[ticket-id]/plan.md`
+   * Re-read `.cortex/tickets/[ticket-id]/plan.md`
    * Understand the class structure and contracts
    * Note any pseudocode for complex logic
 

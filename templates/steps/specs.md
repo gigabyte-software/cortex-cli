@@ -24,7 +24,7 @@ Transform the user's brief/prompt into formal Gherkin feature specifications tha
    * Include scenarios for happy path, edge cases, and error handling
 
 3. **Update specs.md**
-   * Update `tickets/[ticket-id]/specs.md` with:
+   * Update `.cortex/tickets/[ticket-id]/specs.md` with:
      * List of feature files created or modified
      * Links to specific scenarios
      * Brief description of what each covers

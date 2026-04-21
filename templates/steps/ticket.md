@@ -3,13 +3,14 @@
 ### Structure
 
 ```
-tickets/
-└── CORE-123/
-    ├── README.md      # Human-readable overview
-    ├── ticket.json    # Machine-readable Linear issue data - optional because this may not be a linear issue
-    ├── plan.md        # Implementation plan, blank to begin with
-    ├── specs.md       # Links to related feature specs, blank to begin with
-    └── assets/        # Screenshots, mockups, diagrams - save anything non-text based the user gives you in here
+.cortex/
+└── tickets/
+    └── CORE-123/
+        ├── README.md      # Human-readable overview
+        ├── ticket.json    # Machine-readable Linear issue data - optional because this may not be a linear issue
+        ├── plan.md        # Implementation plan, blank to begin with
+        ├── specs.md       # Links to related feature specs, blank to begin with
+        └── assets/        # Screenshots, mockups, diagrams - save anything non-text based the user gives you in here
 ```
 
 ### File Descriptions
@@ -53,9 +54,9 @@ You should save any assets the user gives you in here.
 
 When starting work on a new ticket:
 
-1. Create folder: `tickets/[ticket-id]/`
+1. Create folder: `.cortex/tickets/[ticket-id]/`
 2. Create `README.md` with ticket context
 3. Create `ticket.json` with Linear issue data (ignore if not working on linear issue)
 4. Create a `plan.md`, blank for now
-4. Create a `specs.md`, blank for now
-4. Add any reference materials to `assets/`
+5. Create a `specs.md`, blank for now
+6. Add any reference materials to `assets/`
