@@ -25,4 +25,11 @@ class ApplicationTest extends TestCase
 
         $this->assertTrue($app->has('sync-agents'));
     }
+
+    public function test_init_github_actions_command_is_registered(): void
+    {
+        $app = new Application();
+
+        $this->assertTrue($app->has('init-github-actions'));
+    }
 }
