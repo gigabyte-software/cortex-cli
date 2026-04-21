@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Cortex\Command;
 
+use Cortex\Agents\AgentsMdSynchronizer;
 use Cortex\Output\OutputFormatter;
+use Cortex\Support\TicketInstructionsMarkdownCompiler;
+use Cortex\Templates\TemplateDirectory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -58,6 +61,9 @@ class InitCommand extends Command
             } else {
                 $formatter->info('⊘ Skipped ~/.claude files (--skip-claude)');
             }
+
+            $agentsSync = new AgentsMdSynchronizer();
+            $agentsSync->sync($cwd);
 
             // Show success message
             $this->showSuccessMessage($formatter, $skipYaml, $skipClaude);
@@ -321,84 +327,12 @@ class InitCommand extends Command
 
     private function compileClaudeRulesContent(): string
     {
-        $content = '';
-
-        // 1. Start with parent.md (intro content)
-        $parentPath = $this->getTemplatePath('ticket-types/parent.md');
-        if (file_exists($parentPath)) {
-            $parentContent = file_get_contents($parentPath);
-            if ($parentContent !== false) {
-                $content .= $parentContent;
-            }
-        }
-
-        // 2. Add all shared steps in workflow order
-        $stepOrder = [
-            'ticket.md',
-            'specs.md',
-            'approach.md',
-            'planning.md',
-            'tests.md',
-            'code.md',
-        ];
-
-        foreach ($stepOrder as $stepFile) {
-            $stepPath = $this->getTemplatePath('steps/' . $stepFile);
-            if (file_exists($stepPath)) {
-                $stepContent = file_get_contents($stepPath);
-                if ($stepContent !== false) {
-                    $content .= "\n\n" . $stepContent;
-                }
-            }
-        }
-
-        // 3. Add ticket types section header
-        $content .= "\n\n# Ticket Types\n";
-
-        // 4. Add all ticket types (except parent.md), alphabetically
-        $ticketTypesDir = $this->getTemplatesDirectory() . '/ticket-types';
-        if (is_dir($ticketTypesDir)) {
-            $ticketTypeFiles = [];
-            $files = scandir($ticketTypesDir);
-            if ($files !== false) {
-                foreach ($files as $file) {
-                    if ($file !== '.' && $file !== '..' && $file !== 'parent.md' && pathinfo($file, PATHINFO_EXTENSION) === 'md') {
-                        $ticketTypeFiles[] = $file;
-                    }
-                }
-            }
-            sort($ticketTypeFiles);
-
-            foreach ($ticketTypeFiles as $ticketTypeFile) {
-                $ticketTypePath = $ticketTypesDir . '/' . $ticketTypeFile;
-                $ticketTypeContent = file_get_contents($ticketTypePath);
-                if ($ticketTypeContent !== false) {
-                    $content .= "\n\n" . $ticketTypeContent;
-                }
-            }
-        }
-
-        return $content;
-    }
-
-    private function getTemplatesDirectory(): string
-    {
-        // When running as PHAR, templates are bundled inside
-        $pharPath = \Phar::running(false);
-
-        if (!empty($pharPath)) {
-            // Running as PHAR - templates are in phar://path/to/cortex.phar/templates/
-            return \Phar::running() . '/templates';
-        }
-
-        // Running from source - look for templates relative to project root
-        $projectRoot = dirname(__DIR__, 2);
-        return $projectRoot . '/templates';
+        return (new TicketInstructionsMarkdownCompiler())->compile(TemplateDirectory::resolve());
     }
 
     private function getTemplatePath(string $templateName): string
     {
-        return $this->getTemplatesDirectory() . '/' . $templateName;
+        return TemplateDirectory::path($templateName);
     }
 
     private function showSuccessMessage(OutputFormatter $formatter, bool $skipYaml, bool $skipClaude = false): void
@@ -418,6 +352,8 @@ class InitCommand extends Command
         if (!$skipYaml) {
             $formatter->info('  ✓ cortex.yml');
         }
+
+        $formatter->info('  ✓ AGENTS.md (Cortex-managed section updated if present)');
 
         if (!$skipClaude) {
             $formatter->info('');
@@ -439,6 +375,8 @@ class InitCommand extends Command
         }
 
         $formatter->info('  4. Read .cortex/README.md for documentation');
+        $formatter->info('');
+        $formatter->info('AGENTS.md: the Cortex-managed block is refreshed when you run cortex commands in this project (or use `cortex sync-agents`). Per-repo `.cursor/rules` and `.claude` files are not removed by Cortex.');
         $formatter->info('');
         $formatter->info('For help: cortex --help');
     }

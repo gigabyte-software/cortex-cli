@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cortex;
 
+use Cortex\Agents\AgentsMdSynchronizer;
 use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
@@ -17,12 +18,14 @@ use Cortex\Command\ReviewCommand;
 use Cortex\Command\SecureCommand;
 use Cortex\Command\SelfUpdateCommand;
 use Cortex\Command\ShellCommand;
+use Cortex\Command\SyncAgentsCommand;
 use Cortex\Command\ShowUrlCommand;
 use Cortex\Command\StatusCommand;
 use Cortex\Command\StyleDemoCommand;
 use Cortex\Command\UpCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\ConfigWarningChecker;
+use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
 use Cortex\Config\Validator\ConfigValidator;
 use Cortex\Docker\ComposeOverrideGenerator;
@@ -51,6 +54,15 @@ class Application extends BaseApplication
     private const SKIP_WARNINGS_FOR = [
         'init', 'self-update', 'list', 'help', '_complete', 'completion', 'style-demo',
         'up', 'rebuild',
+    ];
+
+    /**
+     * Commands for which the AGENTS.md sync should not run. These are read-only / utility
+     * commands that must not cause filesystem writes to the user's project. The sync-agents
+     * command is excluded because it performs its own sync inside execute().
+     */
+    private const SKIP_AGENTS_SYNC_FOR = [
+        '_complete', 'completion', 'list', 'help', 'self-update', 'style-demo', 'sync-agents',
     ];
 
     /** @var list<string> */
@@ -118,6 +130,7 @@ class Application extends BaseApplication
         // Register built-in commands (these take precedence over custom commands)
         $this->add(new InitCommand());
         $this->add(new InitGithubActionsCommand());
+        $this->add(new SyncAgentsCommand());
         $this->add(new UpCommand(
             $configLoader,
             $setupOrchestrator,
@@ -231,6 +244,10 @@ class Application extends BaseApplication
 
     protected function doRunCommand(Command $command, InputInterface $input, OutputInterface $output): int
     {
+        if (!in_array($command->getName(), self::SKIP_AGENTS_SYNC_FOR, true)) {
+            $this->synchronizeAgentsMdInProject();
+        }
+
         if ($this->configWarnings !== [] && !in_array($command->getName(), self::SKIP_WARNINGS_FOR, true)) {
             $formatter = new OutputFormatter($output);
             foreach ($this->configWarnings as $warning) {
@@ -240,5 +257,16 @@ class Application extends BaseApplication
         }
 
         return parent::doRunCommand($command, $input, $output);
+    }
+
+    private function synchronizeAgentsMdInProject(): void
+    {
+        try {
+            $configLoader = new ConfigLoader(new ConfigValidator());
+            $projectRoot = dirname($configLoader->findConfigFile());
+            (new AgentsMdSynchronizer())->sync($projectRoot);
+        } catch (ConfigException) {
+            // No cortex.yml in cwd or parents
+        }
     }
 }

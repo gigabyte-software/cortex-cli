@@ -514,6 +514,18 @@ class InitCommandTest extends TestCase
         $this->assertStringContainsString('~/.claude/CLAUDE.md', $output);
     }
 
+    public function testInitMentionsAgentsMdPolicy(): void
+    {
+        $command = new InitCommand();
+        $tester = $this->createCommandTester($command);
+
+        $tester->execute([], ['interactive' => false]);
+
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('AGENTS.md', $output);
+        $this->assertStringContainsString('sync-agents', $output);
+    }
+
     private function createCommandTester(InitCommand $command): CommandTester
     {
         // Change to test directory
