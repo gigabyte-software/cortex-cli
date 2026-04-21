@@ -116,6 +116,18 @@ This command creates:
 
 The user-level files are automatically updated if templates change when re-running `cortex init`. Use `--skip-claude` if you maintain your own `~/.claude` files.
 
+### `cortex init-github-actions`
+
+Add caller workflows under `.github/workflows/` that invoke the shared Claude automation from [`gigabyte-software/shared-workflows`](https://github.com/gigabyte-software/shared-workflows) (CI auto-fix, auto-rebase, review-comment fixes):
+
+```bash
+cortex init-github-actions
+cortex init-github-actions --ref v1 --ci-workflow-name "CI" --base-branch develop
+cortex init-github-actions --no-composer --force
+```
+
+See `cortex init-github-actions --help` for all options (`--repo`, `--ref`, `--php-version`, `--node-version`, etc.). After running, configure the repository secrets listed in the command output and confirm your CI workflow name matches `--ci-workflow-name`.
+
 ### `cortex update`
 
 Update Cortex CLI to the latest version:

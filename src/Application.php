@@ -7,6 +7,7 @@ namespace Cortex;
 use Cortex\Command\DownCommand;
 use Cortex\Command\DynamicCommand;
 use Cortex\Command\InitCommand;
+use Cortex\Command\InitGithubActionsCommand;
 use Cortex\Command\LogsCommand;
 use Cortex\Command\N8n\ExportCommand;
 use Cortex\Command\N8n\ImportCommand;
@@ -116,6 +117,7 @@ class Application extends BaseApplication
 
         // Register built-in commands (these take precedence over custom commands)
         $this->add(new InitCommand());
+        $this->add(new InitGithubActionsCommand());
         $this->add(new UpCommand(
             $configLoader,
             $setupOrchestrator,
