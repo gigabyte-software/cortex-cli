@@ -170,6 +170,59 @@ class SetupOrchestratorTest extends TestCase
         $orchestrator->setup($config);
     }
 
+    public function test_setup_fails_fast_when_monitored_service_is_crash_looping(): void
+    {
+        $config = $this->createConfig(waitFor: [
+            new ServiceWaitConfig(service: 'db', timeout: 30),
+        ]);
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+        $this->dockerCompose->method('getLatestLogLine')->willReturn(null);
+        $this->dockerCompose->method('listServices')->willReturn(['db', 'app', 'nginx']);
+
+        // db would be healthy immediately, but nginx is crash-looping because
+        // the app container never came up. The waiter must surface this rather
+        // than declaring the environment ready.
+        $this->healthChecker->method('getHealthStatus')
+            ->willReturnCallback(function (string $composeFile, string $service): string {
+                return match ($service) {
+                    'db' => 'healthy',
+                    'app' => 'running',
+                    'nginx' => 'restarting',
+                    default => 'unknown',
+                };
+            });
+
+        $this->expectException(\Cortex\Docker\Exception\ServiceNotHealthyException::class);
+        $this->expectExceptionMessageMatches('/nginx \(restarting\)/');
+
+        $orchestrator = $this->createOrchestrator();
+        $orchestrator->setup($config);
+    }
+
+    public function test_setup_still_verifies_services_when_wait_for_is_empty(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+        $this->dockerCompose->method('listServices')->willReturn(['app', 'nginx']);
+
+        // No wait_for configured, but app is crash-looping — cortex must still
+        // catch this instead of blindly declaring success.
+        $this->healthChecker->method('getHealthStatus')
+            ->willReturnCallback(function (string $composeFile, string $service): string {
+                return $service === 'app' ? 'restarting' : 'running';
+            });
+
+        $this->expectException(\Cortex\Docker\Exception\ServiceNotHealthyException::class);
+        $this->expectExceptionMessageMatches('/app \(restarting\)/');
+
+        $orchestrator = $this->createOrchestrator();
+        $orchestrator->setup($config);
+    }
+
     public function test_first_run_multiplies_timeout_by_10(): void
     {
         $config = $this->createConfig(waitFor: [

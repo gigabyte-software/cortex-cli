@@ -79,8 +79,11 @@ class SetupOrchestrator
         // Phase 2: Start Docker services
         $this->startDockerServices($config->docker->composeFile, $namespace, $rebuild, $timeout, $firstRun);
 
-        // Phase 3: Wait for services with live status display
-        if (!$skipWait && !empty($config->docker->waitFor)) {
+        // Phase 3: Wait for services with live status display. Even when the
+        // user has no explicit wait_for entries, we still scan every compose
+        // service for crash-loops so a broken container never masquerades as a
+        // successful startup.
+        if (!$skipWait) {
             $this->waitForServices($config->docker->composeFile, $config->docker->waitFor, $namespace, $firstRun);
         }
 
@@ -189,18 +192,63 @@ class SetupOrchestrator
      * Wait for services to become healthy with live-updating status display,
      * delegating to the shared {@see ServiceReadinessWaiter}.
      *
+     * Every compose service that is NOT in the explicit wait list is passed
+     * through as a monitored service: while we wait on the explicit ones,
+     * crashes in any other container (for example an nginx whose upstream
+     * `app` is dead) will abort immediately rather than being silently
+     * ignored.
+     *
      * @param \Cortex\Config\Schema\ServiceWaitConfig[] $waitFor
      */
     private function waitForServices(string $composeFile, array $waitFor, ?string $namespace = null, bool $firstRun = false): void
     {
+        if (empty($waitFor)) {
+            // No explicit wait list: the section header would be misleading. We
+            // still want to detect crash-looping services, so run the one-shot
+            // verification silently.
+            $allServices = $this->dockerCompose->listServices($composeFile, $namespace);
+            $this->readinessWaiter->verifyNoServicesFailed($composeFile, $allServices, $namespace);
+            return;
+        }
+
         $this->formatter->section('Waiting for services');
+
+        $monitorServices = $this->computeMonitorServices($composeFile, $waitFor, $namespace);
 
         $this->readinessWaiter->waitForAll(
             $composeFile,
             $waitFor,
             $namespace,
             $firstRun ? 10 : 1,
+            $monitorServices,
         );
+    }
+
+    /**
+     * Return the list of compose services that are not already covered by
+     * $waitFor. These are the services we want to watch for crash-loops while
+     * the explicit wait is in progress.
+     *
+     * @param \Cortex\Config\Schema\ServiceWaitConfig[] $waitFor
+     *
+     * @return list<string>
+     */
+    private function computeMonitorServices(string $composeFile, array $waitFor, ?string $namespace): array
+    {
+        $allServices = $this->dockerCompose->listServices($composeFile, $namespace);
+        if ($allServices === []) {
+            return [];
+        }
+
+        $waitForNames = [];
+        foreach ($waitFor as $waitConfig) {
+            $waitForNames[$waitConfig->service] = true;
+        }
+
+        return array_values(array_filter(
+            $allServices,
+            static fn (string $service): bool => !isset($waitForNames[$service])
+        ));
     }
 
     /**
