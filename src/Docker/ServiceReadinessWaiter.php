@@ -22,6 +22,12 @@ class ServiceReadinessWaiter
     private const LOG_LINES = 3;
     private const POLL_INTERVAL_SECONDS = 2;
 
+    /**
+     * Container states that indicate a service has failed or is crash-looping
+     * and will not recover on its own.
+     */
+    private const FAILED_STATES = ['restarting', 'exited', 'dead', 'unhealthy'];
+
     public function __construct(
         private readonly DockerCompose $dockerCompose,
         private readonly HealthChecker $healthChecker,
@@ -32,18 +38,33 @@ class ServiceReadinessWaiter
     /**
      * Poll each service until healthy or timed out, rendering live status.
      *
+     * In parallel, every service listed in $monitorServices is checked on each
+     * poll for crash-loop states. If any monitored service enters a failed
+     * state (see {@see FAILED_STATES}) we abort immediately with a pointer to
+     * that service's logs, rather than silently declaring the environment
+     * ready when a non-waited-for service is dead.
+     *
      * @param ServiceWaitConfig[] $waitFor
+     * @param list<string>        $monitorServices Services whose failure should
+     *     abort the wait immediately. Typically every compose service that is
+     *     not already in $waitFor.
      *
      * @throws ServiceNotHealthyException if any service exceeds its (possibly
-     *         multiplied) timeout.
+     *         multiplied) timeout, or if any monitored service is failing.
      */
     public function waitForAll(
         string $composeFile,
         array $waitFor,
         ?string $namespace = null,
-        int $timeoutMultiplier = 1
+        int $timeoutMultiplier = 1,
+        array $monitorServices = []
     ): void {
+        if ($waitFor === [] && $monitorServices === []) {
+            return;
+        }
+
         if ($waitFor === []) {
+            $this->verifyNoServicesFailed($composeFile, $monitorServices, $namespace);
             return;
         }
 
@@ -63,6 +84,13 @@ class ServiceReadinessWaiter
         }
 
         while (true) {
+            // Before waiting another cycle, verify no monitored (non-waited-for)
+            // service has entered a failed state. This catches crash-looping
+            // containers like an nginx whose upstream app never became reachable.
+            if ($monitorServices !== []) {
+                $this->verifyNoServicesFailed($composeFile, $monitorServices, $namespace);
+            }
+
             $allHealthy = true;
 
             foreach ($waitFor as $waitConfig) {
@@ -136,5 +164,57 @@ class ServiceReadinessWaiter
             // then leave it in the scroll-back.
             $this->formatter->renderServiceStatus($section, $serviceState);
         }
+
+        // After wait_for completes, do a final sweep across every monitored
+        // service so any container that crashed right as the wait ended is
+        // reported instead of masked by a success message.
+        if ($monitorServices !== []) {
+            $this->verifyNoServicesFailed($composeFile, $monitorServices, $namespace);
+        }
+    }
+
+    /**
+     * One-shot verification that no service is in a crash-loop or terminal
+     * failure state. Throws on the first failure so the caller can surface
+     * a single, actionable error.
+     *
+     * @param list<string> $serviceNames
+     *
+     * @throws ServiceNotHealthyException if any service is in a state listed
+     *         in {@see FAILED_STATES}.
+     */
+    public function verifyNoServicesFailed(
+        string $composeFile,
+        array $serviceNames,
+        ?string $namespace = null
+    ): void {
+        if ($serviceNames === []) {
+            return;
+        }
+
+        $failed = [];
+        foreach ($serviceNames as $service) {
+            $status = $this->healthChecker->getHealthStatus($composeFile, $service, $namespace);
+            if (in_array($status, self::FAILED_STATES, true)) {
+                $failed[$service] = $status;
+            }
+        }
+
+        if ($failed === []) {
+            return;
+        }
+
+        $details = [];
+        foreach ($failed as $service => $status) {
+            $details[] = "$service ($status)";
+        }
+
+        $projectFlag = $namespace !== null ? " -p $namespace" : '';
+        $firstService = array_key_first($failed);
+
+        throw new ServiceNotHealthyException(
+            'One or more services are in a failed state: ' . implode(', ', $details) . '. ' .
+            "Check logs with: docker-compose -f $composeFile$projectFlag logs $firstService"
+        );
     }
 }

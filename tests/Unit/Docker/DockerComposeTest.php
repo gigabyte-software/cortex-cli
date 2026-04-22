@@ -83,4 +83,11 @@ class DockerComposeTest extends TestCase
 
         $this->assertFalse($result);
     }
+
+    public function test_list_services_returns_empty_array_for_nonexistent_compose_file(): void
+    {
+        $result = $this->dockerCompose->listServices('/nonexistent/docker-compose.yml');
+
+        $this->assertSame([], $result);
+    }
 }

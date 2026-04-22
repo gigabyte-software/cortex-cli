@@ -112,4 +112,100 @@ class ServiceReadinessWaiterTest extends TestCase
 
         $this->assertTrue(true);
     }
+
+    public function test_wait_for_all_fails_fast_when_monitored_service_is_restarting(): void
+    {
+        $this->healthChecker->method('getHealthStatus')
+            ->willReturnCallback(function (string $composeFile, string $service): string {
+                return match ($service) {
+                    'db' => 'healthy',
+                    'nginx' => 'restarting',
+                    default => 'running',
+                };
+            });
+
+        $waiter = new ServiceReadinessWaiter(
+            $this->dockerCompose,
+            $this->healthChecker,
+            $this->formatter,
+        );
+
+        $this->expectException(ServiceNotHealthyException::class);
+        $this->expectExceptionMessageMatches('/nginx \(restarting\)/');
+
+        $waiter->waitForAll(
+            'docker-compose.yml',
+            [new ServiceWaitConfig(service: 'db', timeout: 5)],
+            null,
+            1,
+            ['nginx'],
+        );
+    }
+
+    public function test_verify_no_services_failed_passes_when_all_services_running(): void
+    {
+        $this->healthChecker->method('getHealthStatus')->willReturn('running');
+
+        $waiter = new ServiceReadinessWaiter(
+            $this->dockerCompose,
+            $this->healthChecker,
+            $this->formatter,
+        );
+
+        $waiter->verifyNoServicesFailed('docker-compose.yml', ['app', 'nginx']);
+
+        $this->assertTrue(true);
+    }
+
+    public function test_verify_no_services_failed_reports_each_failed_service(): void
+    {
+        $this->healthChecker->method('getHealthStatus')
+            ->willReturnMap([
+                ['docker-compose.yml', 'app', null, 'restarting'],
+                ['docker-compose.yml', 'nginx', null, 'exited'],
+                ['docker-compose.yml', 'db', null, 'healthy'],
+            ]);
+
+        $waiter = new ServiceReadinessWaiter(
+            $this->dockerCompose,
+            $this->healthChecker,
+            $this->formatter,
+        );
+
+        $this->expectException(ServiceNotHealthyException::class);
+        $this->expectExceptionMessageMatches('/app \(restarting\).*nginx \(exited\)/');
+
+        $waiter->verifyNoServicesFailed('docker-compose.yml', ['app', 'nginx', 'db']);
+    }
+
+    public function test_verify_no_services_failed_includes_namespaced_log_hint(): void
+    {
+        $this->healthChecker->method('getHealthStatus')->willReturn('restarting');
+
+        $waiter = new ServiceReadinessWaiter(
+            $this->dockerCompose,
+            $this->healthChecker,
+            $this->formatter,
+        );
+
+        $this->expectException(ServiceNotHealthyException::class);
+        $this->expectExceptionMessageMatches('/docker-compose -f docker-compose\.yml -p my-ns logs app/');
+
+        $waiter->verifyNoServicesFailed('docker-compose.yml', ['app'], 'my-ns');
+    }
+
+    public function test_verify_no_services_failed_is_no_op_for_empty_list(): void
+    {
+        $this->healthChecker->expects($this->never())->method('getHealthStatus');
+
+        $waiter = new ServiceReadinessWaiter(
+            $this->dockerCompose,
+            $this->healthChecker,
+            $this->formatter,
+        );
+
+        $waiter->verifyNoServicesFailed('docker-compose.yml', []);
+
+        $this->assertTrue(true);
+    }
 }

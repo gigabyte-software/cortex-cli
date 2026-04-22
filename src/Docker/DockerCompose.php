@@ -284,6 +284,52 @@ class DockerCompose
     }
 
     /**
+     * List every service declared in the compose file (whether running or not).
+     *
+     * Uses `docker-compose config --services`, which enumerates the services
+     * defined in the merged compose files without touching their runtime state.
+     * Returns an empty list if the compose file cannot be parsed.
+     *
+     * @return list<string>
+     */
+    public function listServices(string $composeFile, ?string $projectName = null): array
+    {
+        $command = ['docker-compose', '-f', $composeFile];
+
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
+        if ($projectName !== null) {
+            $command[] = '-p';
+            $command[] = $projectName;
+        }
+
+        $command[] = 'config';
+        $command[] = '--services';
+
+        $process = new Process($command);
+        $process->setTimeout(15);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            return [];
+        }
+
+        $services = [];
+        foreach (explode("\n", trim($process->getOutput())) as $line) {
+            $name = trim($line);
+            if ($name !== '') {
+                $services[] = $name;
+            }
+        }
+
+        return $services;
+    }
+
+    /**
      * List running services
      *
      * @param string $composeFile Path to docker-compose.yml
