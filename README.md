@@ -160,6 +160,8 @@ This will:
 3. Wait for services to be healthy
 4. Run initialize commands in container
 
+After a successful start, if `docker.app_url` uses a hostname that does not resolve (for example `http://dev.myproduct`), Cortex prints a suggested `/etc/hosts` line. That check is generic; it only knows about the hostname in `app_url`, not other vhosts your compose stack might use (add those lines yourself if needed).
+
 Options:
 - `--no-wait` - Skip health checks
 - `--skip-init` - Skip initialize commands

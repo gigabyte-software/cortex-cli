@@ -14,6 +14,7 @@ use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
 use Cortex\Caddy\CaddyService;
+use Cortex\Host\EtcHostsHint;
 use Cortex\Herd\HerdService;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
@@ -275,6 +276,14 @@ class UpCommand extends Command
 
             $output->writeln(sprintf('<fg=green>→</> Access at: <fg=cyan>%s</>', $url));
             $output->writeln('');
+
+            $hostsLine = EtcHostsHint::suggestedHostsLine($url);
+            if ($hostsLine !== null) {
+                $formatter->warning('This hostname does not resolve on your machine yet (normal for made-up dev domains).');
+                $formatter->info('Add this line to /etc/hosts so your browser can open the URL:');
+                $formatter->info('  '.$hostsLine);
+                $output->writeln('');
+            }
         }
     }
 
