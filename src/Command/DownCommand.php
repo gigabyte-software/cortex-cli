@@ -53,9 +53,11 @@ class DownCommand extends Command
             $caddyStopped = false;
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
-                $namespace = $lockData?->namespace;
-                $herdStopped = $lockData->herdStopped ?? false;
-                $caddyStopped = $lockData->caddyStopped ?? false;
+                if ($lockData !== null) {
+                    $namespace = $lockData->namespace;
+                    $herdStopped = $lockData->herdStopped;
+                    $caddyStopped = $lockData->caddyStopped;
+                }
             }
 
             $removeVolumes = $input->getOption('volumes');
