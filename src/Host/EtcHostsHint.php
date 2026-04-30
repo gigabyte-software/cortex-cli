@@ -25,6 +25,11 @@ final class EtcHostsHint
             return null;
         }
 
+        // Raw IPs: gethostbyname() returns the input unchanged, same as NXDOMAIN — do not suggest /etc/hosts.
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return null;
+        }
+
         $resolved = @gethostbyname($host);
         if ($resolved !== $host) {
             return null;

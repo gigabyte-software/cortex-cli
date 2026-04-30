@@ -29,6 +29,16 @@ final class EtcHostsHintTest extends TestCase
         $this->assertNull(EtcHostsHint::suggestedHostsLine('not-a-url'));
     }
 
+    public function test_it_returns_null_for_lan_ipv4_in_app_url(): void
+    {
+        $this->assertNull(EtcHostsHint::suggestedHostsLine('http://192.168.1.100:8080/'));
+    }
+
+    public function test_it_returns_null_for_zero_ipv4_in_app_url(): void
+    {
+        $this->assertNull(EtcHostsHint::suggestedHostsLine('http://0.0.0.0:8080'));
+    }
+
     public function test_it_suggests_hosts_line_when_hostname_does_not_resolve(): void
     {
         $host = 'example.invalid';
