@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.13.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.12.1...v2.13.0) (2026-04-30)
+
+
+### Bug Fixes
+
+* **etc-hosts-hint:** skip raw IP hostnames (gethostbyname ambiguity) ([735e176](https://github.com/gigabyte-software/cortex-cli/commit/735e1765b61a3b329ccc851aeeb7a498e71bb8e7))
+
+
+### Features
+
+* **up:** suggest /etc/hosts line when app_url hostname does not resolve ([fa0241c](https://github.com/gigabyte-software/cortex-cli/commit/fa0241cf2abc9e2661f89ce757504e30185b954e))
+
 ## [2.12.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.12.0...v2.12.1) (2026-04-30)
 
 
