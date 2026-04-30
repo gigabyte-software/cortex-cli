@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.12.0...v2.12.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* **down:** guard lock read when JSON is corrupt or unreadable ([d671c29](https://github.com/gigabyte-software/cortex-cli/commit/d671c298a35b42907b9ac6be223c53c65ba05e6c))
+
 # [2.12.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.11.1...v2.12.0) (2026-04-22)
 
 
