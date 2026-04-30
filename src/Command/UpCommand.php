@@ -13,6 +13,7 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
+use Cortex\Caddy\CaddyService;
 use Cortex\Herd\HerdService;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
@@ -33,6 +34,7 @@ class UpCommand extends Command
         private readonly ComposeOverrideGenerator $overrideGenerator,
         private readonly DockerCompose $dockerCompose,
         private readonly HerdService $herdService,
+        private readonly CaddyService $caddyService,
     ) {
         parent::__construct();
     }
@@ -48,7 +50,7 @@ class UpCommand extends Command
             ->addOption('no-host-mapping', null, InputOption::VALUE_NONE, 'Do not expose container ports to the host')
             ->addOption('no-wait', null, InputOption::VALUE_NONE, 'Skip health checks')
             ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
-            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd services before starting Docker (avoids port conflicts)')
+            ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd (nginx) and any Caddy process on ports 80/443 before starting Docker')
             ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting')
             ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations');
     }
@@ -115,16 +117,25 @@ class UpCommand extends Command
                 $this->overrideGenerator->generate($config->docker->composeFile, $portOffset, $namespace, $noHostMapping);
             }
 
-            // Stop Herd services if requested (frees ports 80/443 for Docker)
+            // Free host ports 80/443 when requested (Herd uses nginx; Caddy is a separate common listener)
             $herdStopped = false;
+            $caddyStopped = false;
             if ($input->getOption('stop-herd')) {
-                if (!$this->herdService->isInstalled()) {
-                    $formatter->warning('Herd is not installed — skipping --stop-herd');
-                } else {
+                if ($this->herdService->isInstalled()) {
                     $formatter->info('Stopping Herd services...');
                     $this->herdService->stop();
                     $herdStopped = true;
                     $formatter->info('Herd services stopped');
+                } else {
+                    $formatter->warning('Herd is not installed — skipping Herd shutdown');
+                }
+
+                $caddyCount = $this->caddyService->stopListenersOnPorts([80, 443]);
+                if ($caddyCount > 0) {
+                    $caddyStopped = true;
+                    $formatter->info($caddyCount === 1
+                        ? 'Stopped 1 Caddy process listening on ports 80 or 443'
+                        : "Stopped {$caddyCount} Caddy processes listening on ports 80 or 443");
                 }
             }
 
@@ -142,14 +153,15 @@ class UpCommand extends Command
                 $timeout
             );
 
-            // Write lock file if we generated an override file or stopped Herd
-            if ($needsOverride || $herdStopped) {
+            // Write lock file if we generated an override file or stopped Herd/Caddy
+            if ($needsOverride || $herdStopped || $caddyStopped) {
                 $lockData = new LockFileData(
                     namespace: $namespace,
                     portOffset: $portOffset > 0 ? $portOffset : null,
                     startedAt: date('c'),
                     noHostMapping: $noHostMapping,
                     herdStopped: $herdStopped,
+                    caddyStopped: $caddyStopped,
                 );
                 $this->lockFile->write($lockData);
                 $output->writeln('');
