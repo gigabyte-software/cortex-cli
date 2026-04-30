@@ -17,7 +17,7 @@ class HerdService
     }
 
     /**
-     * Stop all Herd services (nginx, dnsmasq, PHP-FPM).
+     * Stop all Herd services (nginx, dnsmasq, PHP-FPM). Herd does not use Caddy.
      *
      * @throws \RuntimeException if herd stop fails
      */

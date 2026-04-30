@@ -15,6 +15,7 @@ readonly class LockFileData
         public string $startedAt,
         public bool $noHostMapping = false,
         public bool $herdStopped = false,
+        public bool $caddyStopped = false,
     ) {
     }
 }

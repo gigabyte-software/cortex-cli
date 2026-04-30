@@ -324,6 +324,51 @@ class DownCommandTest extends TestCase
         $this->assertStringContainsString('herd start', $tester->getDisplay());
     }
 
+    public function test_it_reminds_when_caddy_was_stopped(): void
+    {
+        $config = $this->createMockConfig();
+
+        $lockData = new LockFileData(
+            namespace: null,
+            portOffset: null,
+            startedAt: '2025-11-08T10:30:00+00:00',
+            herdStopped: false,
+            caddyStopped: true
+        );
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(true);
+
+        $this->lockFile->expects($this->once())
+            ->method('read')
+            ->willReturn($lockData);
+
+        $this->dockerCompose->expects($this->once())
+            ->method('down');
+
+        $this->herdService->expects($this->never())
+            ->method('start');
+
+        $this->lockFile->expects($this->once())
+            ->method('delete');
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('Caddy was stopped', $tester->getDisplay());
+    }
+
     private function createCommand(): DownCommand
     {
         return new DownCommand(

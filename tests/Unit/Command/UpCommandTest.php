@@ -16,6 +16,7 @@ use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
+use Cortex\Caddy\CaddyService;
 use Cortex\Herd\HerdService;
 use Cortex\Orchestrator\SetupOrchestrator;
 use PHPUnit\Framework\TestCase;
@@ -31,6 +32,7 @@ class UpCommandTest extends TestCase
     private ComposeOverrideGenerator $overrideGenerator;
     private DockerCompose $dockerCompose;
     private HerdService $herdService;
+    private CaddyService $caddyService;
 
     protected function setUp(): void
     {
@@ -42,6 +44,7 @@ class UpCommandTest extends TestCase
         $this->overrideGenerator = $this->createMock(ComposeOverrideGenerator::class);
         $this->dockerCompose = $this->createMock(DockerCompose::class);
         $this->herdService = $this->createMock(HerdService::class);
+        $this->caddyService = $this->createMock(CaddyService::class);
 
         $this->dockerCompose->method('isDockerRunning')->willReturn(true);
     }
@@ -476,6 +479,11 @@ class UpCommandTest extends TestCase
         $this->herdService->expects($this->once())
             ->method('stop');
 
+        $this->caddyService->expects($this->once())
+            ->method('stopListenersOnPorts')
+            ->with([80, 443])
+            ->willReturn(0);
+
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
             ->willReturn(['time' => 1.5, 'namespace' => '', 'port_offset' => 0]);
@@ -518,6 +526,11 @@ class UpCommandTest extends TestCase
         $this->herdService->expects($this->never())
             ->method('stop');
 
+        $this->caddyService->expects($this->once())
+            ->method('stopListenersOnPorts')
+            ->with([80, 443])
+            ->willReturn(0);
+
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
             ->willReturn(['time' => 1.5, 'namespace' => '', 'port_offset' => 0]);
@@ -528,6 +541,52 @@ class UpCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('Herd is not installed', $tester->getDisplay());
+    }
+
+    public function test_it_sets_caddy_stopped_in_lock_when_caddy_was_signalled(): void
+    {
+        $config = $this->createMockConfig();
+
+        $this->lockFile->expects($this->once())
+            ->method('exists')
+            ->willReturn(false);
+
+        $this->configLoader->expects($this->once())
+            ->method('findConfigFile')
+            ->willReturn('/path/to/cortex.yml');
+
+        $this->configLoader->expects($this->once())
+            ->method('load')
+            ->willReturn($config);
+
+        $this->herdService->expects($this->once())
+            ->method('isInstalled')
+            ->willReturn(true);
+
+        $this->herdService->expects($this->once())
+            ->method('stop');
+
+        $this->caddyService->expects($this->once())
+            ->method('stopListenersOnPorts')
+            ->with([80, 443])
+            ->willReturn(2);
+
+        $this->setupOrchestrator->expects($this->once())
+            ->method('setup')
+            ->willReturn(['time' => 1.5, 'namespace' => '', 'port_offset' => 0]);
+
+        $this->lockFile->expects($this->once())
+            ->method('write')
+            ->with($this->callback(function (LockFileData $data) {
+                return $data->herdStopped === true && $data->caddyStopped === true;
+            }));
+
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute(['--stop-herd' => true]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('Stopped 2 Caddy processes', $tester->getDisplay());
     }
 
     public function test_it_does_not_stop_herd_without_flag(): void
@@ -552,6 +611,9 @@ class UpCommandTest extends TestCase
         $this->herdService->expects($this->never())
             ->method('stop');
 
+        $this->caddyService->expects($this->never())
+            ->method('stopListenersOnPorts');
+
         $this->setupOrchestrator->expects($this->once())
             ->method('setup')
             ->willReturn(['time' => 1.5, 'namespace' => '', 'port_offset' => 0]);
@@ -573,7 +635,8 @@ class UpCommandTest extends TestCase
             $this->portOffsetManager,
             $this->overrideGenerator,
             $this->dockerCompose,
-            $this->herdService
+            $this->herdService,
+            $this->caddyService
         );
     }
 

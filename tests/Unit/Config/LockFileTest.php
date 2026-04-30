@@ -162,4 +162,36 @@ class LockFileTest extends TestCase
         $this->assertNotNull($readData);
         $this->assertFalse($readData->noHostMapping);
     }
+
+    public function test_it_reads_and_writes_caddy_stopped_flag(): void
+    {
+        $data = new LockFileData(
+            namespace: null,
+            portOffset: null,
+            startedAt: '2025-11-08T10:30:00+00:00',
+            caddyStopped: true,
+        );
+
+        $this->lockFile->write($data);
+        $readData = $this->lockFile->read();
+
+        $this->assertNotNull($readData);
+        $this->assertTrue($readData->caddyStopped);
+    }
+
+    public function test_it_defaults_caddy_stopped_to_false_for_legacy_lock_files(): void
+    {
+        $legacyContent = json_encode([
+            'namespace' => null,
+            'port_offset' => null,
+            'started_at' => '2025-11-08T10:30:00+00:00',
+            'herd_stopped' => true,
+        ], JSON_PRETTY_PRINT);
+        file_put_contents($this->tempDir . '/.cortex.lock', $legacyContent);
+
+        $readData = $this->lockFile->read();
+
+        $this->assertNotNull($readData);
+        $this->assertFalse($readData->caddyStopped);
+    }
 }

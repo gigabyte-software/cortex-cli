@@ -36,6 +36,7 @@ use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
 use Cortex\Executor\HostCommandExecutor;
 use Cortex\Git\GitRepositoryService;
+use Cortex\Caddy\CaddyService;
 use Cortex\Herd\HerdService;
 use Cortex\Laravel\LaravelLogParser;
 use Cortex\Laravel\LaravelService;
@@ -107,6 +108,7 @@ class Application extends BaseApplication
         $portOffsetManager = new PortOffsetManager();
         $overrideGenerator = new ComposeOverrideGenerator();
         $herdService = new HerdService();
+        $caddyService = new CaddyService();
 
         // Create output formatter for orchestrators
         $consoleOutput = new ConsoleOutput();
@@ -139,7 +141,8 @@ class Application extends BaseApplication
             $portOffsetManager,
             $overrideGenerator,
             $dockerCompose,
-            $herdService
+            $herdService,
+            $caddyService
         ));
         $this->add(new DownCommand(
             $configLoader,

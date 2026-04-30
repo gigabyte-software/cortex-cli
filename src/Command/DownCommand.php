@@ -50,10 +50,14 @@ class DownCommand extends Command
             // Read lock file to get namespace and Herd state
             $namespace = null;
             $herdStopped = false;
+            $caddyStopped = false;
             if ($this->lockFile->exists()) {
                 $lockData = $this->lockFile->read();
-                $namespace = $lockData?->namespace;
-                $herdStopped = $lockData->herdStopped ?? false;
+                if ($lockData !== null) {
+                    $namespace = $lockData->namespace;
+                    $herdStopped = $lockData->herdStopped;
+                    $caddyStopped = $lockData->caddyStopped;
+                }
             }
 
             $removeVolumes = $input->getOption('volumes');
@@ -83,6 +87,10 @@ class DownCommand extends Command
                     $formatter->warning('Could not restart Herd: ' . $e->getMessage());
                     $formatter->info('You can restart manually with: herd start');
                 }
+            }
+
+            if ($caddyStopped) {
+                $formatter->info('Caddy was stopped before this session; start it again manually if you still need it.');
             }
 
             $output->writeln('');
