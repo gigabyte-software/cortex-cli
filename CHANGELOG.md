@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.20.1](https://github.com/gigabyte-software/cortex-cli/compare/v2.20.0...v2.20.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **agents:** tidy branch-name rule and strip trailing whitespace in ticket-workflow template ([3deabac](https://github.com/gigabyte-software/cortex-cli/commit/3deabac9c32e8914bd745a604d3d84198d3064ab))
+
 # [2.20.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.19.0...v2.20.0) (2026-05-10)
 
 
