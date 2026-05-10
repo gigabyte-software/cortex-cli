@@ -63,6 +63,7 @@ When the user asks for something substantial, plan the breakdown before creating
 
 - **Parent ticket** — the thing the human reviews. One deliverable from their perspective. Labelled `human-review`.
 - **Sub-issues** — focused, narrow units of work, each completable in a single PR. Labelled `auto-merge`. When a sub-issue's PR is green, it auto-merges into the parent's branch. The human only reviews the consolidated parent PR.
+- **Pre-create the parent branch on `origin/main`** before creating any sub-issues, so auto-merge sub-issue PRs have a target. See "Parent branch creation" above.
 
 **Guidance:**
 
@@ -70,7 +71,7 @@ When the user asks for something substantial, plan the breakdown before creating
 - Aim for 3–7 sub-issues per parent. Past that, the parent is probably too big; split it into multiple parents.
 - Don't decompose small work. A 1- or 2-point ticket stays a single ticket.
 - Estimate each sub-issue. The parent doesn't need its own estimate — the sub-issues tell that story.
-- **Show the proposed breakdown to the user before creating anything.** If the decomposition is wrong, every sub-PR will be wrong. The breakdown is the first review checkpoint.
+- **Show the proposed breakdown to the user before creating anything.** If the decomposition is wrong, every sub-PR will be wrong. The breakdown is the first review checkpoint. **After approval, follow this order:** create the parent ticket → push the parent branch to `origin` from `origin/main` (see "Parent branch creation" above) → then create the sub-issues. The parent branch must exist on `origin` *before* any sub-issue is created, otherwise the first auto-merge sub-issue PR will have no target branch.
 
 ## Dependencies and ordering
 
