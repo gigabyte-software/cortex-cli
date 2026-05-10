@@ -1,6 +1,6 @@
 # Branch, PR, and ticket conventions
 
-When starting work on a ticket (whether tracked in Linear or not), follow these conventions so that branches, PRs, and ticket context are consistent across every Cortex project.
+When starting work on a ticket (whether tracked in Linear or not), follow these conventions so that branches, PRs, and ticket context are consistent across every project.
 
 ## Branch naming
 
@@ -43,6 +43,15 @@ When opening a pull request:
 
 - Use the branch description as the PR title, formatted in Title Case, e.g. `GIG-1599: PWA Rebranding App Name Logo Favicon`.
 - **Never open draft PRs.** CI and automated review should run against the PR from the moment it is created.
+
+### Routing labels (required)
+
+Every PR must carry exactly one of these two labels — it determines whether a human ever sees the PR:
+
+- **`auto-merge`** — for sub-issue PRs. The PR auto-merges into the parent branch when CI is green; no human reviews it.
+- **`human-review`** — for parent tickets, standalone tickets, and any non-Linear work. The PR goes to a human for review.
+
+These labels exist in both Linear and GitHub. If the ticket is in Linear and already carries the routing label, the GitHub integration normally flows it through to the linked PR. **Verify the label is present after opening the PR**; if it isn't, apply the matching GitHub label manually. Never leave a PR without one of these two labels.
 
 ## Completion record
 

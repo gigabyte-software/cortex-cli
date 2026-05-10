@@ -15,4 +15,4 @@ After changing `use` statements, inheritance, or moving classes between namespac
 
 ## Separate front-end apps
 
-If the repo contains a SPA or mobile client in its own directory, treat it as **isolated** from server-side code unless the project explicitly documents a shared package. Integration should stay at documented boundaries (usually HTTP APIs and env-based configuration), not by importing server models or Laravel internals into the client.
+If the repo contains a PWA or mobile client in its own directory, treat it as **isolated** from server-side code unless the project explicitly documents a shared package. Integration should stay at documented boundaries (usually HTTP APIs and env-based configuration), not by importing server models or Laravel internals into the client.

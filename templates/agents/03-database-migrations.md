@@ -9,3 +9,5 @@ Common patterns (adapt names and types to match the codebase):
 - Keep a consistent **column order** if the project defines one (for example: primary key, foreign keys, audit fields, then data columns).
 
 Do not assume every Cortex project uses the same audit column names; copy the conventions from nearby migrations in the same repository.
+
+NEVER edit migrations. Always create new ones.
