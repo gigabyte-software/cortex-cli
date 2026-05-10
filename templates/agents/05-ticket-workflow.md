@@ -35,9 +35,7 @@ Create `.cortex/tickets/[ticket-id]/` at the repo root with:
   ```
 
 - `ticket.json` — raw Linear ticket data (if the ticket exists in Linear). Omit for non-Linear work.
-- `plan.md` — implementation plan (may be blank initially and filled in during the approach/planning steps below).
-- `specs.md` — references to related feature specs (may be blank initially).
-- `assets/` — any non-text reference material supplied by the user (screenshots, mockups, diagrams).
+- `completion.md` - see below for details
 
 ## Pull request naming and state
 
