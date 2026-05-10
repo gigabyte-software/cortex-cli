@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Cortex\Agents;
 
-use Cortex\Support\TicketInstructionsMarkdownCompiler;
 use Cortex\Templates\TemplateDirectory;
 
 /**
  * Builds the inner markdown for the Cortex-managed AGENTS.md block (without markers).
+ *
+ * Currently sources content only from templates/agents/*.md. The longer-form
+ * ticket workflow templates under templates/steps and templates/ticket-types
+ * are intentionally NOT included here — they describe a workflow we are not
+ * actively running, but are kept on disk so we can revive them (e.g. when we
+ * incorporate specs) without recreating them.
  */
 final class AgentsManagedBodyProvider
 {
-    public function __construct(
-        private readonly TicketInstructionsMarkdownCompiler $workflowCompiler = new TicketInstructionsMarkdownCompiler(),
-    ) {
-    }
-
     public function getMarkdown(): string
     {
         $templatesRoot = TemplateDirectory::resolve();
@@ -34,11 +34,6 @@ final class AgentsManagedBodyProvider
                     $sections[] = rtrim($chunk);
                 }
             }
-        }
-
-        $workflow = trim($this->workflowCompiler->compile($templatesRoot));
-        if ($workflow !== '') {
-            $sections[] = $workflow;
         }
 
         return implode("\n\n---\n\n", $sections);

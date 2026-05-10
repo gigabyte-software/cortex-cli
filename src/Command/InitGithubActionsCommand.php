@@ -61,6 +61,27 @@ class InitGithubActionsCommand extends Command
             )
             ->addOption('no-composer', null, InputOption::VALUE_NONE, 'Set run-composer-install=false on reusable workflow inputs')
             ->addOption('no-npm', null, InputOption::VALUE_NONE, 'Set run-npm-ci=false on reusable workflow inputs')
+            ->addOption(
+                'auto-merge-label',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Label that opts a PR into auto-merge',
+                'auto-merge'
+            )
+            ->addOption(
+                'protected-branches',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Comma-separated branch names that must NEVER be auto-merged into',
+                'master,main,stage,staging,test,testing,prod,production'
+            )
+            ->addOption(
+                'merge-method',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Merge method to use (merge, squash, rebase)',
+                'squash'
+            )
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing workflow files');
     }
 
@@ -87,7 +108,19 @@ class InitGithubActionsCommand extends Command
             $nodeVersion = (string) $input->getOption('node-version');
             $runComposer = $input->getOption('no-composer') ? 'false' : 'true';
             $runNpm = $input->getOption('no-npm') ? 'false' : 'true';
+            $autoMergeLabel = (string) $input->getOption('auto-merge-label');
+            $protectedBranches = $this->normalizeProtectedBranches((string) $input->getOption('protected-branches'));
+            $mergeMethod = (string) $input->getOption('merge-method');
             $force = (bool) $input->getOption('force');
+
+            $allowedMergeMethods = ['merge', 'squash', 'rebase'];
+            if (!in_array($mergeMethod, $allowedMergeMethods, true)) {
+                throw new \RuntimeException(sprintf(
+                    'Invalid --merge-method "%s". Allowed: %s',
+                    $mergeMethod,
+                    implode(', ', $allowedMergeMethods)
+                ));
+            }
 
             $replacements = [
                 '{{SHARED_REPO}}' => $sharedRepo,
@@ -98,6 +131,9 @@ class InitGithubActionsCommand extends Command
                 '{{NODE_VERSION}}' => $nodeVersion,
                 '{{RUN_COMPOSER}}' => $runComposer,
                 '{{RUN_NPM}}' => $runNpm,
+                '{{AUTO_MERGE_LABEL}}' => $autoMergeLabel,
+                '{{PROTECTED_BRANCHES}}' => $protectedBranches,
+                '{{MERGE_METHOD}}' => $mergeMethod,
             ];
 
             $formatter->welcome('Init GitHub Actions (shared workflows)');
@@ -158,7 +194,18 @@ class InitGithubActionsCommand extends Command
             ['template' => 'claude-auto-fix.caller.yml.template', 'filename' => 'claude-auto-fix.yml'],
             ['template' => 'claude-auto-rebase.caller.yml.template', 'filename' => 'claude-auto-rebase.yml'],
             ['template' => 'claude-fix-review-comments.caller.yml.template', 'filename' => 'claude-fix-review-comments.yml'],
+            ['template' => 'auto-merge.caller.yml.template', 'filename' => 'auto-merge.yml'],
         ];
+    }
+
+    /**
+     * Normalize a comma-separated list of branch names: trim whitespace, drop empty entries, dedupe.
+     */
+    private function normalizeProtectedBranches(string $raw): string
+    {
+        $parts = array_filter(array_map('trim', explode(',', $raw)), static fn (string $name): bool => $name !== '');
+
+        return implode(',', array_values(array_unique($parts)));
     }
 
     private function getTemplatesRoot(): string

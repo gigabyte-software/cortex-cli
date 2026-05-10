@@ -9,14 +9,23 @@ use PHPUnit\Framework\TestCase;
 
 class AgentsManagedBodyProviderTest extends TestCase
 {
-    public function test_get_markdown_is_non_empty_and_includes_workflow(): void
+    public function test_get_markdown_is_non_empty_and_includes_agents_sections(): void
     {
         $provider = new AgentsManagedBodyProvider();
         $markdown = $provider->getMarkdown();
 
         $this->assertNotSame('', trim($markdown));
         $this->assertStringContainsString('Development environment', $markdown);
-        $this->assertStringContainsString('Shared Steps', $markdown);
+    }
+
+    public function test_get_markdown_excludes_long_form_ticket_workflow(): void
+    {
+        $provider = new AgentsManagedBodyProvider();
+        $markdown = $provider->getMarkdown();
+
+        $this->assertStringNotContainsString('Shared Steps', $markdown);
+        $this->assertStringNotContainsString('Shared Step:', $markdown);
+        $this->assertStringNotContainsString('# Ticket Types', $markdown);
     }
 
     public function test_get_markdown_includes_branch_pr_and_completion_conventions(): void
@@ -37,5 +46,15 @@ class AgentsManagedBodyProviderTest extends TestCase
 
         $this->assertStringContainsString('.cortex/tickets/[ticket-id]/', $markdown);
         $this->assertStringNotContainsString('`tickets/[ticket-id]/', $markdown);
+    }
+
+    public function test_get_markdown_includes_linear_ticket_conventions(): void
+    {
+        $provider = new AgentsManagedBodyProvider();
+        $markdown = $provider->getMarkdown();
+
+        $this->assertStringContainsString('Linear Ticket Conventions', $markdown);
+        $this->assertStringContainsString('Routing labels', $markdown);
+        $this->assertStringContainsString('Dependencies and ordering', $markdown);
     }
 }

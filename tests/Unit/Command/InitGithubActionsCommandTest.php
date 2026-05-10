@@ -28,7 +28,7 @@ class InitGithubActionsCommandTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_writes_three_workflow_files(): void
+    public function test_writes_all_workflow_files(): void
     {
         $originalDir = getcwd();
         chdir($this->testDir);
@@ -49,6 +49,7 @@ class InitGithubActionsCommandTest extends TestCase
             $this->assertFileExists($this->testDir . '/.github/workflows/claude-auto-fix.yml');
             $this->assertFileExists($this->testDir . '/.github/workflows/claude-auto-rebase.yml');
             $this->assertFileExists($this->testDir . '/.github/workflows/claude-fix-review-comments.yml');
+            $this->assertFileExists($this->testDir . '/.github/workflows/auto-merge.yml');
 
             $fix = file_get_contents($this->testDir . '/.github/workflows/claude-auto-fix.yml');
             $this->assertIsString($fix);
@@ -59,6 +60,96 @@ class InitGithubActionsCommandTest extends TestCase
             $this->assertIsString($rebase);
             $this->assertStringContainsString("branches: ['develop']", $rebase);
             $this->assertStringContainsString("base-branch: 'develop'", $rebase);
+        } finally {
+            if ($originalDir !== false) {
+                chdir($originalDir);
+            }
+        }
+    }
+
+    public function test_auto_merge_uses_default_protected_branches_and_label(): void
+    {
+        $originalDir = getcwd();
+        chdir($this->testDir);
+
+        try {
+            $app = new Application();
+            $app->add(new InitGithubActionsCommand());
+            $command = $app->find('init-github-actions');
+            $tester = new CommandTester($command);
+            $tester->execute([
+                '--repo' => 'acme/shared-workflows',
+                '--ref' => 'v2',
+            ]);
+
+            $this->assertSame(0, $tester->getStatusCode());
+            $autoMerge = file_get_contents($this->testDir . '/.github/workflows/auto-merge.yml');
+            $this->assertIsString($autoMerge);
+
+            $this->assertStringContainsString(
+                'acme/shared-workflows/.github/workflows/auto-merge.yml@v2',
+                $autoMerge
+            );
+            $this->assertStringContainsString("auto-merge-label: 'auto-merge'", $autoMerge);
+            $this->assertStringContainsString(
+                "protected-branches: 'master,main,stage,staging,test,testing,prod,production'",
+                $autoMerge
+            );
+            $this->assertStringContainsString("merge-method: 'squash'", $autoMerge);
+        } finally {
+            if ($originalDir !== false) {
+                chdir($originalDir);
+            }
+        }
+    }
+
+    public function test_auto_merge_honors_custom_options_and_normalizes_branches(): void
+    {
+        $originalDir = getcwd();
+        chdir($this->testDir);
+
+        try {
+            $app = new Application();
+            $app->add(new InitGithubActionsCommand());
+            $command = $app->find('init-github-actions');
+            $tester = new CommandTester($command);
+            $tester->execute([
+                '--repo' => 'acme/shared-workflows',
+                '--auto-merge-label' => 'ship-it',
+                '--protected-branches' => ' main , release ,, main, qa ',
+                '--merge-method' => 'rebase',
+            ]);
+
+            $this->assertSame(0, $tester->getStatusCode());
+            $autoMerge = file_get_contents($this->testDir . '/.github/workflows/auto-merge.yml');
+            $this->assertIsString($autoMerge);
+            $this->assertStringContainsString("auto-merge-label: 'ship-it'", $autoMerge);
+            $this->assertStringContainsString("protected-branches: 'main,release,qa'", $autoMerge);
+            $this->assertStringContainsString("merge-method: 'rebase'", $autoMerge);
+        } finally {
+            if ($originalDir !== false) {
+                chdir($originalDir);
+            }
+        }
+    }
+
+    public function test_auto_merge_rejects_invalid_merge_method(): void
+    {
+        $originalDir = getcwd();
+        chdir($this->testDir);
+
+        try {
+            $app = new Application();
+            $app->add(new InitGithubActionsCommand());
+            $command = $app->find('init-github-actions');
+            $tester = new CommandTester($command);
+            $tester->execute([
+                '--repo' => 'acme/shared-workflows',
+                '--merge-method' => 'force-push',
+            ]);
+
+            $this->assertNotSame(0, $tester->getStatusCode());
+            $this->assertFileDoesNotExist($this->testDir . '/.github/workflows/auto-merge.yml');
         } finally {
             if ($originalDir !== false) {
                 chdir($originalDir);

@@ -118,15 +118,18 @@ The user-level files are automatically updated if templates change when re-runni
 
 ### `cortex init-github-actions`
 
-Add caller workflows under `.github/workflows/` that invoke the shared Claude automation from [`gigabyte-software/shared-workflows`](https://github.com/gigabyte-software/shared-workflows) (CI auto-fix, auto-rebase, review-comment fixes):
+Add caller workflows under `.github/workflows/` that invoke the shared automation from [`gigabyte-software/shared-workflows`](https://github.com/gigabyte-software/shared-workflows): CI auto-fix, auto-rebase, review-comment fixes, and auto-merge.
 
 ```bash
 cortex init-github-actions
 cortex init-github-actions --ref v1 --ci-workflow-name "CI" --base-branch develop
 cortex init-github-actions --no-composer --force
+cortex init-github-actions --auto-merge-label ship-it --merge-method rebase
 ```
 
-See `cortex init-github-actions --help` for all options (`--repo`, `--ref`, `--php-version`, `--node-version`, etc.). After running, configure the repository secrets listed in the command output and confirm your CI workflow name matches `--ci-workflow-name`.
+The generated `auto-merge.yml` looks for the `auto-merge` label (override with `--auto-merge-label`) and refuses to merge into any branch listed in `--protected-branches` (default: `master,main,stage,staging,test,testing,prod,production`). Merge method defaults to `squash` and can be `merge`, `squash`, or `rebase`.
+
+See `cortex init-github-actions --help` for all options (`--repo`, `--ref`, `--php-version`, `--node-version`, `--auto-merge-label`, `--protected-branches`, `--merge-method`, etc.). After running, configure the repository secrets listed in the command output and confirm your CI workflow name matches `--ci-workflow-name`.
 
 ### `cortex update`
 
