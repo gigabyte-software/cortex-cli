@@ -238,6 +238,79 @@ class DockerCompose
     }
 
     /**
+     * Forcefully recreate a single compose service.
+     *
+     * Used to recover from "container running but networks detached" desyncs
+     * (see {@see NetworkAttachmentChecker}). Equivalent to
+     * `docker compose rm -sf $service && docker compose up -d $service`,
+     * but executed as a single orchestrated step so callers can wrap the
+     * whole thing in one try/catch.
+     *
+     * @throws \RuntimeException When either subcommand fails.
+     */
+    public function recreateService(string $composeFile, string $service, ?string $projectName = null): void
+    {
+        $this->runComposeCommand(
+            $composeFile,
+            $projectName,
+            ['rm', '-sf', $service],
+            timeout: 60,
+            failureLabel: "remove stale `$service`",
+        );
+
+        $this->runComposeCommand(
+            $composeFile,
+            $projectName,
+            ['up', '-d', '--no-deps', $service],
+            timeout: 120,
+            failureLabel: "recreate `$service`",
+        );
+    }
+
+    /**
+     * Run an arbitrary docker-compose subcommand against the same compose
+     * + override + project that the rest of this class uses, throwing on
+     * non-zero exit.
+     *
+     * @param list<string> $subcommand The compose subcommand and its args, e.g. ['rm', '-sf', 'db'].
+     */
+    private function runComposeCommand(
+        string $composeFile,
+        ?string $projectName,
+        array $subcommand,
+        int $timeout,
+        string $failureLabel,
+    ): void {
+        $command = ['docker-compose', '-f', $composeFile];
+
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
+        if ($projectName !== null) {
+            $command[] = '-p';
+            $command[] = $projectName;
+        }
+
+        foreach ($subcommand as $part) {
+            $command[] = $part;
+        }
+
+        $process = new Process($command);
+        $process->setTimeout($timeout);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $stderr = trim($process->getErrorOutput());
+            throw new \RuntimeException(
+                "Failed to $failureLabel" . ($stderr === '' ? '' : ": $stderr")
+            );
+        }
+    }
+
+    /**
      * Stop Docker Compose services
      *
      * @param string $composeFile Path to docker-compose.yml

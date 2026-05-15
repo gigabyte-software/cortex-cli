@@ -10,6 +10,7 @@ use Cortex\Config\Validator\SecretsValidator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\NetworkAttachmentChecker;
 use Cortex\Docker\ServiceReadinessWaiter;
 use Cortex\Executor\ContainerCommandExecutor;
 use Cortex\Executor\HostCommandExecutor;
@@ -23,6 +24,7 @@ class SetupOrchestrator
 {
     private readonly ServiceReadinessWaiter $readinessWaiter;
     private readonly AppUrlProbe $appUrlProbe;
+    private readonly NetworkAttachmentChecker $networkAttachmentChecker;
 
     public function __construct(
         private readonly DockerCompose $dockerCompose,
@@ -32,6 +34,7 @@ class SetupOrchestrator
         private readonly SecretsValidator $secretsValidator = new SecretsValidator(),
         ?ServiceReadinessWaiter $readinessWaiter = null,
         ?AppUrlProbe $appUrlProbe = null,
+        ?NetworkAttachmentChecker $networkAttachmentChecker = null,
     ) {
         $this->readinessWaiter = $readinessWaiter ?? new ServiceReadinessWaiter(
             $this->dockerCompose,
@@ -39,6 +42,8 @@ class SetupOrchestrator
             $this->formatter,
         );
         $this->appUrlProbe = $appUrlProbe ?? new AppUrlProbe();
+        $this->networkAttachmentChecker = $networkAttachmentChecker
+            ?? new NetworkAttachmentChecker($this->dockerCompose);
     }
 
     /**
@@ -88,6 +93,12 @@ class SetupOrchestrator
         // Phase 2: Start Docker services
         $this->startDockerServices($config->docker->composeFile, $namespace, $rebuild, $timeout, $firstRun);
 
+        // Phase 2.5: Detect and auto-recover network-detached containers.
+        // Has to run *before* readiness waits, otherwise we'd sit watching
+        // a service that can never reach its peers and only timeout after
+        // the wait_for budget expires.
+        $this->reconcileNetworkAttachments($config->docker->composeFile, $namespace);
+
         // Phase 3: Wait for services with live status display. Even when the
         // user has no explicit wait_for entries, we still scan every compose
         // service for crash-loops so a broken container never masquerades as a
@@ -121,6 +132,49 @@ class SetupOrchestrator
             'port_offset' => $portOffset ?? 0,
             'app_url_probe' => $probe,
         ];
+    }
+
+    /**
+     * Detect any running containers that have been left without a network
+     * attachment (a known Docker Desktop hazard, especially after the daemon
+     * restarts mid-lifecycle) and attempt a single targeted recreate of each
+     * offender. If the recreate doesn't clear the desync, throw — the user
+     * is going to have a bad time and we'd rather surface it loudly here
+     * than let it cascade into a 502.
+     */
+    private function reconcileNetworkAttachments(string $composeFile, ?string $namespace): void
+    {
+        $issues = $this->networkAttachmentChecker->checkAll($composeFile, $namespace);
+        if ($issues === []) {
+            return;
+        }
+
+        $this->formatter->section('Reconciling container networks');
+
+        foreach ($issues as $issue) {
+            $this->formatter->warning('⚠ ' . $issue->describe());
+            $this->formatter->info("Recreating `{$issue->service}` to restore its network attachment...");
+
+            try {
+                $this->dockerCompose->recreateService($composeFile, $issue->service, $namespace);
+            } catch (\RuntimeException $e) {
+                throw new \RuntimeException(
+                    $issue->describe()
+                        . "\n\nAutomatic recovery failed: " . $e->getMessage()
+                );
+            }
+
+            $stillBroken = $this->networkAttachmentChecker->checkService($composeFile, $issue->service, $namespace);
+            if ($stillBroken !== null) {
+                throw new \RuntimeException(
+                    'After recreating `' . $issue->service . '` it is still running with no networks attached.'
+                        . ' This usually means the compose-declared network has been deleted underneath Docker.'
+                        . ' Try `cortex down` followed by `docker network prune` and re-run `cortex up`.'
+                );
+            }
+
+            $this->formatter->info("✓ `{$issue->service}` reattached.");
+        }
     }
 
     /**

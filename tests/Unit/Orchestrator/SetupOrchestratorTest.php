@@ -11,6 +11,8 @@ use Cortex\Config\Schema\ServiceWaitConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\NetworkAttachmentChecker;
+use Cortex\Docker\NetworkAttachmentIssue;
 use Cortex\Executor\HostCommandExecutor;
 use Cortex\Http\AppUrlProbe;
 use Cortex\Orchestrator\SetupOrchestrator;
@@ -180,6 +182,83 @@ class SetupOrchestratorTest extends TestCase
         $this->assertSame(302, $result['app_url_probe']->statusCode);
     }
 
+    public function test_setup_auto_recovers_a_network_detached_container(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $issue = new NetworkAttachmentIssue('db', 'abc123abc123', 'verafind_net');
+        $checker->expects($this->once())
+            ->method('checkAll')
+            ->willReturn([$issue]);
+        $checker->expects($this->once())
+            ->method('checkService')
+            ->with($this->anything(), 'db', $this->anything())
+            ->willReturn(null); // fixed after recreate
+
+        $this->dockerCompose->expects($this->once())
+            ->method('recreateService')
+            ->with('docker-compose.yml', 'db', null);
+
+        $orchestrator = $this->createOrchestrator(checker: $checker);
+        $result = $orchestrator->setup($config, skipWait: true);
+
+        $display = $this->output->fetch();
+        $this->assertStringContainsString('Reconciling container networks', $display);
+        $this->assertStringContainsString('Recreating `db`', $display);
+        $this->assertStringContainsString('reattached', $display);
+        $this->assertNotNull($result['app_url_probe']);
+    }
+
+    public function test_setup_throws_when_network_recreate_does_not_fix_the_desync(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $issue = new NetworkAttachmentIssue('db', 'abc123abc123', 'verafind_net');
+        $checker->method('checkAll')->willReturn([$issue]);
+        // checkService still reports the issue after the recreate attempt.
+        $checker->method('checkService')->willReturn($issue);
+
+        $this->dockerCompose->expects($this->once())->method('recreateService');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/still running with no networks attached/');
+
+        $this->createOrchestrator(checker: $checker)->setup($config, skipWait: true);
+    }
+
+    public function test_setup_propagates_recreate_failures_with_original_issue_context(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $issue = new NetworkAttachmentIssue('db', 'abc123abc123', 'verafind_net');
+        $checker->method('checkAll')->willReturn([$issue]);
+
+        $this->dockerCompose->expects($this->once())
+            ->method('recreateService')
+            ->willThrowException(new \RuntimeException('Failed to remove stale `db`: docker daemon dead'));
+
+        try {
+            $this->createOrchestrator(checker: $checker)->setup($config, skipWait: true);
+            $this->fail('Expected RuntimeException');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Service `db` is running but has no networks', $e->getMessage());
+            $this->assertStringContainsString('Automatic recovery failed', $e->getMessage());
+            $this->assertStringContainsString('docker daemon dead', $e->getMessage());
+        }
+    }
+
     public function test_setup_surfaces_nginx_log_hint_when_probe_fails(): void
     {
         $config = $this->createConfig();
@@ -329,8 +408,10 @@ class SetupOrchestratorTest extends TestCase
         $this->assertGreaterThanOrEqual(0.0, $result['time']);
     }
 
-    private function createOrchestrator(?AppUrlProbe $appUrlProbe = null): SetupOrchestrator
-    {
+    private function createOrchestrator(
+        ?AppUrlProbe $appUrlProbe = null,
+        ?NetworkAttachmentChecker $checker = null,
+    ): SetupOrchestrator {
         return new SetupOrchestrator(
             $this->dockerCompose,
             $this->hostExecutor,
@@ -338,7 +419,20 @@ class SetupOrchestratorTest extends TestCase
             $this->formatter,
             readinessWaiter: null,
             appUrlProbe: $appUrlProbe ?? $this->disabledProbe(),
+            networkAttachmentChecker: $checker ?? $this->cleanChecker(),
         );
+    }
+
+    /**
+     * Default checker that reports no network issues, so the bulk of tests
+     * that aren't about the network-reconcile phase don't have to stub it.
+     */
+    private function cleanChecker(): NetworkAttachmentChecker
+    {
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $checker->method('checkAll')->willReturn([]);
+        $checker->method('checkService')->willReturn(null);
+        return $checker;
     }
 
     /**
