@@ -166,6 +166,26 @@ class SetupOrchestratorTest extends TestCase
         $this->assertNull($result['app_url_probe']);
     }
 
+    public function test_setup_applies_port_offset_to_probe_url(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $probedUrls = [];
+        $probe = new AppUrlProbe(static function (string $method, string $url) use (&$probedUrls): Response {
+            $probedUrls[] = $url;
+            return new Response(200);
+        });
+
+        $orchestrator = $this->createOrchestrator(appUrlProbe: $probe);
+        $orchestrator->setup($config, skipWait: true, portOffset: 8100);
+
+        $this->assertNotEmpty($probedUrls, 'Probe should fire at least once with offset applied.');
+        $this->assertStringContainsString(':8180', $probedUrls[0], 'http://localhost:80 + offset 8100 = :8180');
+    }
+
     public function test_setup_returns_probe_result_when_app_url_is_healthy(): void
     {
         $config = $this->createConfig();
@@ -420,6 +440,10 @@ class SetupOrchestratorTest extends TestCase
             readinessWaiter: null,
             appUrlProbe: $appUrlProbe ?? $this->disabledProbe(),
             networkAttachmentChecker: $checker ?? $this->cleanChecker(),
+            // Tests use 1 attempt with no retry sleep so failure-path tests
+            // don't sit blocked on the 60s production retry budget.
+            appUrlProbeAttempts: 1,
+            appUrlProbeRetrySeconds: 0,
         );
     }
 

@@ -16,6 +16,7 @@ use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
 use Cortex\Herd\HerdService;
 use Cortex\Host\EtcHostsHint;
+use Cortex\Http\UrlPortOffset;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
 use Cortex\Tls\CertInspector;
@@ -281,14 +282,11 @@ class UpCommand extends Command
 
         // Display URL with port offset if applicable
         if (isset($config->docker->appUrl) && !empty($config->docker->appUrl)) {
-            $url = $config->docker->appUrl;
-
-            // Apply port offset to URL if present
-            if ($portOffset > 0 && preg_match('/^(https?:\/\/[^:]+):(\d+)(.*)$/', $url, $matches)) {
-                $basePort = (int) $matches[2];
-                $newPort = $basePort + $portOffset;
-                $url = $matches[1] . ':' . $newPort . $matches[3];
-            }
+            // UrlPortOffset handles both explicit (`:443`) and implicit
+            // (https://host) ports; the old inline regex only matched the
+            // explicit form, so URLs that relied on the scheme default were
+            // silently shown un-shifted.
+            $url = UrlPortOffset::apply($config->docker->appUrl, $portOffset);
 
             $output->writeln(sprintf('<fg=green>→</> Access at: <fg=cyan>%s</>', $url));
             $output->writeln('');
