@@ -13,6 +13,8 @@ use Cortex\Docker\HealthChecker;
 use Cortex\Docker\ServiceReadinessWaiter;
 use Cortex\Executor\ContainerCommandExecutor;
 use Cortex\Executor\HostCommandExecutor;
+use Cortex\Http\AppUrlProbe;
+use Cortex\Http\ProbeResult;
 use Cortex\Output\LiveLogPanel;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Process\Process;
@@ -20,6 +22,7 @@ use Symfony\Component\Process\Process;
 class SetupOrchestrator
 {
     private readonly ServiceReadinessWaiter $readinessWaiter;
+    private readonly AppUrlProbe $appUrlProbe;
 
     public function __construct(
         private readonly DockerCompose $dockerCompose,
@@ -28,12 +31,14 @@ class SetupOrchestrator
         private readonly OutputFormatter $formatter,
         private readonly SecretsValidator $secretsValidator = new SecretsValidator(),
         ?ServiceReadinessWaiter $readinessWaiter = null,
+        ?AppUrlProbe $appUrlProbe = null,
     ) {
         $this->readinessWaiter = $readinessWaiter ?? new ServiceReadinessWaiter(
             $this->dockerCompose,
             $this->healthChecker,
             $this->formatter,
         );
+        $this->appUrlProbe = $appUrlProbe ?? new AppUrlProbe();
     }
 
     /**
@@ -44,7 +49,10 @@ class SetupOrchestrator
      * @param bool $skipInit Skip initialize commands
      * @param string|null $namespace Container namespace
      * @param int|null $portOffset Port offset to apply
-     * @return array{time: float, namespace: string, port_offset: int} Setup results
+     * @param bool $verifyAppUrl When true, probe `docker.app_url` after setup and
+     *        throw on 5xx / connection refused. Disable with `cortex up --no-verify`
+     *        for CI / non-HTTP stacks.
+     * @return array{time: float, namespace: string, port_offset: int, app_url_probe: ?ProbeResult} Setup results
      * @throws \RuntimeException
      * @throws ServiceNotHealthyException
      */
@@ -55,7 +63,8 @@ class SetupOrchestrator
         ?string $namespace = null,
         ?int $portOffset = null,
         bool $rebuild = false,
-        ?int $timeout = null
+        ?int $timeout = null,
+        bool $verifyAppUrl = true
     ): array {
         $startTime = microtime(true);
 
@@ -97,11 +106,118 @@ class SetupOrchestrator
             );
         }
 
+        // Phase 5: HTTP probe of app_url. Catches the "containers are running
+        // but the upstream is broken" failure mode that Docker-level checks
+        // cannot detect (e.g. nginx returns 502 because php-fpm is stuck in
+        // its own entrypoint waiting for a desynced db container).
+        $probe = null;
+        if ($verifyAppUrl && $config->docker->appUrl !== '') {
+            $probe = $this->verifyAppUrl($config, $namespace);
+        }
+
         return [
             'time' => microtime(true) - $startTime,
             'namespace' => $namespace ?? '',
             'port_offset' => $portOffset ?? 0,
+            'app_url_probe' => $probe,
         ];
+    }
+
+    /**
+     * Probe `docker.app_url` after services report healthy. Retries a few
+     * times because php-fpm / Laravel boot can race the first request even
+     * after Docker says the container is up.
+     *
+     * Throws {@see \RuntimeException} on 5xx or connection failure, with a
+     * diagnostic message that includes the latest line from the most likely
+     * culprit's logs (the primary service) so the user sees the actual error
+     * rather than just "502 Bad Gateway".
+     */
+    private function verifyAppUrl(CortexConfig $config, ?string $namespace): ProbeResult
+    {
+        $this->formatter->section('Verifying app URL');
+        $url = $config->docker->appUrl;
+        $this->formatter->info("Probing {$url} ...");
+
+        $result = $this->appUrlProbe->probe($url, attempts: 5, retrySeconds: 2);
+
+        if ($result->isHealthy()) {
+            $this->formatter->info(sprintf(
+                '✓ %s responded with HTTP %d',
+                $url,
+                (int) $result->statusCode,
+            ));
+            return $result;
+        }
+
+        $hint = $this->collectUpstreamHint($config, $namespace);
+        $message = $result->describeFailure();
+        if ($hint !== null) {
+            $message .= "\n\n" . $hint;
+        }
+
+        $this->formatter->error($message);
+
+        throw new \RuntimeException($message);
+    }
+
+    /**
+     * Pull a few recent log lines from likely-culprit services so the
+     * "verification failed" message actually tells the user what to look at.
+     * Best-effort — if anything throws we fall back to no hint rather than
+     * obscuring the original probe error.
+     */
+    private function collectUpstreamHint(CortexConfig $config, ?string $namespace): ?string
+    {
+        $services = $this->uniqueNonEmpty([
+            $config->docker->primaryService,
+            'nginx',
+            'web',
+            'caddy',
+        ]);
+
+        $sections = [];
+        foreach ($services as $service) {
+            try {
+                $lines = $this->dockerCompose->getLatestLogLines(
+                    $config->docker->composeFile,
+                    $service,
+                    3,
+                    $namespace,
+                );
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if ($lines === []) {
+                continue;
+            }
+
+            $sections[] = "  Last log lines from `{$service}`:\n    " . implode("\n    ", $lines);
+        }
+
+        if ($sections === []) {
+            return null;
+        }
+
+        return "Upstream diagnostic:\n" . implode("\n\n", $sections);
+    }
+
+    /**
+     * @param list<string> $values
+     * @return list<string>
+     */
+    private function uniqueNonEmpty(array $values): array
+    {
+        $seen = [];
+        foreach ($values as $v) {
+            $trim = trim($v);
+            if ($trim !== '' && !isset($seen[$trim])) {
+                $seen[$trim] = true;
+            }
+        }
+
+        return array_keys($seen);
     }
 
     /**

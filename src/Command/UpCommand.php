@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cortex\Command;
 
+use Cortex\Caddy\CaddyService;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
@@ -13,9 +14,8 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
-use Cortex\Caddy\CaddyService;
-use Cortex\Host\EtcHostsHint;
 use Cortex\Herd\HerdService;
+use Cortex\Host\EtcHostsHint;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Console\Command\Command;
@@ -53,7 +53,8 @@ class UpCommand extends Command
             ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
             ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd (nginx) and any Caddy process on ports 80/443 before starting Docker')
             ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting')
-            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations');
+            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations')
+            ->addOption('no-verify', null, InputOption::VALUE_NONE, 'Skip post-start verification (HTTP probe of docker.app_url and other sanity checks)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -151,7 +152,8 @@ class UpCommand extends Command
                 $namespace,
                 $portOffset,
                 $input->getOption('rebuild'),
-                $timeout
+                $timeout,
+                !$input->getOption('no-verify'),
             );
 
             // Write lock file if we generated an override file or stopped Herd/Caddy
