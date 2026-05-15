@@ -48,6 +48,12 @@ class DockerCompose
         $process->run();
 
         if (!$process->isSuccessful()) {
+            // Don't silently assume "images exist" — that masks a broken
+            // compose config and lies about first-run state. We can't
+            // throw here without breaking back-compat with the existing
+            // boolean contract, but we *can* tell the user something is
+            // wrong instead of vanishing the failure.
+            $this->warnAboutComposeFailure('config --images', $process->getErrorOutput());
             return true;
         }
 
@@ -238,6 +244,79 @@ class DockerCompose
     }
 
     /**
+     * Forcefully recreate a single compose service.
+     *
+     * Used to recover from "container running but networks detached" desyncs
+     * (see {@see NetworkAttachmentChecker}). Equivalent to
+     * `docker compose rm -sf $service && docker compose up -d $service`,
+     * but executed as a single orchestrated step so callers can wrap the
+     * whole thing in one try/catch.
+     *
+     * @throws \RuntimeException When either subcommand fails.
+     */
+    public function recreateService(string $composeFile, string $service, ?string $projectName = null): void
+    {
+        $this->runComposeCommand(
+            $composeFile,
+            $projectName,
+            ['rm', '-sf', $service],
+            timeout: 60,
+            failureLabel: "remove stale `$service`",
+        );
+
+        $this->runComposeCommand(
+            $composeFile,
+            $projectName,
+            ['up', '-d', '--no-deps', $service],
+            timeout: 120,
+            failureLabel: "recreate `$service`",
+        );
+    }
+
+    /**
+     * Run an arbitrary docker-compose subcommand against the same compose
+     * + override + project that the rest of this class uses, throwing on
+     * non-zero exit.
+     *
+     * @param list<string> $subcommand The compose subcommand and its args, e.g. ['rm', '-sf', 'db'].
+     */
+    private function runComposeCommand(
+        string $composeFile,
+        ?string $projectName,
+        array $subcommand,
+        int $timeout,
+        string $failureLabel,
+    ): void {
+        $command = ['docker-compose', '-f', $composeFile];
+
+        $overrideFile = dirname($composeFile) . '/docker-compose.override.yml';
+        if (file_exists($overrideFile)) {
+            $command[] = '-f';
+            $command[] = $overrideFile;
+        }
+
+        if ($projectName !== null) {
+            $command[] = '-p';
+            $command[] = $projectName;
+        }
+
+        foreach ($subcommand as $part) {
+            $command[] = $part;
+        }
+
+        $process = new Process($command);
+        $process->setTimeout($timeout);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $stderr = trim($process->getErrorOutput());
+            throw new \RuntimeException(
+                "Failed to $failureLabel" . ($stderr === '' ? '' : ": $stderr")
+            );
+        }
+    }
+
+    /**
      * Stop Docker Compose services
      *
      * @param string $composeFile Path to docker-compose.yml
@@ -315,6 +394,13 @@ class DockerCompose
         $process->run();
 
         if (!$process->isSuccessful()) {
+            // Returning `[]` here lets the caller continue, but it also
+            // silently disables crash-loop detection and the network
+            // reconciler downstream. Surface the underlying compose
+            // error so the user can do something about it rather than
+            // wondering why their broken compose file produced a
+            // smoothly "successful" boot with none of the safety nets.
+            $this->warnAboutComposeFailure('config --services', $process->getErrorOutput());
             return [];
         }
 
@@ -327,6 +413,24 @@ class DockerCompose
         }
 
         return $services;
+    }
+
+    /**
+     * Emit a one-line stderr warning when a "shouldn't fail" subcommand
+     * (compose config, compose ps -q, etc.) returned non-zero. We use PHP's
+     * STDERR directly because this helper is several layers below the
+     * OutputFormatter and we don't want to thread an output interface all
+     * the way down for an exceptional-but-non-fatal case. The user still
+     * sees the message because Symfony Console doesn't capture STDERR by
+     * default.
+     */
+    private function warnAboutComposeFailure(string $subcommand, string $stderr): void
+    {
+        $stderr = trim($stderr);
+        $detail = $stderr === '' ? '(no stderr)' : $stderr;
+        if (defined('STDERR') && is_resource(STDERR)) {
+            fwrite(STDERR, "[cortex] warning: docker-compose {$subcommand} failed: {$detail}\n");
+        }
     }
 
     /**

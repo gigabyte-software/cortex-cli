@@ -11,9 +11,13 @@ use Cortex\Config\Schema\ServiceWaitConfig;
 use Cortex\Config\Schema\SetupConfig;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\NetworkAttachmentChecker;
+use Cortex\Docker\NetworkAttachmentIssue;
 use Cortex\Executor\HostCommandExecutor;
+use Cortex\Http\AppUrlProbe;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
+use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -121,8 +125,183 @@ class SetupOrchestratorTest extends TestCase
         $this->assertArrayHasKey('time', $result);
         $this->assertArrayHasKey('namespace', $result);
         $this->assertArrayHasKey('port_offset', $result);
+        $this->assertArrayHasKey('app_url_probe', $result);
         $this->assertSame('test-ns', $result['namespace']);
         $this->assertSame(100, $result['port_offset']);
+    }
+
+    public function test_setup_throws_when_app_url_probe_returns_502(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+        $this->dockerCompose->method('listServices')->willReturn(['app', 'nginx']);
+        $this->dockerCompose->method('getLatestLogLines')->willReturn([
+            '2026/05/15 11:50:58 [error] connect() failed (111: Connection refused)',
+        ]);
+
+        $probe = new AppUrlProbe(static fn () => new Response(502));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/HTTP 502/');
+
+        $orchestrator = $this->createOrchestrator(appUrlProbe: $probe);
+        $orchestrator->setup($config, skipWait: true);
+    }
+
+    public function test_setup_does_not_probe_when_verify_app_url_is_false(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $probe = $this->createMock(AppUrlProbe::class);
+        $probe->expects($this->never())->method('probe');
+
+        $orchestrator = $this->createOrchestrator(appUrlProbe: $probe);
+        $result = $orchestrator->setup($config, skipWait: true, verifyAppUrl: false);
+
+        $this->assertNull($result['app_url_probe']);
+    }
+
+    public function test_setup_applies_port_offset_to_probe_url(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $probedUrls = [];
+        $probe = new AppUrlProbe(static function (string $method, string $url) use (&$probedUrls): Response {
+            $probedUrls[] = $url;
+            return new Response(200);
+        });
+
+        $orchestrator = $this->createOrchestrator(appUrlProbe: $probe);
+        $orchestrator->setup($config, skipWait: true, portOffset: 8100);
+
+        $this->assertNotEmpty($probedUrls, 'Probe should fire at least once with offset applied.');
+        $this->assertStringContainsString(':8180', $probedUrls[0], 'http://localhost:80 + offset 8100 = :8180');
+    }
+
+    public function test_setup_returns_probe_result_when_app_url_is_healthy(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $probe = new AppUrlProbe(static fn () => new Response(302, ['Location' => '/login']));
+
+        $orchestrator = $this->createOrchestrator(appUrlProbe: $probe);
+        $result = $orchestrator->setup($config, skipWait: true);
+
+        $this->assertNotNull($result['app_url_probe']);
+        $this->assertSame(302, $result['app_url_probe']->statusCode);
+    }
+
+    public function test_setup_auto_recovers_a_network_detached_container(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $issue = new NetworkAttachmentIssue('db', 'abc123abc123', 'verafind_net');
+        $checker->expects($this->once())
+            ->method('checkAll')
+            ->willReturn([$issue]);
+        $checker->expects($this->once())
+            ->method('checkService')
+            ->with($this->anything(), 'db', $this->anything())
+            ->willReturn(null); // fixed after recreate
+
+        $this->dockerCompose->expects($this->once())
+            ->method('recreateService')
+            ->with('docker-compose.yml', 'db', null);
+
+        $orchestrator = $this->createOrchestrator(checker: $checker);
+        $result = $orchestrator->setup($config, skipWait: true);
+
+        $display = $this->output->fetch();
+        $this->assertStringContainsString('Reconciling container networks', $display);
+        $this->assertStringContainsString('Recreating `db`', $display);
+        $this->assertStringContainsString('reattached', $display);
+        $this->assertNotNull($result['app_url_probe']);
+    }
+
+    public function test_setup_throws_when_network_recreate_does_not_fix_the_desync(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $issue = new NetworkAttachmentIssue('db', 'abc123abc123', 'verafind_net');
+        $checker->method('checkAll')->willReturn([$issue]);
+        // checkService still reports the issue after the recreate attempt.
+        $checker->method('checkService')->willReturn($issue);
+
+        $this->dockerCompose->expects($this->once())->method('recreateService');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/still running with no networks attached/');
+
+        $this->createOrchestrator(checker: $checker)->setup($config, skipWait: true);
+    }
+
+    public function test_setup_propagates_recreate_failures_with_original_issue_context(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $issue = new NetworkAttachmentIssue('db', 'abc123abc123', 'verafind_net');
+        $checker->method('checkAll')->willReturn([$issue]);
+
+        $this->dockerCompose->expects($this->once())
+            ->method('recreateService')
+            ->willThrowException(new \RuntimeException('Failed to remove stale `db`: docker daemon dead'));
+
+        try {
+            $this->createOrchestrator(checker: $checker)->setup($config, skipWait: true);
+            $this->fail('Expected RuntimeException');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Service `db` is running but has no networks', $e->getMessage());
+            $this->assertStringContainsString('Automatic recovery failed', $e->getMessage());
+            $this->assertStringContainsString('docker daemon dead', $e->getMessage());
+        }
+    }
+
+    public function test_setup_surfaces_nginx_log_hint_when_probe_fails(): void
+    {
+        $config = $this->createConfig();
+
+        $this->dockerCompose->method('hasExistingImages')->willReturn(true);
+        $this->dockerCompose->expects($this->once())->method('up');
+        $this->dockerCompose->method('getLatestLogLines')->willReturnCallback(
+            static function (string $compose, string $service): array {
+                return $service === 'nginx'
+                    ? ['[error] connect() failed (111: Connection refused) while connecting to upstream']
+                    : [];
+            }
+        );
+
+        $probe = new AppUrlProbe(static fn () => new Response(502));
+
+        try {
+            $this->createOrchestrator(appUrlProbe: $probe)->setup($config, skipWait: true);
+            $this->fail('Expected RuntimeException');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Last log lines from `nginx`', $e->getMessage());
+            $this->assertStringContainsString('Connection refused', $e->getMessage());
+        }
     }
 
     public function test_wait_for_services_polls_all_services(): void
@@ -249,14 +428,45 @@ class SetupOrchestratorTest extends TestCase
         $this->assertGreaterThanOrEqual(0.0, $result['time']);
     }
 
-    private function createOrchestrator(): SetupOrchestrator
-    {
+    private function createOrchestrator(
+        ?AppUrlProbe $appUrlProbe = null,
+        ?NetworkAttachmentChecker $checker = null,
+    ): SetupOrchestrator {
         return new SetupOrchestrator(
             $this->dockerCompose,
             $this->hostExecutor,
             $this->healthChecker,
             $this->formatter,
+            readinessWaiter: null,
+            appUrlProbe: $appUrlProbe ?? $this->disabledProbe(),
+            networkAttachmentChecker: $checker ?? $this->cleanChecker(),
+            // Tests use 1 attempt with no retry sleep so failure-path tests
+            // don't sit blocked on the 60s production retry budget.
+            appUrlProbeAttempts: 1,
+            appUrlProbeRetrySeconds: 0,
         );
+    }
+
+    /**
+     * Default checker that reports no network issues, so the bulk of tests
+     * that aren't about the network-reconcile phase don't have to stub it.
+     */
+    private function cleanChecker(): NetworkAttachmentChecker
+    {
+        $checker = $this->createMock(NetworkAttachmentChecker::class);
+        $checker->method('checkAll')->willReturn([]);
+        $checker->method('checkService')->willReturn(null);
+        return $checker;
+    }
+
+    /**
+     * Most tests in this class predate the URL-probe phase and assert on
+     * Docker readiness behaviour, so we hand them a probe that returns
+     * "healthy" without doing any real HTTP work.
+     */
+    private function disabledProbe(): AppUrlProbe
+    {
+        return new AppUrlProbe(static fn () => new Response(200));
     }
 
     /**

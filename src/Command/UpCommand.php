@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cortex\Command;
 
+use Cortex\Caddy\CaddyService;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\Exception\ConfigException;
 use Cortex\Config\LockFile;
@@ -13,19 +14,25 @@ use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
-use Cortex\Caddy\CaddyService;
-use Cortex\Host\EtcHostsHint;
 use Cortex\Herd\HerdService;
+use Cortex\Host\EtcHostsHint;
+use Cortex\Http\UrlPortOffset;
 use Cortex\Orchestrator\SetupOrchestrator;
 use Cortex\Output\OutputFormatter;
+use Cortex\Tls\CertInspector;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Process\Process;
 
 class UpCommand extends Command
 {
+    private readonly CertInspector $certInspector;
+
     public function __construct(
         private readonly ConfigLoader $configLoader,
         private readonly SetupOrchestrator $setupOrchestrator,
@@ -36,8 +43,10 @@ class UpCommand extends Command
         private readonly DockerCompose $dockerCompose,
         private readonly HerdService $herdService,
         private readonly CaddyService $caddyService,
+        ?CertInspector $certInspector = null,
     ) {
         parent::__construct();
+        $this->certInspector = $certInspector ?? new CertInspector();
     }
 
     protected function configure(): void
@@ -53,7 +62,9 @@ class UpCommand extends Command
             ->addOption('skip-init', null, InputOption::VALUE_NONE, 'Skip initialize commands')
             ->addOption('stop-herd', null, InputOption::VALUE_NONE, 'Stop Laravel Herd (nginx) and any Caddy process on ports 80/443 before starting Docker')
             ->addOption('rebuild', null, InputOption::VALUE_NONE, 'Force rebuild of Docker images before starting')
-            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations');
+            ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Timeout in seconds for Docker Compose operations')
+            ->addOption('no-verify', null, InputOption::VALUE_NONE, 'Skip post-start verification (HTTP probe of docker.app_url and other sanity checks)')
+            ->addOption('no-prompt-secure', null, InputOption::VALUE_NONE, 'Do not offer to run `cortex secure` when a self-signed dev cert is detected');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -151,7 +162,8 @@ class UpCommand extends Command
                 $namespace,
                 $portOffset,
                 $input->getOption('rebuild'),
-                $timeout
+                $timeout,
+                !$input->getOption('no-verify'),
             );
 
             // Write lock file if we generated an override file or stopped Herd/Caddy
@@ -171,6 +183,11 @@ class UpCommand extends Command
 
             // Display completion summary with port information
             $this->displayCompletionSummary($formatter, $result['time'], $config, $portOffset);
+
+            // Inspect the TLS cert (if any) and either reassure the user it's
+            // browser-trusted or offer to upgrade self-signed -> mkcert via
+            // `cortex secure`. Non-interactive shells just get the warning.
+            $this->reviewTlsCertificate($formatter, $input, $output, $configPath, $config);
 
             return Command::SUCCESS;
         } catch (ConfigException $e) {
@@ -265,14 +282,11 @@ class UpCommand extends Command
 
         // Display URL with port offset if applicable
         if (isset($config->docker->appUrl) && !empty($config->docker->appUrl)) {
-            $url = $config->docker->appUrl;
-
-            // Apply port offset to URL if present
-            if ($portOffset > 0 && preg_match('/^(https?:\/\/[^:]+):(\d+)(.*)$/', $url, $matches)) {
-                $basePort = (int) $matches[2];
-                $newPort = $basePort + $portOffset;
-                $url = $matches[1] . ':' . $newPort . $matches[3];
-            }
+            // UrlPortOffset handles both explicit (`:443`) and implicit
+            // (https://host) ports; the old inline regex only matched the
+            // explicit form, so URLs that relied on the scheme default were
+            // silently shown un-shifted.
+            $url = UrlPortOffset::apply($config->docker->appUrl, $portOffset);
 
             $output->writeln(sprintf('<fg=green>→</> Access at: <fg=cyan>%s</>', $url));
             $output->writeln('');
@@ -285,6 +299,99 @@ class UpCommand extends Command
                 $output->writeln('');
             }
         }
+    }
+
+    /**
+     * After a successful start, look at the cert in `docker.ssl_path` and
+     * either:
+     *   - say nothing if there's no cert (the project probably isn't using
+     *     TLS, or its proxy generates one at runtime — not our concern);
+     *   - say nothing if the cert is mkcert-signed (browser will trust it);
+     *   - print a one-line warning if the cert is self-signed AND we can't
+     *     do better (mkcert not installed, or `--no-prompt-secure` was set,
+     *     or we're not on a TTY);
+     *   - print the warning AND offer to run `cortex secure` interactively
+     *     when mkcert is installed and we have a TTY.
+     */
+    private function reviewTlsCertificate(
+        OutputFormatter $formatter,
+        InputInterface $input,
+        OutputInterface $output,
+        string $configPath,
+        \Cortex\Config\Schema\CortexConfig $config,
+    ): void {
+        $info = $this->certInspector->inspectForAppUrl(
+            $config->docker->appUrl,
+            dirname($configPath),
+            $config->docker->sslPath,
+        );
+
+        if ($info === null || $info->isBrowserTrusted()) {
+            return;
+        }
+
+        if (!$info->isSelfSigned) {
+            return;
+        }
+
+        $output->writeln('');
+        $formatter->warning(sprintf(
+            '⚠ The SSL certificate at %s is self-signed (issuer: %s).',
+            $config->docker->appUrl,
+            $info->describeIssuer(),
+        ));
+        $formatter->info('Your browser will warn or refuse to load this URL.');
+
+        $mkcertInstalled = $this->isMkcertInstalled();
+        if (!$mkcertInstalled) {
+            $formatter->info('Install mkcert and re-run `cortex secure` to get a browser-trusted cert:');
+            $formatter->info('  https://github.com/FiloSottile/mkcert');
+            return;
+        }
+
+        if ($input->getOption('no-prompt-secure') || !$input->isInteractive()) {
+            $formatter->info('Run `cortex secure` to upgrade to a browser-trusted cert.');
+            return;
+        }
+
+        $helper = $this->getHelper('question');
+        \assert($helper instanceof QuestionHelper);
+        $question = new ConfirmationQuestion(
+            '<fg=yellow>Generate a browser-trusted cert now using mkcert? (y/N) </>',
+            false,
+        );
+
+        if (!$helper->ask($input, $output, $question)) {
+            $formatter->info('Skipped. You can run `cortex secure` manually any time.');
+            return;
+        }
+
+        $secure = $this->getApplication()?->find('secure');
+        if ($secure === null) {
+            $formatter->error('Internal error: `cortex secure` command is not registered.');
+            return;
+        }
+
+        $output->writeln('');
+        $exit = $secure->run(new ArrayInput([]), $output);
+        if ($exit !== Command::SUCCESS) {
+            $formatter->warning('`cortex secure` did not complete successfully. Run it manually for details.');
+            return;
+        }
+
+        $formatter->info('You may need to restart your browser for the new CA to take effect.');
+    }
+
+    /**
+     * Lightweight `which mkcert` check, matched with SecureCommand's behaviour.
+     */
+    private function isMkcertInstalled(): bool
+    {
+        $process = new Process(['which', 'mkcert']);
+        $process->setTimeout(5);
+        $process->run();
+
+        return $process->isSuccessful() && trim($process->getOutput()) !== '';
     }
 
     /**

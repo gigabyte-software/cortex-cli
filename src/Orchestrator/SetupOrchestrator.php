@@ -10,16 +10,32 @@ use Cortex\Config\Validator\SecretsValidator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\Exception\ServiceNotHealthyException;
 use Cortex\Docker\HealthChecker;
+use Cortex\Docker\NetworkAttachmentChecker;
 use Cortex\Docker\ServiceReadinessWaiter;
 use Cortex\Executor\ContainerCommandExecutor;
 use Cortex\Executor\HostCommandExecutor;
+use Cortex\Http\AppUrlProbe;
+use Cortex\Http\ProbeResult;
+use Cortex\Http\UrlPortOffset;
 use Cortex\Output\LiveLogPanel;
 use Cortex\Output\OutputFormatter;
 use Symfony\Component\Process\Process;
 
 class SetupOrchestrator
 {
+    /**
+     * Budget for the post-start HTTP probe. 30 attempts at 2s each ≈ 60s
+     * total — generous enough for a Laravel/Symfony entrypoint that runs
+     * composer install or dumps caches on startup (verafind cold boot
+     * takes ~42s on a warm Docker), short enough that a genuinely broken
+     * upstream doesn't keep the user waiting indefinitely.
+     */
+    private const DEFAULT_APP_URL_PROBE_ATTEMPTS = 30;
+    private const DEFAULT_APP_URL_PROBE_RETRY_SECONDS = 2;
+
     private readonly ServiceReadinessWaiter $readinessWaiter;
+    private readonly AppUrlProbe $appUrlProbe;
+    private readonly NetworkAttachmentChecker $networkAttachmentChecker;
 
     public function __construct(
         private readonly DockerCompose $dockerCompose,
@@ -28,12 +44,19 @@ class SetupOrchestrator
         private readonly OutputFormatter $formatter,
         private readonly SecretsValidator $secretsValidator = new SecretsValidator(),
         ?ServiceReadinessWaiter $readinessWaiter = null,
+        ?AppUrlProbe $appUrlProbe = null,
+        ?NetworkAttachmentChecker $networkAttachmentChecker = null,
+        private readonly int $appUrlProbeAttempts = self::DEFAULT_APP_URL_PROBE_ATTEMPTS,
+        private readonly int $appUrlProbeRetrySeconds = self::DEFAULT_APP_URL_PROBE_RETRY_SECONDS,
     ) {
         $this->readinessWaiter = $readinessWaiter ?? new ServiceReadinessWaiter(
             $this->dockerCompose,
             $this->healthChecker,
             $this->formatter,
         );
+        $this->appUrlProbe = $appUrlProbe ?? new AppUrlProbe();
+        $this->networkAttachmentChecker = $networkAttachmentChecker
+            ?? new NetworkAttachmentChecker($this->dockerCompose);
     }
 
     /**
@@ -44,7 +67,10 @@ class SetupOrchestrator
      * @param bool $skipInit Skip initialize commands
      * @param string|null $namespace Container namespace
      * @param int|null $portOffset Port offset to apply
-     * @return array{time: float, namespace: string, port_offset: int} Setup results
+     * @param bool $verifyAppUrl When true, probe `docker.app_url` after setup and
+     *        throw on 5xx / connection refused. Disable with `cortex up --no-verify`
+     *        for CI / non-HTTP stacks.
+     * @return array{time: float, namespace: string, port_offset: int, app_url_probe: ?ProbeResult} Setup results
      * @throws \RuntimeException
      * @throws ServiceNotHealthyException
      */
@@ -55,7 +81,8 @@ class SetupOrchestrator
         ?string $namespace = null,
         ?int $portOffset = null,
         bool $rebuild = false,
-        ?int $timeout = null
+        ?int $timeout = null,
+        bool $verifyAppUrl = true
     ): array {
         $startTime = microtime(true);
 
@@ -79,6 +106,12 @@ class SetupOrchestrator
         // Phase 2: Start Docker services
         $this->startDockerServices($config->docker->composeFile, $namespace, $rebuild, $timeout, $firstRun);
 
+        // Phase 2.5: Detect and auto-recover network-detached containers.
+        // Has to run *before* readiness waits, otherwise we'd sit watching
+        // a service that can never reach its peers and only timeout after
+        // the wait_for budget expires.
+        $this->reconcileNetworkAttachments($config->docker->composeFile, $namespace);
+
         // Phase 3: Wait for services with live status display. Even when the
         // user has no explicit wait_for entries, we still scan every compose
         // service for crash-loops so a broken container never masquerades as a
@@ -97,11 +130,168 @@ class SetupOrchestrator
             );
         }
 
+        // Phase 5: HTTP probe of app_url. Catches the "containers are running
+        // but the upstream is broken" failure mode that Docker-level checks
+        // cannot detect (e.g. nginx returns 502 because php-fpm is stuck in
+        // its own entrypoint waiting for a desynced db container).
+        $probe = null;
+        if ($verifyAppUrl && $config->docker->appUrl !== '') {
+            $probe = $this->verifyAppUrl($config, $namespace, $portOffset ?? 0);
+        }
+
         return [
             'time' => microtime(true) - $startTime,
             'namespace' => $namespace ?? '',
             'port_offset' => $portOffset ?? 0,
+            'app_url_probe' => $probe,
         ];
+    }
+
+    /**
+     * Detect any running containers that have been left without a network
+     * attachment (a known Docker Desktop hazard, especially after the daemon
+     * restarts mid-lifecycle) and attempt a single targeted recreate of each
+     * offender. If the recreate doesn't clear the desync, throw — the user
+     * is going to have a bad time and we'd rather surface it loudly here
+     * than let it cascade into a 502.
+     */
+    private function reconcileNetworkAttachments(string $composeFile, ?string $namespace): void
+    {
+        $issues = $this->networkAttachmentChecker->checkAll($composeFile, $namespace);
+        if ($issues === []) {
+            return;
+        }
+
+        $this->formatter->section('Reconciling container networks');
+
+        foreach ($issues as $issue) {
+            $this->formatter->warning('⚠ ' . $issue->describe());
+            $this->formatter->info("Recreating `{$issue->service}` to restore its network attachment...");
+
+            try {
+                $this->dockerCompose->recreateService($composeFile, $issue->service, $namespace);
+            } catch (\RuntimeException $e) {
+                throw new \RuntimeException(
+                    $issue->describe()
+                        . "\n\nAutomatic recovery failed: " . $e->getMessage()
+                );
+            }
+
+            $stillBroken = $this->networkAttachmentChecker->checkService($composeFile, $issue->service, $namespace);
+            if ($stillBroken !== null) {
+                throw new \RuntimeException(
+                    'After recreating `' . $issue->service . '` it is still running with no networks attached.'
+                        . ' This usually means the compose-declared network has been deleted underneath Docker.'
+                        . ' Try `cortex down` followed by `docker network prune` and re-run `cortex up`.'
+                );
+            }
+
+            $this->formatter->info("✓ `{$issue->service}` reattached.");
+        }
+    }
+
+    /**
+     * Probe `docker.app_url` after services report healthy. Retries a few
+     * times because php-fpm / Laravel boot can race the first request even
+     * after Docker says the container is up.
+     *
+     * Throws {@see \RuntimeException} on 5xx or connection failure, with a
+     * diagnostic message that includes the latest line from the most likely
+     * culprit's logs (the primary service) so the user sees the actual error
+     * rather than just "502 Bad Gateway".
+     */
+    private function verifyAppUrl(CortexConfig $config, ?string $namespace, int $portOffset): ProbeResult
+    {
+        $this->formatter->section('Verifying app URL');
+        // When --avoid-conflicts / --port-offset shifted the stack, the
+        // app's host port is no longer the scheme default — probe the
+        // actually-bound port, not the original cortex.yml URL.
+        $url = UrlPortOffset::apply($config->docker->appUrl, $portOffset);
+        $this->formatter->info("Probing {$url} ...");
+
+        $result = $this->appUrlProbe->probe(
+            $url,
+            attempts: $this->appUrlProbeAttempts,
+            retrySeconds: $this->appUrlProbeRetrySeconds,
+        );
+
+        if ($result->isHealthy()) {
+            $this->formatter->info(sprintf(
+                '✓ %s responded with HTTP %d',
+                $url,
+                (int) $result->statusCode,
+            ));
+            return $result;
+        }
+
+        $hint = $this->collectUpstreamHint($config, $namespace);
+        $message = $result->describeFailure();
+        if ($hint !== null) {
+            $message .= "\n\n" . $hint;
+        }
+
+        $this->formatter->error($message);
+
+        throw new \RuntimeException($message);
+    }
+
+    /**
+     * Pull a few recent log lines from likely-culprit services so the
+     * "verification failed" message actually tells the user what to look at.
+     * Best-effort — if anything throws we fall back to no hint rather than
+     * obscuring the original probe error.
+     */
+    private function collectUpstreamHint(CortexConfig $config, ?string $namespace): ?string
+    {
+        $services = $this->uniqueNonEmpty([
+            $config->docker->primaryService,
+            'nginx',
+            'web',
+            'caddy',
+        ]);
+
+        $sections = [];
+        foreach ($services as $service) {
+            try {
+                $lines = $this->dockerCompose->getLatestLogLines(
+                    $config->docker->composeFile,
+                    $service,
+                    3,
+                    $namespace,
+                );
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if ($lines === []) {
+                continue;
+            }
+
+            $sections[] = "  Last log lines from `{$service}`:\n    " . implode("\n    ", $lines);
+        }
+
+        if ($sections === []) {
+            return null;
+        }
+
+        return "Upstream diagnostic:\n" . implode("\n\n", $sections);
+    }
+
+    /**
+     * @param list<string> $values
+     * @return list<string>
+     */
+    private function uniqueNonEmpty(array $values): array
+    {
+        $seen = [];
+        foreach ($values as $v) {
+            $trim = trim($v);
+            if ($trim !== '' && !isset($seen[$trim])) {
+                $seen[$trim] = true;
+            }
+        }
+
+        return array_keys($seen);
     }
 
     /**

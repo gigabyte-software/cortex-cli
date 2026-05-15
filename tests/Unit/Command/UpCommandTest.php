@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cortex\Tests\Unit\Command;
 
+use Cortex\Caddy\CaddyService;
 use Cortex\Command\UpCommand;
 use Cortex\Config\ConfigLoader;
 use Cortex\Config\LockFile;
@@ -16,7 +17,6 @@ use Cortex\Docker\ComposeOverrideGenerator;
 use Cortex\Docker\DockerCompose;
 use Cortex\Docker\NamespaceResolver;
 use Cortex\Docker\PortOffsetManager;
-use Cortex\Caddy\CaddyService;
 use Cortex\Herd\HerdService;
 use Cortex\Orchestrator\SetupOrchestrator;
 use PHPUnit\Framework\TestCase;
