@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.21.0](https://github.com/gigabyte-software/cortex-cli/compare/v2.20.2...v2.21.0) (2026-05-15)
+
+
+### Bug Fixes
+
+* **up:** probe and "Access at" URLs follow --port-offset / --avoid-conflicts ([fa5759f](https://github.com/gigabyte-software/cortex-cli/commit/fa5759fc7a544cd37099a76106b3077eb2732f05))
+
+
+### Features
+
+* **up:** detect and auto-recover network-detached containers ([cc04bd6](https://github.com/gigabyte-software/cortex-cli/commit/cc04bd6144f766326eaf5e22b13e7880e31c6d09))
+* **up:** inspect TLS cert and offer to upgrade self-signed to mkcert ([70179ca](https://github.com/gigabyte-software/cortex-cli/commit/70179ca9703609189b58d08ee0f3290b2a4f55a5))
+* **up:** probe docker.app_url after services start, fail loud on 5xx ([ddf831a](https://github.com/gigabyte-software/cortex-cli/commit/ddf831a31a5b3a9145f84f3d0cf53f6074cc78bd))
+* **visibility:** surface previously-silent boot and compose failures ([b2ef04c](https://github.com/gigabyte-software/cortex-cli/commit/b2ef04c38dbba5d11e03e7f2b832b0587c59f2fd))
+
 ## [2.20.2](https://github.com/gigabyte-software/cortex-cli/compare/v2.20.1...v2.20.2) (2026-05-10)
 
 
