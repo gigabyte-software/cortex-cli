@@ -136,6 +136,14 @@ class GitRepositoryService
      * Uses git's DWIM behaviour so a branch that only exists on origin is created
      * as a local tracking branch. After creation we best-effort fast-forward to
      * origin so a re-used branch picks up newly pushed commits.
+     *
+     * Disables git hooks during worktree creation because a post-checkout hook
+     * that depends on vendor/ or other not-yet-primed dependencies will fail and
+     * cause git worktree add to exit non-zero, even though the worktree was created
+     * successfully. Hooks resume normally for operations inside the worktree afterwards.
+     *
+     * Success is determined by whether the worktree is actually registered, not by
+     * the git worktree add exit code, making creation robust against hook failures.
      */
     public function addWorktree(string $repositoryPath, string $worktreePath, string $branch): bool
     {
@@ -144,14 +152,25 @@ class GitRepositoryService
             @mkdir($parent, 0755, true);
         }
 
+        // Disable hooks during worktree creation — they add no value there and
+        // dependencies aren't primed yet, so a CaptainHook post-checkout hook
+        // would fail with "vendor/bin/captainhook: not found"
         $addProcess = new Process(
-            ['git', 'worktree', 'add', $worktreePath, $branch],
+            ['git', '-c', 'core.hooksPath=/dev/null', 'worktree', 'add', $worktreePath, $branch],
             $repositoryPath
         );
         $addProcess->setTimeout(120);
         $addProcess->run();
 
-        if (!$addProcess->isSuccessful()) {
+        // Determine success by checking the worktree is actually registered,
+        // not by trusting the exit code (a post-checkout hook failure would
+        // propagate even if the worktree was created successfully)
+        if (!$this->worktreeExists($repositoryPath, $worktreePath)) {
+            // Clean up any half-created worktree entry so retries start clean
+            $this->pruneWorktrees($repositoryPath);
+            if (is_dir($worktreePath)) {
+                @rmdir($worktreePath);
+            }
             return false;
         }
 
